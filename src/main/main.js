@@ -2,8 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 
 // NoteMarker PTSL imports
-const { PTSLConnectionManager } = require('./src/notemarker/ptsl-connection-manager');
-const MarkerCreationPipeline = require('./src/notemarker/marker-creation-pipeline');
+const { PTSLConnectionManager } = require('../integrations/notemarker/ptsl-connection-manager');
+const MarkerCreationPipeline = require('../integrations/notemarker/marker-creation-pipeline');
 
 // PTSL manager instances
 let ptslManager = null;
@@ -26,7 +26,7 @@ function createWindow() {
         useContentSize: true
     });
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile(path.join(__dirname, '../renderer/pages/index.html'));
 
     // Show window when ready to prevent flash
     mainWindow.once('ready-to-show', () => {

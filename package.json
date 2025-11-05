@@ -2,12 +2,16 @@
   "name": "alternassist",
   "version": "1.0.0",
   "description": "All-in-one accounting and project management web app for creative professionals",
-  "main": "main.js",
+  "main": "src/main/main.js",
   "scripts": {
     "start": "unset ELECTRON_RUN_AS_NODE && electron .",
     "dev": "unset ELECTRON_RUN_AS_NODE && electron .",
     "web": "python3 -m http.server 8080",
-    "build": "electron-packager . Alternassist --platform=darwin --arch=arm64 --icon=assets/icon.icns --out=dist --overwrite"
+    "build": "electron-packager . Alternassist --platform=darwin --arch=arm64 --icon=src/renderer/assets/icon.icns --out=dist --overwrite",
+    "build:all": "electron-packager . Alternassist --platform=all --arch=all --icon=src/renderer/assets/icon.icns --out=dist --overwrite",
+    "clean": "rm -rf dist/",
+    "format": "prettier --write \"src/**/*.{js,html,css,json}\"",
+    "format:check": "prettier --check \"src/**/*.{js,html,css,json}\""
   },
   "keywords": [
     "accounting",
@@ -15,9 +19,25 @@
     "invoicing",
     "estimates",
     "payments",
-    "creative-business"
+    "creative-business",
+    "electron",
+    "desktop-app",
+    "alternatone",
+    "pro-tools",
+    "ptsl"
   ],
-  "author": "Micah Garrido",
+  "author": {
+    "name": "Micah Garrido",
+    "email": "contact@alternatone.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alternatone/alternassist.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alternatone/alternassist/issues"
+  },
+  "homepage": "https://github.com/alternatone/alternassist#readme",
   "license": "MIT",
   "dependencies": {
     "@grpc/grpc-js": "^1.13.4",
