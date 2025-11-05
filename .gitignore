@@ -12,5 +12,5 @@ dist/
 .DS_Store
 
 # IDE
-.vscode/
 .idea/
+# Keep .vscode for shared settings
