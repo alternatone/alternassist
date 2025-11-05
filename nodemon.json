@@ -1,0 +1,21 @@
+{
+  "watch": [
+    "src/"
+  ],
+  "ext": "js,html,css,json",
+  "ignore": [
+    "node_modules/**",
+    "dist/**",
+    ".git/**",
+    "logs/**",
+    "*.log"
+  ],
+  "exec": "NODE_ENV=development electron .",
+  "restartable": "rs",
+  "colours": true,
+  "verbose": false,
+  "delay": 1000,
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

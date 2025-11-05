@@ -110,15 +110,37 @@ npm install
 
 ### Development
 
+**Quick Start - Live Development:**
 ```bash
-# Run in development mode
+# Install dependencies (first time only)
+npm install
+
+# Start with hot reload (recommended for UI work)
 npm run dev
 
-# Or use the start script
-npm start
+# Start with auto-restart (for backend work)
+npm run dev:watch
 
+# Start with verbose logging (for debugging)
+npm run dev:verbose
+```
+
+**What You Get:**
+- ✅ Auto-reload when you save HTML/CSS/JS files
+- ✅ DevTools opens automatically
+- ✅ Console logs in terminal
+- ✅ Real-time UI updates
+- ⌨️  Press Ctrl+R to reload, Ctrl+Shift+I for DevTools
+
+**📖 Full Development Guide:** See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md)
+
+**Other Commands:**
+```bash
 # Run as web app (limited functionality)
 npm run web
+
+# Production mode (no dev tools)
+npm start
 ```
 
 ### Building

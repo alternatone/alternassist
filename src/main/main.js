@@ -5,6 +5,29 @@ const path = require('path');
 const { PTSLConnectionManager } = require('../integrations/notemarker/ptsl-connection-manager');
 const MarkerCreationPipeline = require('../integrations/notemarker/marker-creation-pipeline');
 
+// Development mode detection
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Enable live reload in development
+if (isDevelopment) {
+    try {
+        require('electron-reload')(__dirname, {
+            electron: path.join(__dirname, '..', '..', 'node_modules', '.bin', 'electron'),
+            hardResetMethod: 'exit',
+            // Watch these file patterns
+            ignored: [
+                /node_modules/,
+                /\.git/,
+                /dist/,
+                /logs/
+            ]
+        });
+        console.log('🔥 Hot reload enabled');
+    } catch (err) {
+        console.log('⚠️  electron-reload not available, install with: npm install --save-dev electron-reload');
+    }
+}
+
 // PTSL manager instances
 let ptslManager = null;
 let markerPipeline = null;
@@ -31,16 +54,55 @@ function createWindow() {
     // Show window when ready to prevent flash
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+
+        // Auto-open DevTools in development
+        if (isDevelopment) {
+            mainWindow.webContents.openDevTools();
+            console.log('🔧 Development mode: DevTools opened');
+        }
     });
 
     // Disable throttling when hidden
     mainWindow.webContents.setBackgroundThrottling(false);
 
-    // Open DevTools in development (optional - remove for production)
-    // mainWindow.webContents.openDevTools();
+    // Development keyboard shortcuts
+    if (isDevelopment) {
+        // Ctrl/Cmd + R to reload (already built-in, but log it)
+        mainWindow.webContents.on('before-input-event', (event, input) => {
+            if ((input.control || input.meta) && input.key === 'r') {
+                console.log('🔄 Reloading page...');
+            }
+        });
+    }
+
+    // Log page errors in development
+    if (isDevelopment) {
+        mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+            console.log(`[Renderer Console] ${message}`);
+        });
+
+        mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+            console.error('❌ Failed to load:', errorDescription);
+        });
+    }
+
+    return mainWindow;
 }
 
 app.whenReady().then(() => {
+    if (isDevelopment) {
+        console.log('🚀 Starting Alternassist in DEVELOPMENT mode');
+        console.log('📁 Project root:', path.join(__dirname, '..', '..'));
+        console.log('🔥 Hot reload active - save any file to reload');
+        console.log('🔧 DevTools will open automatically');
+        console.log('⌨️  Keyboard shortcuts:');
+        console.log('   - Ctrl/Cmd + R: Reload');
+        console.log('   - Ctrl/Cmd + Shift + I: Toggle DevTools');
+        console.log('   - Ctrl/Cmd + Q: Quit');
+    } else {
+        console.log('🚀 Starting Alternassist');
+    }
+
     createWindow();
 
     app.on('activate', () => {

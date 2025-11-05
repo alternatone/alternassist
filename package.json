@@ -4,8 +4,10 @@
   "description": "All-in-one accounting and project management web app for creative professionals",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "unset ELECTRON_RUN_AS_NODE && electron .",
-    "dev": "unset ELECTRON_RUN_AS_NODE && electron .",
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "dev:verbose": "NODE_ENV=development ELECTRON_ENABLE_LOGGING=1 electron .",
+    "dev:watch": "nodemon --watch src --exec \"electron .\"",
     "web": "python3 -m http.server 8080",
     "build": "electron-packager . Alternassist --platform=darwin --arch=arm64 --icon=src/renderer/assets/icon.icns --out=dist --overwrite",
     "build:all": "electron-packager . Alternassist --platform=all --arch=all --icon=src/renderer/assets/icon.icns --out=dist --overwrite",
@@ -47,6 +49,8 @@
   "devDependencies": {
     "@electron/packager": "^18.4.4",
     "electron": "^38.2.1",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "electron-reload": "^2.0.0-alpha.1",
+    "nodemon": "^3.0.2"
   }
 }
