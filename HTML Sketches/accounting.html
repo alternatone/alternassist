@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #1a1a1a;
+            --secondary-text: #333;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #007acc;
+            --accent-red: #ff6b6b;
+            --accent-green: #51cf66;
+            --accent-orange: #ff922b;
+            --accent-teal: #469FE0;
+            --accent-purple: #845ec2;
+            --bg-primary: #FDF8F0;
+            --bg-secondary: #FEFDFA;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'DM Sans', system-ui, -apple-system, sans-serif;
+            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+            --font-body: 'Public Sans', system-ui, sans-serif;
+            --radius-lg: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-primary);
+            background: var(--bg-primary);
+            color: var(--primary-text);
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+        .stat-card { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 1.5rem; border: var(--border-light); box-shadow: var(--shadow-subtle); }
+        .stat-label { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted-text); margin-bottom: 0.5rem; }
+        .stat-value { font-size: 2rem; font-weight: 600; font-family: var(--font-display); margin-bottom: 0.25rem; }
+        .stat-value.green { color: var(--accent-green); }
+        .stat-value.red { color: var(--accent-red); }
+        .stat-value.blue { color: var(--accent-teal); }
+        .stat-value.purple { color: var(--accent-purple); }
+        .stat-subtitle { font-size: 0.9rem; color: var(--subtle-text); }
+
+        .section { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; border: var(--border-light); box-shadow: var(--shadow-subtle); margin-bottom: 2rem; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .section-title { font-size: 1.2rem; font-weight: 600; color: var(--primary-text); }
+
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .btn-primary { background: var(--accent-teal); color: white; }
+        .btn-primary:hover { background: #3a8bc7; }
+        .btn-success { background: var(--accent-green); color: white; }
+        .btn-success:hover { background: #47c760; }
+        .btn-danger { background: var(--accent-red); color: white; }
+        .btn-danger:hover { background: #e65555; }
+
+        .transaction-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .transaction-table th { background: var(--bg-primary); padding: 1rem; text-align: left; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--subtle-text); border-bottom: 2px solid var(--border-medium); }
+        .transaction-table td { padding: 1rem; border-bottom: var(--border-light); font-size: 0.95rem; color: var(--secondary-text); }
+        .transaction-table th:last-child, .transaction-table td:last-child { text-align: right; }
+        .transaction-table th:nth-child(2) { width: 110px; } /* Date column */
+        .transaction-table th:nth-child(3) { width: 120px; } /* Name column */
+        .transaction-table th:nth-child(4) { width: 180px; } /* Description column */
+        .transaction-table th:nth-child(5) { width: 180px; } /* Category column */
+        .transaction-table th:nth-child(7) { width: 100px; } /* Amount column */
+        .transaction-table th:nth-child(8) { width: 100px; } /* Receipt column */
+        .transaction-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .transaction-table td:nth-child(4) { white-space: normal; } /* Allow description to wrap if needed */
+        .transaction-table td:nth-child(5) { overflow: visible; } /* Allow category badges to show fully */
+        .transaction-table td.checkbox-cell { overflow: visible; text-overflow: clip; } /* No ellipsis on checkbox */
+        .transaction-table td:nth-child(8) { overflow: visible; text-overflow: clip; } /* No ellipsis on receipt */
+        .transaction-table td:last-child { overflow: visible; text-overflow: clip; } /* No ellipsis on action buttons */
+
+        .category-badge { display: inline-block; padding: 0.35rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .category-badge:hover { opacity: 0.8; transform: scale(1.05); }
+
+        /* Tax category colors */
+        .cat-home_office { background: rgba(70, 159, 224, 0.15); color: var(--accent-teal); }
+        .cat-business_meals { background: rgba(255, 146, 43, 0.15); color: var(--accent-orange); }
+        .cat-vehicles { background: rgba(132, 94, 194, 0.15); color: var(--accent-purple); }
+        .cat-travel { background: rgba(81, 207, 102, 0.15); color: var(--accent-green); }
+        .cat-professional_fees { background: rgba(0, 122, 204, 0.15); color: var(--accent-blue); }
+        .cat-insurance { background: rgba(255, 107, 107, 0.15); color: var(--accent-red); }
+        .cat-advertising { background: rgba(255, 146, 43, 0.15); color: var(--accent-orange); }
+        .cat-supplies { background: rgba(70, 159, 224, 0.15); color: var(--accent-teal); }
+        .cat-startup { background: rgba(132, 94, 194, 0.15); color: var(--accent-purple); }
+        .cat-interest { background: rgba(255, 107, 107, 0.15); color: var(--accent-red); }
+        .cat-taxes { background: rgba(0, 122, 204, 0.15); color: var(--accent-blue); }
+        .cat-depreciation { background: rgba(132, 94, 194, 0.15); color: var(--accent-purple); }
+        .cat-personal { background: rgba(136, 136, 136, 0.15); color: var(--muted-text); }
+        .cat-other_tax { background: rgba(136, 136, 136, 0.15); color: var(--muted-text); }
+
+        .amount-income { color: var(--accent-green); font-weight: 600; }
+        .amount-expense { color: var(--accent-red); }
+
+        .action-buttons { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; }
+        .edit-btn { background: none; border: none; color: var(--muted-text); cursor: pointer; transition: color 0.2s; padding: 0.5rem; font-size: 1rem; }
+        .edit-btn:hover { color: var(--accent-teal); }
+        .delete-btn { background: none; border: none; color: var(--muted-text); cursor: pointer; transition: color 0.2s; padding: 0.5rem; }
+        .delete-btn:hover { color: var(--accent-red); }
+
+        /* Bulk edit controls */
+        .bulk-actions { display: none; margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-lg); border: var(--border-light); align-items: center; gap: 1rem; }
+        .bulk-actions.active { display: flex; }
+        .bulk-actions-text { font-size: 0.9rem; color: var(--subtle-text); }
+        .checkbox-cell { width: 40px; text-align: center; }
+        input[type="checkbox"] { cursor: pointer; width: 18px; height: 18px; }
+
+        /* Inline editing */
+        .editable-cell { cursor: pointer; position: relative; }
+        .editable-cell:hover { background: rgba(70, 159, 224, 0.05); }
+        .editable-cell input, .editable-cell select { width: 100%; border: 2px solid var(--accent-teal); background: white; padding: 0.5rem; font-size: 0.9rem; }
+        .editable-cell input:focus, .editable-cell select:focus { outline: none; }
+
+        /* Category picker dropdown */
+        .category-picker { position: absolute; background: white; border: 2px solid var(--accent-teal); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 100; min-width: 200px; max-height: 300px; overflow-y: auto; }
+        .category-option { padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+        .category-option:hover { background: var(--bg-primary); }
+        .category-option .category-badge { pointer-events: none; margin: 0; }
+
+        /* Receipt upload */
+        .receipt-dropzone { display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 30px; border: 1px solid var(--border-medium); border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 1rem; color: var(--muted-text); background: white; }
+        .receipt-dropzone:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+        .receipt-dropzone.has-receipt { border-color: var(--accent-green); color: var(--accent-green); }
+        .receipt-dropzone.dragover { border-color: var(--accent-teal); background: rgba(70, 159, 224, 0.05); }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { margin-bottom: 1.5rem; }
+        .modal-title { font-size: 1.3rem; font-weight: 600; color: var(--primary-text); }
+
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); margin-bottom: 0.5rem; }
+        input, select, textarea { width: 100%; padding: 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-teal); }
+        textarea { resize: vertical; min-height: 80px; }
+
+        .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+        .empty-state { text-align: center; padding: 3rem; color: var(--muted-text); }
+        .empty-state h3 { margin-bottom: 0.5rem; color: var(--subtle-text); }
+
+        .filter-controls { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+        .filter-controls select { width: auto; min-width: 150px; }
+        .search-input { padding: 0.5rem 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; min-width: 250px; }
+        .search-input:focus { outline: none; border-color: var(--accent-teal); }
+
+        /* Tab Navigation */
+        .tab-nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 2px solid var(--border-light); }
+        .tab-btn { background: none; border: none; padding: 1rem 1.5rem; font-size: 0.95rem; font-weight: 500; color: var(--muted-text); cursor: pointer; transition: all 0.2s; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: var(--font-primary); }
+        .tab-btn:hover { color: var(--secondary-text); }
+        .tab-btn.active { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Date Range Controls */
+        .date-range-controls { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .date-range-controls input[type="date"] { padding: 0.5rem 0.75rem; }
+        .date-range-controls .btn { padding: 0.5rem 1rem; font-size: 0.85rem; }
+
+        /* CSV Import */
+        .import-zone { border: 2px dashed var(--border-medium); border-radius: var(--radius-lg); padding: 3rem 2rem; text-align: center; background: var(--bg-primary); margin-bottom: 1.5rem; transition: all 0.3s; }
+        .import-zone:hover { border-color: var(--accent-teal); background: var(--bg-secondary); }
+        .import-zone.dragover { border-color: var(--accent-teal); background: var(--bg-secondary); }
+        .file-input { display: none; }
+        .upload-icon { font-size: 3rem; margin-bottom: 1rem; color: var(--muted-text); }
+        .import-instructions { margin-top: 1rem; font-size: 0.9rem; color: var(--subtle-text); }
+        .csv-preview { max-height: 400px; overflow-y: auto; margin-top: 1rem; }
+        .csv-mapping { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 1.5rem; margin-top: 1rem; }
+        .mapping-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+        .mapping-arrow { color: var(--muted-text); }
+
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .section-header { flex-direction: column; gap: 1rem; align-items: stretch; }
+            .action-buttons { flex-direction: column; }
+            .transaction-table { font-size: 0.85rem; }
+            .transaction-table th, .transaction-table td { padding: 0.75rem 0.5rem; }
+            .filter-controls { flex-direction: column; }
+            .filter-controls select { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Net Income</div>
+                <div class="stat-value green" id="netIncome">$0</div>
+                <div class="stat-subtitle" id="periodLabel">This period</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Income</div>
+                <div class="stat-value blue" id="totalIncome">$0</div>
+                <div class="stat-subtitle" id="incomeCount">0 transactions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Expenses</div>
+                <div class="stat-value red" id="totalExpenses">$0</div>
+                <div class="stat-subtitle" id="expenseCount">0 transactions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tax Estimate</div>
+                <div class="stat-value purple" id="taxEstimate">$0</div>
+                <div class="stat-subtitle">30% of net income</div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('overview')">overview</button>
+            <button class="tab-btn" onclick="switchTab('income')">income</button>
+            <button class="tab-btn" onclick="switchTab('expenses')">expenses</button>
+            <button class="tab-btn" onclick="switchTab('import')">import</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview-tab" class="tab-content active">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Last 30 Days</h2>
+                </div>
+
+                <div class="date-range-controls">
+                    <label style="color: var(--subtle-text); font-size: 0.9rem;">Custom Range:</label>
+                    <input type="date" id="overviewStartDate">
+                    <span style="color: var(--muted-text);">to</span>
+                    <input type="date" id="overviewEndDate">
+                    <button class="btn btn-primary" onclick="applyDateRange()">apply</button>
+                    <button class="btn btn-secondary" onclick="resetToLast30Days()">last 30 days</button>
+                </div>
+
+                <div id="overviewTransactionsContainer">
+                    <div class="empty-state">
+                        <h3>No transactions in this period</h3>
+                        <p>Adjust the date range or add transactions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Income Tab -->
+        <div id="income-tab" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Income Transactions</h2>
+                </div>
+
+                <div class="filter-controls">
+                    <select id="incomeCategory" onchange="filterIncomeTransactions()">
+                        <option value="all">All Categories</option>
+                        <option value="income">Client Payments</option>
+                    </select>
+                    <input type="text" class="search-input" id="incomeSearch" placeholder="Search transactions..." oninput="filterIncomeTransactions()">
+                </div>
+
+                <div id="incomeTransactionsContainer">
+                    <div class="empty-state">
+                        <h3>No income transactions</h3>
+                        <p>Income from payments will appear here automatically.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expenses Tab -->
+        <div id="expenses-tab" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Expense Transactions</h2>
+                    <button class="btn btn-primary" onclick="openExpenseModal()">+ add expense</button>
+                </div>
+
+                <div class="filter-controls">
+                    <select id="expenseCategory" onchange="filterExpenseTransactions()">
+                        <option value="all">All Categories</option>
+                        <option value="software">Software & Subscriptions</option>
+                        <option value="equipment">Equipment</option>
+                        <option value="marketing">Marketing & Advertising</option>
+                        <option value="travel">Travel & Transportation</option>
+                        <option value="office">Office Supplies</option>
+                        <option value="professional">Professional Services</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <input type="text" class="search-input" id="expenseSearch" placeholder="Search transactions..." oninput="filterExpenseTransactions()">
+                </div>
+
+                <div id="expenseBulkActions" class="bulk-actions">
+                    <span class="bulk-actions-text"><strong id="selectedCount">0</strong> selected</span>
+                    <button class="btn btn-primary" onclick="openBulkEditModal()">edit selected</button>
+                    <button class="btn btn-danger" onclick="bulkDeleteExpenses()">delete selected</button>
+                </div>
+
+                <div id="expenseTransactionsContainer">
+                    <div class="empty-state">
+                        <h3>No expense transactions</h3>
+                        <p>Add expenses to track spending.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Tab -->
+        <div id="import-tab" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Import Bank Statement</h2>
+                </div>
+
+                <div class="import-zone" id="importZone" onclick="document.getElementById('csvFileInput').click()">
+                    <div class="upload-icon">📄</div>
+                    <h3>Drop CSV file here or click to upload</h3>
+                    <p class="import-instructions">
+                        Upload a CSV file from your bank statement.<br>
+                        Expected format: Date, Description, Amount (negative for expenses, positive for income)
+                    </p>
+                    <input type="file" id="csvFileInput" class="file-input" accept=".csv" onchange="handleCSVUpload(event)">
+                </div>
+
+                <div id="csvPreviewSection" style="display: none;">
+                    <div class="csv-mapping">
+                        <h3 style="margin-bottom: 1rem;">Map CSV Columns</h3>
+                        <div class="mapping-row">
+                            <label>CSV Column</label>
+                            <span></span>
+                            <label>Maps To</label>
+                        </div>
+                        <div class="mapping-row">
+                            <select id="csvDateColumn"></select>
+                            <span class="mapping-arrow">→</span>
+                            <span>Date</span>
+                        </div>
+                        <div class="mapping-row">
+                            <select id="csvDescColumn"></select>
+                            <span class="mapping-arrow">→</span>
+                            <span>Description</span>
+                        </div>
+                        <div class="mapping-row">
+                            <select id="csvAmountColumn"></select>
+                            <span class="mapping-arrow">→</span>
+                            <span>Amount</span>
+                        </div>
+                        <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                            <button class="btn btn-danger" onclick="cancelImport()">Cancel</button>
+                            <button class="btn btn-success" onclick="processCSVImport()">Import Transactions</button>
+                        </div>
+                    </div>
+
+                    <div class="csv-preview">
+                        <h4 style="margin-bottom: 1rem; color: var(--subtle-text);">Preview (first 5 rows)</h4>
+                        <div id="csvPreviewTable"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Transaction Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Transaction</h3>
+            </div>
+            <form id="editForm" onsubmit="saveEdit(event)">
+                <input type="hidden" id="editTransactionId">
+                <div class="form-group">
+                    <label for="editDate">Date</label>
+                    <input type="date" id="editDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDescription">Description</label>
+                    <input type="text" id="editDescription" required>
+                </div>
+                <div class="form-group">
+                    <label for="editCategory">Category</label>
+                    <select id="editCategory" required>
+                        <option value="software">Software & Subscriptions</option>
+                        <option value="equipment">Equipment</option>
+                        <option value="marketing">Marketing & Advertising</option>
+                        <option value="travel">Travel & Transportation</option>
+                        <option value="office">Office Supplies</option>
+                        <option value="professional">Professional Services</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editAccount">Account</label>
+                    <input type="text" id="editAccount" required>
+                </div>
+                <div class="form-group">
+                    <label for="editTaxCategory">Tax Category</label>
+                    <select id="editTaxCategory" required>
+                        <option value="home_office">Home Office</option>
+                        <option value="business_meals">Business Meals (50% deductible)</option>
+                        <option value="vehicles">Vehicles</option>
+                        <option value="travel">Travel Expenses</option>
+                        <option value="professional_fees">Professional Fees</option>
+                        <option value="insurance">Insurance</option>
+                        <option value="advertising">Advertising & Marketing</option>
+                        <option value="supplies">Supplies & Equipment</option>
+                        <option value="startup">Start-up Costs</option>
+                        <option value="interest">Interest</option>
+                        <option value="taxes">Taxes & Licenses</option>
+                        <option value="depreciation">Depreciation</option>
+                        <option value="other_tax">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editAmount">Amount</label>
+                    <input type="number" id="editAmount" step="0.01" min="0" required readonly style="background: var(--bg-primary); cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label for="editNotes">Notes</label>
+                    <textarea id="editNotes"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Edit Modal -->
+    <div id="bulkEditModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Bulk Edit <span id="bulkEditCount">0</span> Transactions</h3>
+            </div>
+            <form id="bulkEditForm" onsubmit="saveBulkEdit(event)">
+                <p style="margin-bottom: 1.5rem; color: var(--subtle-text);">Only fill in the fields you want to change. Empty fields will not be modified.</p>
+                <div class="form-group">
+                    <label for="bulkCategory">Category</label>
+                    <select id="bulkCategory">
+                        <option value="">Don't change</option>
+                        <option value="software">Software & Subscriptions</option>
+                        <option value="equipment">Equipment</option>
+                        <option value="marketing">Marketing & Advertising</option>
+                        <option value="travel">Travel & Transportation</option>
+                        <option value="office">Office Supplies</option>
+                        <option value="professional">Professional Services</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="bulkAccount">Account</label>
+                    <input type="text" id="bulkAccount" placeholder="Leave empty to keep current">
+                </div>
+                <div class="form-group">
+                    <label for="bulkTaxCategory">Tax Category</label>
+                    <select id="bulkTaxCategory">
+                        <option value="">Don't change</option>
+                        <option value="home_office">Home Office</option>
+                        <option value="business_meals">Business Meals (50% deductible)</option>
+                        <option value="vehicles">Vehicles</option>
+                        <option value="travel">Travel Expenses</option>
+                        <option value="professional_fees">Professional Fees</option>
+                        <option value="insurance">Insurance</option>
+                        <option value="advertising">Advertising & Marketing</option>
+                        <option value="supplies">Supplies & Equipment</option>
+                        <option value="startup">Start-up Costs</option>
+                        <option value="interest">Interest</option>
+                        <option value="taxes">Taxes & Licenses</option>
+                        <option value="depreciation">Depreciation</option>
+                        <option value="other_tax">Other</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-danger" onclick="closeBulkEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Expense Modal -->
+    <div id="expenseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Expense</h3>
+            </div>
+            <form id="expenseForm" onsubmit="addExpense(event)">
+                <div class="form-group">
+                    <label for="expenseDate">Date</label>
+                    <input type="date" id="expenseDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="expenseDescription">Description</label>
+                    <input type="text" id="expenseDescription" placeholder="What was this expense for?" required>
+                </div>
+                <div class="form-group">
+                    <label for="expenseCategory">Category</label>
+                    <select id="expenseCategory" required>
+                        <option value="">Select a category...</option>
+                        <option value="software">Software & Subscriptions</option>
+                        <option value="equipment">Equipment</option>
+                        <option value="marketing">Marketing & Advertising</option>
+                        <option value="travel">Travel & Transportation</option>
+                        <option value="office">Office Supplies</option>
+                        <option value="professional">Professional Services</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expenseAccount">Account</label>
+                    <input type="text" id="expenseAccount" placeholder="Credit card or account name" required>
+                </div>
+                <div class="form-group">
+                    <label for="expenseTaxCategory">Tax Category</label>
+                    <select id="expenseTaxCategory" required>
+                        <option value="">Select tax category...</option>
+                        <option value="home_office">Home Office</option>
+                        <option value="business_meals">Business Meals (50% deductible)</option>
+                        <option value="vehicles">Vehicles</option>
+                        <option value="travel">Travel Expenses</option>
+                        <option value="professional_fees">Professional Fees</option>
+                        <option value="insurance">Insurance</option>
+                        <option value="advertising">Advertising & Marketing</option>
+                        <option value="supplies">Supplies & Equipment</option>
+                        <option value="startup">Start-up Costs</option>
+                        <option value="interest">Interest</option>
+                        <option value="taxes">Taxes & Licenses</option>
+                        <option value="depreciation">Depreciation</option>
+                        <option value="other_tax">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expenseAmount">Amount</label>
+                    <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="expenseNotes">Notes (Optional)</label>
+                    <textarea id="expenseNotes" placeholder="Additional details..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-danger" onclick="closeExpenseModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Sample data structure
+        let transactions = [];
+        let csvData = null;
+        let currentDateRange = { start: null, end: null };
+
+        // Initialize with today's date
+        document.getElementById('expenseDate').valueAsDate = new Date();
+
+        // Set up last 30 days by default
+        resetToLast30Days();
+
+        // Load transactions from localStorage
+        function loadTransactions() {
+            const saved = localStorage.getItem('accountingTransactions');
+            if (saved) {
+                transactions = JSON.parse(saved);
+            }
+
+            // Simulate loading income from payments (this will be replaced with actual payment data)
+            loadIncomeFromPayments();
+
+            renderTransactions();
+            updateStats();
+        }
+
+        // Load income from payment dashboard
+        function loadIncomeFromPayments() {
+            // Pull paid invoices from payment dashboard
+            const paidInvoices = JSON.parse(localStorage.getItem('outstanding-payments') || '[]')
+                .filter(inv => inv.status === 'paid');
+
+            paidInvoices.forEach(invoice => {
+                // Check if this invoice already exists in transactions
+                const exists = transactions.some(t =>
+                    t.type === 'income' &&
+                    t.invoice === invoice.invoiceNumber
+                );
+
+                if (!exists) {
+                    // Add as income transaction
+                    transactions.push({
+                        id: Date.now() + Math.random(),
+                        type: 'income',
+                        date: invoice.datePaid || invoice.dueDate || new Date().toISOString().split('T')[0],
+                        description: invoice.description || invoice.projectTitle || 'Payment',
+                        invoice: invoice.invoiceNumber,
+                        customName: invoice.projectTitle || invoice.description,
+                        account: 'Business Checking',
+                        category: 'income',
+                        amount: invoice.total || 0,
+                        notes: 'Auto-imported from Payments'
+                    });
+                }
+            });
+
+            saveTransactions();
+        }
+
+        // Save transactions to localStorage
+        function saveTransactions() {
+            localStorage.setItem('accountingTransactions', JSON.stringify(transactions));
+        }
+
+        // Add expense
+        function addExpense(event) {
+            event.preventDefault();
+
+            const expense = {
+                id: Date.now(),
+                type: 'expense',
+                date: document.getElementById('expenseDate').value,
+                description: document.getElementById('expenseDescription').value,
+                category: document.getElementById('expenseCategory').value,
+                account: document.getElementById('expenseAccount').value,
+                taxCategory: document.getElementById('expenseTaxCategory').value,
+                amount: parseFloat(document.getElementById('expenseAmount').value),
+                notes: document.getElementById('expenseNotes').value
+            };
+
+            transactions.push(expense);
+            saveTransactions();
+            renderOverviewTransactions();
+            renderExpenseTransactions();
+            updateStats();
+            closeExpenseModal();
+
+            // Reset form
+            document.getElementById('expenseForm').reset();
+            document.getElementById('expenseDate').valueAsDate = new Date();
+        }
+
+        // Delete transaction
+        function deleteTransaction(id) {
+            if (confirm('Are you sure you want to delete this transaction?')) {
+                transactions = transactions.filter(t => t.id !== id);
+                saveTransactions();
+                renderOverviewTransactions();
+                renderExpenseTransactions();
+                updateStats();
+            }
+        }
+
+        // Update statistics
+        function updateStats() {
+            // Filter by date range if set
+            let filtered = transactions;
+            if (currentDateRange.start && currentDateRange.end) {
+                filtered = transactions.filter(t =>
+                    t.date >= currentDateRange.start && t.date <= currentDateRange.end
+                );
+            }
+
+            const income = filtered
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const expenses = filtered
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const net = income - expenses;
+            const tax = net * 0.30;
+
+            const incomeCount = filtered.filter(t => t.type === 'income').length;
+            const expenseCount = filtered.filter(t => t.type === 'expense').length;
+
+            document.getElementById('netIncome').textContent = '$' + net.toFixed(2);
+            document.getElementById('totalIncome').textContent = '$' + income.toFixed(2);
+            document.getElementById('totalExpenses').textContent = '$' + expenses.toFixed(2);
+            document.getElementById('taxEstimate').textContent = '$' + tax.toFixed(2);
+
+            document.getElementById('incomeCount').textContent = `${incomeCount} transaction${incomeCount !== 1 ? 's' : ''}`;
+            document.getElementById('expenseCount').textContent = `${expenseCount} transaction${expenseCount !== 1 ? 's' : ''}`;
+
+            // Update net income color based on value
+            const netElement = document.getElementById('netIncome');
+            netElement.className = 'stat-value ' + (net >= 0 ? 'green' : 'red');
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+
+            // Render appropriate content
+            if (tabName === 'overview') {
+                renderOverviewTransactions();
+            } else if (tabName === 'income') {
+                renderIncomeTransactions();
+            } else if (tabName === 'expenses') {
+                renderExpenseTransactions();
+            }
+        }
+
+        // Date range functions
+        function resetToLast30Days() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+
+            currentDateRange.start = thirtyDaysAgo.toISOString().split('T')[0];
+            currentDateRange.end = today.toISOString().split('T')[0];
+
+            document.getElementById('overviewStartDate').value = currentDateRange.start;
+            document.getElementById('overviewEndDate').value = currentDateRange.end;
+            document.getElementById('periodLabel').textContent = 'Last 30 days';
+
+            updateStats();
+            renderOverviewTransactions();
+        }
+
+        function applyDateRange() {
+            currentDateRange.start = document.getElementById('overviewStartDate').value;
+            currentDateRange.end = document.getElementById('overviewEndDate').value;
+
+            if (!currentDateRange.start || !currentDateRange.end) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            const start = new Date(currentDateRange.start);
+            const end = new Date(currentDateRange.end);
+            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+
+            document.getElementById('periodLabel').textContent = `${days} days`;
+
+            updateStats();
+            renderOverviewTransactions();
+        }
+
+        // Render overview transactions (date-filtered)
+        function renderOverviewTransactions() {
+            const container = document.getElementById('overviewTransactionsContainer');
+            let filtered = transactions.filter(t => {
+                if (!currentDateRange.start || !currentDateRange.end) return true;
+                return t.date >= currentDateRange.start && t.date <= currentDateRange.end;
+            });
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No transactions in this period</h3>
+                        <p>Adjust the date range or add transactions.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHTML = `
+                <table class="transaction-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Account</th>
+                            <th>Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(t => `
+                            <tr>
+                                <td>${formatDate(t.date)}</td>
+                                <td>
+                                    ${t.invoice ? `<small style="color: var(--muted-text);">#${t.invoice}</small><br>` : ''}
+                                    ${t.description}
+                                    ${t.notes ? `<br><small style="color: var(--muted-text);">${t.notes}</small>` : ''}
+                                </td>
+                                <td><span class="category-badge cat-${t.category}">${formatCategory(t.category)}</span></td>
+                                <td>${t.account || '-'}</td>
+                                <td class="${t.type === 'income' ? 'amount-income' : 'amount-expense'}">
+                                    ${t.type === 'income' ? '+' : '-'}$${t.amount.toFixed(2)}
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        ${t.type === 'expense' ? `<button class="delete-btn" onclick="deleteTransaction(${t.id})" title="Delete">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                                            </svg>
+                                        </button>` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        // Render income transactions
+        function renderIncomeTransactions() {
+            const container = document.getElementById('incomeTransactionsContainer');
+            let filtered = transactions.filter(t => t.type === 'income');
+
+            const categoryFilter = document.getElementById('incomeCategory').value;
+            if (categoryFilter !== 'all') {
+                filtered = filtered.filter(t => t.category === categoryFilter);
+            }
+
+            // Apply search
+            const searchTerm = document.getElementById('incomeSearch').value.toLowerCase();
+            if (searchTerm) {
+                filtered = filtered.filter(t =>
+                    t.description.toLowerCase().includes(searchTerm) ||
+                    (t.invoice && t.invoice.toLowerCase().includes(searchTerm)) ||
+                    (t.account && t.account.toLowerCase().includes(searchTerm)) ||
+                    (t.notes && t.notes.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No income transactions found</h3>
+                        <p>${searchTerm ? 'Try adjusting your search or filters.' : 'Income from payments will appear here automatically.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHTML = `
+                <table class="transaction-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Project</th>
+                            <th>Invoice #</th>
+                            <th>Description</th>
+                            <th>Account</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(t => `
+                            <tr>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'date', 'date')">${formatDate(t.date)}</td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'customName', 'text')">${t.customName || '-'}</td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'invoice', 'text')">${t.invoice || '-'}</td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'description', 'text')">
+                                    ${t.description}
+                                    ${t.notes ? `<br><small style="color: var(--muted-text);">${t.notes}</small>` : ''}
+                                </td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'account', 'text')">${t.account || '-'}</td>
+                                <td class="amount-income">+$${t.amount.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        // Render expense transactions
+        function renderExpenseTransactions() {
+            const container = document.getElementById('expenseTransactionsContainer');
+            let filtered = transactions.filter(t => t.type === 'expense');
+
+            const categoryFilter = document.getElementById('expenseCategory').value;
+            if (categoryFilter !== 'all') {
+                filtered = filtered.filter(t => t.category === categoryFilter);
+            }
+
+            // Apply search
+            const searchTerm = document.getElementById('expenseSearch').value.toLowerCase();
+            if (searchTerm) {
+                filtered = filtered.filter(t =>
+                    t.description.toLowerCase().includes(searchTerm) ||
+                    (t.account && t.account.toLowerCase().includes(searchTerm)) ||
+                    (t.notes && t.notes.toLowerCase().includes(searchTerm)) ||
+                    formatCategory(t.category).toLowerCase().includes(searchTerm)
+                );
+            }
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No expense transactions found</h3>
+                        <p>${searchTerm ? 'Try adjusting your search or filters.' : 'Add expenses to track spending.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHTML = `
+                <table class="transaction-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"><input type="checkbox" id="selectAllExpenses" onchange="toggleSelectAll()"></th>
+                            <th>Date</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Account</th>
+                            <th>Amount</th>
+                            <th>Receipt</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(t => `
+                            <tr data-id="${t.id}">
+                                <td class="checkbox-cell"><input type="checkbox" class="expense-checkbox" data-id="${t.id}" onchange="updateBulkActions()"></td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'date', 'date')">${formatDate(t.date)}</td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'customName', 'text')">${t.customName || '-'}</td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'description', 'text')">
+                                    ${t.description}
+                                    ${t.notes ? `<br><small style="color: var(--muted-text);">${t.notes}</small>` : ''}
+                                </td>
+                                <td><span class="category-badge cat-${t.taxCategory || 'other_tax'}" onclick="openCategoryPicker(${t.id}, this)">${formatTaxCategory(t.taxCategory)}</span></td>
+                                <td class="editable-cell" onclick="editCell(this, ${t.id}, 'account', 'text')">${t.account || '-'}</td>
+                                <td class="amount-expense">-$${t.amount.toFixed(2)}</td>
+                                <td>
+                                    <div class="receipt-dropzone ${t.receipt ? 'has-receipt' : ''}"
+                                         onclick="${t.receipt ? `viewReceipt(${t.id})` : `openReceiptUpload(${t.id})`}"
+                                         ondrop="handleReceiptDrop(event, ${t.id})"
+                                         ondragover="handleReceiptDragOver(event)"
+                                         ondragleave="handleReceiptDragLeave(event)">
+                                        ${t.receipt ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                                        </svg>` : '+'}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="edit-btn" onclick="editTransaction(${t.id})" title="Edit">✎</button>
+                                        <button class="delete-btn" onclick="deleteTransaction(${t.id})" title="Delete">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        function filterIncomeTransactions() {
+            renderIncomeTransactions();
+        }
+
+        function filterExpenseTransactions() {
+            renderExpenseTransactions();
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString + 'T00:00:00');
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        // Format category name
+        function formatCategory(category) {
+            const categories = {
+                'income': 'Income',
+                'software': 'Software',
+                'equipment': 'Equipment',
+                'marketing': 'Marketing',
+                'travel': 'Travel',
+                'office': 'Office',
+                'professional': 'Professional',
+                'other': 'Other'
+            };
+            return categories[category] || category;
+        }
+
+        // Format tax category
+        function formatTaxCategory(taxCat) {
+            if (!taxCat) return '-';
+            const taxCategories = {
+                'home_office': 'Home Office',
+                'business_meals': 'Business Meals (50%)',
+                'vehicles': 'Vehicles',
+                'travel': 'Travel',
+                'professional_fees': 'Professional Fees',
+                'insurance': 'Insurance',
+                'advertising': 'Advertising',
+                'supplies': 'Supplies & Equipment',
+                'startup': 'Start-up Costs',
+                'interest': 'Interest',
+                'taxes': 'Taxes & Licenses',
+                'depreciation': 'Depreciation',
+                'personal': 'Personal',
+                'other_tax': 'Other'
+            };
+            return taxCategories[taxCat] || taxCat;
+        }
+
+        // Category picker
+        let activeCategoryPicker = null;
+
+        function openCategoryPicker(transactionId, badgeElement) {
+            // Close any existing picker
+            if (activeCategoryPicker) {
+                activeCategoryPicker.remove();
+                activeCategoryPicker = null;
+            }
+
+            const transaction = transactions.find(t => t.id === transactionId);
+            if (!transaction) return;
+
+            const categories = [
+                { value: 'home_office', label: 'HOME OFFICE' },
+                { value: 'business_meals', label: 'BUSINESS MEALS (50%)' },
+                { value: 'vehicles', label: 'VEHICLES' },
+                { value: 'travel', label: 'TRAVEL' },
+                { value: 'professional_fees', label: 'PROFESSIONAL FEES' },
+                { value: 'insurance', label: 'INSURANCE' },
+                { value: 'advertising', label: 'ADVERTISING' },
+                { value: 'supplies', label: 'SUPPLIES & EQUIPMENT' },
+                { value: 'startup', label: 'START-UP COSTS' },
+                { value: 'interest', label: 'INTEREST' },
+                { value: 'taxes', label: 'TAXES & LICENSES' },
+                { value: 'depreciation', label: 'DEPRECIATION' },
+                { value: 'personal', label: 'PERSONAL' },
+                { value: 'other_tax', label: 'OTHER' }
+            ];
+
+            const picker = document.createElement('div');
+            picker.className = 'category-picker';
+
+            categories.forEach(cat => {
+                const option = document.createElement('div');
+                option.className = 'category-option';
+                option.innerHTML = `<span class="category-badge cat-${cat.value}">${cat.label}</span>`;
+                option.onclick = (e) => {
+                    e.stopPropagation();
+                    transaction.taxCategory = cat.value;
+                    saveTransactions();
+                    badgeElement.className = `category-badge cat-${cat.value}`;
+                    badgeElement.textContent = cat.label;
+                    updateStats();
+                    picker.remove();
+                    activeCategoryPicker = null;
+                };
+                picker.appendChild(option);
+            });
+
+            // Position the picker near the badge
+            const rect = badgeElement.getBoundingClientRect();
+            picker.style.position = 'fixed';
+            picker.style.top = (rect.bottom + 5) + 'px';
+            picker.style.left = rect.left + 'px';
+
+            document.body.appendChild(picker);
+            activeCategoryPicker = picker;
+
+            // Close picker when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', function closePickerOnClick(e) {
+                    if (!picker.contains(e.target) && e.target !== badgeElement) {
+                        picker.remove();
+                        activeCategoryPicker = null;
+                        document.removeEventListener('click', closePickerOnClick);
+                    }
+                });
+            }, 10);
+        }
+
+        // Receipt upload
+        function openReceiptUpload(transactionId) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,.pdf';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    attachReceiptToTransaction(transactionId, file);
+                }
+            };
+            input.click();
+        }
+
+        function handleReceiptDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleReceiptDragLeave(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function handleReceiptDrop(event, transactionId) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.remove('dragover');
+
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                attachReceiptToTransaction(transactionId, files[0]);
+            }
+        }
+
+        function attachReceiptToTransaction(transactionId, file) {
+            const transaction = transactions.find(t => t.id === transactionId);
+            if (!transaction) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                transaction.receipt = {
+                    name: file.name,
+                    type: file.type,
+                    data: e.target.result,
+                    uploadedAt: new Date().toISOString()
+                };
+                saveTransactions();
+                renderExpenseTransactions();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function viewReceipt(transactionId) {
+            const transaction = transactions.find(t => t.id === transactionId);
+            if (!transaction || !transaction.receipt) return;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Receipt - ${transaction.description}</h3>
+                    </div>
+                    <div style="text-align: center;">
+                        ${transaction.receipt.type.includes('pdf')
+                            ? `<p>PDF: ${transaction.receipt.name}</p><a href="${transaction.receipt.data}" download="${transaction.receipt.name}" class="btn btn-primary">Download PDF</a>`
+                            : `<img src="${transaction.receipt.data}" style="max-width: 100%; border-radius: 8px;">`
+                        }
+                    </div>
+                    <div class="form-actions" style="margin-top: 1.5rem;">
+                        <button class="btn btn-primary" onclick="replaceReceipt(${transactionId}); this.closest('.modal').remove()">replace receipt</button>
+                        <button class="btn btn-danger" onclick="this.closest('.modal').remove()">close</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        function replaceReceipt(transactionId) {
+            openReceiptUpload(transactionId);
+        }
+
+        // Inline cell editing
+        let currentlyEditing = null;
+
+        function editCell(cell, transactionId, field, inputType) {
+            // Prevent editing if already editing another cell
+            if (currentlyEditing && currentlyEditing !== cell) {
+                return;
+            }
+
+            const transaction = transactions.find(t => t.id === transactionId);
+            if (!transaction) return;
+
+            currentlyEditing = cell;
+            const originalContent = cell.innerHTML;
+            let currentValue = transaction[field] || '';
+
+            if (inputType === 'date') {
+                // Create date input
+                const input = document.createElement('input');
+                input.type = 'date';
+                input.value = currentValue;
+                cell.innerHTML = '';
+                cell.appendChild(input);
+                input.focus();
+
+                const saveValue = () => {
+                    if (input.value) {
+                        transaction[field] = input.value;
+                        saveTransactions();
+                        cell.innerHTML = formatDate(input.value);
+                        updateStats();
+                    } else {
+                        cell.innerHTML = originalContent;
+                    }
+                    currentlyEditing = null;
+                };
+
+                input.addEventListener('blur', saveValue);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') saveValue();
+                    if (e.key === 'Escape') {
+                        cell.innerHTML = originalContent;
+                        currentlyEditing = null;
+                    }
+                });
+            } else {
+                // Create text input
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentValue === '-' ? '' : currentValue;
+                cell.innerHTML = '';
+                cell.appendChild(input);
+                input.focus();
+                input.select();
+
+                const saveValue = () => {
+                    const newValue = input.value || '-';
+                    transaction[field] = input.value;
+                    saveTransactions();
+                    cell.innerHTML = newValue;
+                    updateStats();
+                    currentlyEditing = null;
+                };
+
+                input.addEventListener('blur', saveValue);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') saveValue();
+                    if (e.key === 'Escape') {
+                        cell.innerHTML = originalContent;
+                        currentlyEditing = null;
+                    }
+                });
+            }
+        }
+
+        // Edit transaction
+        function editTransaction(id) {
+            const transaction = transactions.find(t => t.id === id);
+            if (!transaction) return;
+
+            document.getElementById('editTransactionId').value = transaction.id;
+            document.getElementById('editDate').value = transaction.date;
+            document.getElementById('editDescription').value = transaction.description;
+            document.getElementById('editCategory').value = transaction.category;
+            document.getElementById('editAccount').value = transaction.account || '';
+            document.getElementById('editTaxCategory').value = transaction.taxCategory || 'other_tax';
+            document.getElementById('editAmount').value = transaction.amount;
+            document.getElementById('editNotes').value = transaction.notes || '';
+
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            document.getElementById('editForm').reset();
+        }
+
+        function saveEdit(event) {
+            event.preventDefault();
+
+            const id = parseInt(document.getElementById('editTransactionId').value);
+            const transaction = transactions.find(t => t.id === id);
+
+            if (transaction) {
+                transaction.date = document.getElementById('editDate').value;
+                transaction.description = document.getElementById('editDescription').value;
+                transaction.category = document.getElementById('editCategory').value;
+                transaction.account = document.getElementById('editAccount').value;
+                transaction.taxCategory = document.getElementById('editTaxCategory').value;
+                // Amount is read-only, don't update it
+                transaction.notes = document.getElementById('editNotes').value;
+
+                saveTransactions();
+                renderOverviewTransactions();
+                renderExpenseTransactions();
+                updateStats();
+                closeEditModal();
+            }
+        }
+
+        // Bulk selection
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAllExpenses').checked;
+            document.querySelectorAll('.expense-checkbox').forEach(checkbox => {
+                checkbox.checked = selectAll;
+            });
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const selected = document.querySelectorAll('.expense-checkbox:checked');
+            const count = selected.length;
+
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('expenseBulkActions').classList.toggle('active', count > 0);
+        }
+
+        function getSelectedIds() {
+            const selected = document.querySelectorAll('.expense-checkbox:checked');
+            return Array.from(selected).map(cb => parseInt(cb.dataset.id));
+        }
+
+        // Bulk edit
+        function openBulkEditModal() {
+            const selectedIds = getSelectedIds();
+            if (selectedIds.length === 0) return;
+
+            document.getElementById('bulkEditCount').textContent = selectedIds.length;
+            document.getElementById('bulkEditModal').classList.add('active');
+        }
+
+        function closeBulkEditModal() {
+            document.getElementById('bulkEditModal').classList.remove('active');
+            document.getElementById('bulkEditForm').reset();
+        }
+
+        function saveBulkEdit(event) {
+            event.preventDefault();
+
+            const selectedIds = getSelectedIds();
+            const category = document.getElementById('bulkCategory').value;
+            const account = document.getElementById('bulkAccount').value;
+            const taxCategory = document.getElementById('bulkTaxCategory').value;
+
+            selectedIds.forEach(id => {
+                const transaction = transactions.find(t => t.id === id);
+                if (transaction) {
+                    if (category) transaction.category = category;
+                    if (account) transaction.account = account;
+                    if (taxCategory) transaction.taxCategory = taxCategory;
+                }
+            });
+
+            saveTransactions();
+            renderOverviewTransactions();
+            renderExpenseTransactions();
+            updateStats();
+            closeBulkEditModal();
+
+            // Clear selections
+            document.querySelectorAll('.expense-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAllExpenses').checked = false;
+            updateBulkActions();
+        }
+
+        // Bulk delete
+        function bulkDeleteExpenses() {
+            const selectedIds = getSelectedIds();
+            if (selectedIds.length === 0) return;
+
+            if (confirm(`Are you sure you want to delete ${selectedIds.length} transaction(s)?`)) {
+                transactions = transactions.filter(t => !selectedIds.includes(t.id));
+                saveTransactions();
+                renderOverviewTransactions();
+                renderExpenseTransactions();
+                updateStats();
+
+                // Clear selections
+                document.getElementById('selectAllExpenses').checked = false;
+                updateBulkActions();
+            }
+        }
+
+        // Modal controls
+        function openExpenseModal() {
+            document.getElementById('expenseModal').classList.add('active');
+        }
+
+        function closeExpenseModal() {
+            document.getElementById('expenseModal').classList.remove('active');
+            document.getElementById('expenseForm').reset();
+            document.getElementById('expenseDate').valueAsDate = new Date();
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('expenseModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeExpenseModal();
+            }
+        });
+
+        // CSV Import Functions
+        function handleCSVUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                parseCSV(text);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+            csvData = {
+                headers: headers,
+                rows: lines.slice(1).map(line => {
+                    // Handle CSV values that might contain commas within quotes
+                    const values = [];
+                    let current = '';
+                    let inQuotes = false;
+
+                    for (let char of line) {
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            values.push(current.trim().replace(/"/g, ''));
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    values.push(current.trim().replace(/"/g, ''));
+                    return values;
+                })
+            };
+
+            showCSVPreview();
+        }
+
+        function showCSVPreview() {
+            // Show preview section
+            document.getElementById('csvPreviewSection').style.display = 'block';
+
+            // Populate column selectors
+            const selectors = ['csvDateColumn', 'csvDescColumn', 'csvAmountColumn'];
+            selectors.forEach(id => {
+                const select = document.getElementById(id);
+                select.innerHTML = csvData.headers.map((h, i) =>
+                    `<option value="${i}">${h}</option>`
+                ).join('');
+            });
+
+            // Auto-detect columns
+            csvData.headers.forEach((header, i) => {
+                const lower = header.toLowerCase();
+                if (lower.includes('date') || lower.includes('posted')) {
+                    document.getElementById('csvDateColumn').value = i;
+                } else if (lower.includes('description') || lower.includes('memo') || lower.includes('merchant')) {
+                    document.getElementById('csvDescColumn').value = i;
+                } else if (lower.includes('amount') || lower.includes('debit') || lower.includes('credit')) {
+                    document.getElementById('csvAmountColumn').value = i;
+                }
+            });
+
+            // Show preview table
+            const previewHTML = `
+                <table class="transaction-table">
+                    <thead>
+                        <tr>${csvData.headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                        ${csvData.rows.slice(0, 5).map(row => `
+                            <tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('csvPreviewTable').innerHTML = previewHTML;
+        }
+
+        function processCSVImport() {
+            const dateCol = parseInt(document.getElementById('csvDateColumn').value);
+            const descCol = parseInt(document.getElementById('csvDescColumn').value);
+            const amountCol = parseInt(document.getElementById('csvAmountColumn').value);
+
+            let imported = 0;
+            csvData.rows.forEach(row => {
+                if (row.length < 3) return; // Skip empty rows
+
+                let amount = parseFloat(row[amountCol].replace(/[^0-9.-]/g, ''));
+                if (isNaN(amount)) return;
+
+                const description = row[descCol] || 'Imported transaction';
+                const descLower = description.toLowerCase();
+
+                // Skip payment transactions
+                if (descLower.includes('payment - thank you') || descLower.includes('autopay payment')) {
+                    return;
+                }
+
+                // In bank CSVs, positive = expense, negative = refund/credit
+                const isExpense = amount > 0;
+                const taxCategory = isExpense ? detectTaxCategory(descLower) : null;
+
+                const transaction = {
+                    id: Date.now() + imported,
+                    type: isExpense ? 'expense' : 'income',
+                    date: formatCSVDate(row[dateCol]),
+                    description: description,
+                    category: isExpense ? 'other' : 'income',
+                    account: 'Imported Account',
+                    taxCategory: taxCategory,
+                    amount: Math.abs(amount),
+                    notes: 'Imported from CSV'
+                };
+
+                // Check for duplicates
+                const isDuplicate = transactions.some(t =>
+                    t.date === transaction.date &&
+                    t.amount === transaction.amount &&
+                    t.description === transaction.description
+                );
+
+                if (!isDuplicate) {
+                    transactions.push(transaction);
+                    imported++;
+                }
+            });
+
+            saveTransactions();
+            updateStats();
+            renderOverviewTransactions();
+            renderIncomeTransactions();
+            renderExpenseTransactions();
+
+            alert(`Successfully imported ${imported} transactions!`);
+            cancelImport();
+        }
+
+        function formatCSVDate(dateStr) {
+            // Try to parse various date formats
+            let date = new Date(dateStr);
+
+            // If invalid, try MM/DD/YYYY format
+            if (isNaN(date.getTime())) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    date = new Date(parts[2], parts[0] - 1, parts[1]);
+                }
+            }
+
+            // Return ISO format
+            return date.toISOString().split('T')[0];
+        }
+
+        function cancelImport() {
+            document.getElementById('csvPreviewSection').style.display = 'none';
+            document.getElementById('csvFileInput').value = '';
+            csvData = null;
+        }
+
+        // Detect tax category from description
+        function detectTaxCategory(description) {
+            const desc = description.toLowerCase();
+
+            // Home office/utilities
+            if (desc.includes('spectrum') || desc.includes('cable') || desc.includes('internet')) {
+                return 'home_office';
+            }
+            // Business meals/restaurants
+            if (desc.includes('diner') || desc.includes('restaurant') || desc.includes('swingers')) {
+                return 'business_meals';
+            }
+            // Travel/parking
+            if (desc.includes('parking') || desc.includes('passport')) {
+                return 'travel';
+            }
+            // Professional fees
+            if (desc.includes('loffredo') || desc.includes('professional') || desc.includes('tax1099')) {
+                return 'professional_fees';
+            }
+            // Advertising
+            if (desc.includes('distrokid') || desc.includes('marketing')) {
+                return 'advertising';
+            }
+            // Supplies & equipment (software, subscriptions, equipment)
+            if (desc.includes('frame.io') || desc.includes('soundly') || desc.includes('waves') ||
+                desc.includes('claude') || desc.includes('software') || desc.includes('quickbooks') ||
+                desc.includes('computer') || desc.includes('best buy') || desc.includes('guitar center') ||
+                desc.includes('splice') || desc.includes('avid') || desc.includes('acustica') ||
+                desc.includes('audinate') || desc.includes('d16') || desc.includes('cleverbridge') ||
+                desc.includes('paddle') || desc.includes('accentize') || desc.includes('xfer')) {
+                return 'supplies';
+            }
+            // Taxes/licenses
+            if (desc.includes('government') || desc.includes('nic*online')) {
+                return 'taxes';
+            }
+            // Foreign transaction fees
+            if (desc.includes('foreign transaction')) {
+                return 'interest';
+            }
+
+            return 'other_tax';
+        }
+
+        // Drag and drop for CSV
+        const importZone = document.getElementById('importZone');
+
+        importZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            importZone.classList.add('dragover');
+        });
+
+        importZone.addEventListener('dragleave', () => {
+            importZone.classList.remove('dragover');
+        });
+
+        importZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            importZone.classList.remove('dragover');
+
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.csv')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    parseCSV(e.target.result);
+                };
+                reader.readAsText(file);
+            } else {
+                alert('Please drop a CSV file');
+            }
+        });
+
+        // Initialize on page load
+        loadTransactions();
+    </script>
+</body>
+</html>

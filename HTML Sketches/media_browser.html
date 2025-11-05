@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Browser</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #1a1a1a;
+            --secondary-text: #333;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #007acc;
+            --accent-red: #ff6b6b;
+            --accent-green: #51cf66;
+            --accent-orange: #ff922b;
+            --accent-teal: #469FE0;
+            --accent-purple: #845ec2;
+            --bg-primary: #FDF8F0;
+            --bg-secondary: #FEFDFA;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'DM Sans', system-ui, -apple-system, sans-serif;
+            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+            --font-body: 'Public Sans', system-ui, sans-serif;
+            --font-mono: 'Archivo', monospace;
+            --font-button: 'Inter', system-ui, sans-serif;
+            --radius-lg: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-primary);
+            background: var(--bg-primary);
+            color: var(--primary-text);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .browser-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .browser-header {
+            margin-bottom: 2rem;
+        }
+
+        .browser-header h1 {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--primary-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--subtle-text);
+            margin-top: 1rem;
+        }
+
+        .breadcrumb a {
+            color: var(--accent-teal);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--accent-blue);
+        }
+
+        .breadcrumb-separator {
+            color: var(--muted-text);
+        }
+
+        .browser-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: var(--border-medium);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: var(--font-body);
+            background: white;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted-text);
+            pointer-events: none;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+            background: white;
+            border: var(--border-medium);
+            border-radius: 8px;
+            padding: 0.25rem;
+        }
+
+        .view-btn {
+            padding: 0.5rem 0.75rem;
+            border: none;
+            background: transparent;
+            color: var(--subtle-text);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .view-btn:hover {
+            background: var(--bg-primary);
+        }
+
+        .view-btn.active {
+            background: var(--accent-teal);
+            color: white;
+        }
+
+        .file-table-container {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: var(--border-light);
+            box-shadow: var(--shadow-subtle);
+            overflow: hidden;
+        }
+
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .file-table thead {
+            background: var(--bg-primary);
+            border-bottom: var(--border-medium);
+        }
+
+        .file-table th {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--subtle-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-body);
+        }
+
+        .file-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        .file-table th.sortable:hover {
+            color: var(--accent-teal);
+        }
+
+        .file-table tbody tr {
+            border-bottom: var(--border-light);
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .file-table tbody tr:hover {
+            background: var(--bg-primary);
+        }
+
+        .file-table tbody tr.folder {
+            font-weight: 500;
+        }
+
+        .file-table td {
+            padding: 0.65rem 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .file-name {
+            color: var(--primary-text);
+        }
+
+        .file-type-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-video {
+            background: rgba(245, 87, 108, 0.1);
+            color: #f5576c;
+        }
+
+        .badge-audio {
+            background: rgba(0, 242, 254, 0.1);
+            color: #00a8cc;
+        }
+
+        .badge-image {
+            background: rgba(56, 249, 215, 0.1);
+            color: #00b894;
+        }
+
+        .badge-folder {
+            background: rgba(118, 75, 162, 0.1);
+            color: #764ba2;
+        }
+
+        .file-size {
+            color: var(--muted-text);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+
+        .file-date {
+            color: var(--subtle-text);
+            font-size: 0.85rem;
+        }
+
+        .file-duration {
+            color: var(--subtle-text);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--muted-text);
+        }
+
+        .empty-state svg {
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--bg-primary);
+            border-top: var(--border-light);
+            font-size: 0.85rem;
+            color: var(--subtle-text);
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--primary-text);
+        }
+    </style>
+</head>
+<body>
+    <div class="browser-container">
+        <div class="browser-header">
+            <h1>Media Browser</h1>
+            <div class="breadcrumb">
+                <a href="#" onclick="navigateToFolder('root')">All Projects</a>
+                <span class="breadcrumb-separator" id="breadcrumbPath"></span>
+            </div>
+        </div>
+
+        <div class="browser-controls">
+            <div class="search-box">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search files and folders...">
+            </div>
+            <div class="view-toggle">
+                <button class="view-btn active">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                    </svg>
+                    List
+                </button>
+            </div>
+        </div>
+
+        <div class="file-table-container">
+            <table class="file-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortBy('name')">Name</th>
+                        <th class="sortable" onclick="sortBy('modified')">Date Modified</th>
+                        <th class="sortable" onclick="sortBy('size')">Size</th>
+                        <th class="sortable" onclick="sortBy('type')">Type</th>
+                        <th class="sortable" onclick="sortBy('duration')">Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="fileTableBody">
+                    <!-- Files will be inserted here -->
+                </tbody>
+            </table>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-value" id="itemCount">0</span>
+                    <span>items</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="totalSize">0 GB</span>
+                    <span>total</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data structure matching alternassist projects
+        const fileSystem = {
+            root: [
+                {
+                    name: 'Documentary: Ocean Cleanup Initiative',
+                    type: 'folder',
+                    modified: new Date('2024-10-15'),
+                    children: [
+                        { name: 'Ocean_Cleanup_V3_Final.mp4', type: 'video', size: 4200000000, modified: new Date('2024-10-15'), duration: '00:45:30' },
+                        { name: 'Ocean_Cleanup_V2_Review.mp4', type: 'video', size: 3800000000, modified: new Date('2024-10-10'), duration: '00:44:15' },
+                        { name: 'Main_Theme_Mix.wav', type: 'audio', size: 156000000, modified: new Date('2024-10-12'), duration: '00:02:30' },
+                        { name: 'Planning_Phase_Underscore.wav', type: 'audio', size: 210000000, modified: new Date('2024-10-08'), duration: '00:06:00' },
+                        { name: 'Project_Notes.pdf', type: 'document', size: 2400000, modified: new Date('2024-10-05'), duration: '-' }
+                    ]
+                },
+                {
+                    name: 'Indie Feature Film: The Wanderer',
+                    type: 'folder',
+                    modified: new Date('2024-10-18'),
+                    children: [
+                        { name: 'Wanderer_Rough_Cut.mp4', type: 'video', size: 8900000000, modified: new Date('2024-10-18'), duration: '01:32:45' },
+                        { name: 'Wanderer_Scene_15_Recut.mp4', type: 'video', size: 1200000000, modified: new Date('2024-10-16'), duration: '00:08:30' },
+                        { name: 'Cold_Open_Jazz_V2.wav', type: 'audio', size: 180000000, modified: new Date('2024-10-14'), duration: '00:03:45' },
+                        { name: 'The_Offer_Tension.wav', type: 'audio', size: 280000000, modified: new Date('2024-10-12'), duration: '00:06:30' },
+                        { name: 'Film_Poster_Draft.jpg', type: 'image', size: 8500000, modified: new Date('2024-09-28'), duration: '-' }
+                    ]
+                },
+                {
+                    name: 'Commercial: TechStart Mobile App',
+                    type: 'folder',
+                    modified: new Date('2024-10-20'),
+                    children: [
+                        { name: 'TechStart_30sec_Final.mp4', type: 'video', size: 450000000, modified: new Date('2024-10-20'), duration: '00:00:30' },
+                        { name: 'TechStart_60sec_Extended.mp4', type: 'video', size: 890000000, modified: new Date('2024-10-19'), duration: '00:01:00' },
+                        { name: 'Electronic_Score_Mix.wav', type: 'audio', size: 45000000, modified: new Date('2024-10-18'), duration: '00:00:30' },
+                        { name: 'SFX_UI_Sounds.wav', type: 'audio', size: 32000000, modified: new Date('2024-10-17'), duration: '00:00:15' }
+                    ]
+                },
+                {
+                    name: 'Game Trailer: Mythic Realm',
+                    type: 'folder',
+                    modified: new Date('2024-10-22'),
+                    children: [
+                        { name: 'Mythic_Realm_Trailer_V4.mp4', type: 'video', size: 1800000000, modified: new Date('2024-10-22'), duration: '00:01:30' },
+                        { name: 'Mythic_Realm_Trailer_V3.mp4', type: 'video', size: 1750000000, modified: new Date('2024-10-20'), duration: '00:01:28' },
+                        { name: 'Epic_Reveal_Orchestral.wav', type: 'audio', size: 95000000, modified: new Date('2024-10-21'), duration: '00:00:30' },
+                        { name: 'Battle_Theme_Loop.wav', type: 'audio', size: 110000000, modified: new Date('2024-10-19'), duration: '00:00:30' },
+                        { name: 'Concept_Art_Hero.png', type: 'image', size: 15000000, modified: new Date('2024-10-10'), duration: '-' }
+                    ]
+                },
+                {
+                    name: 'Podcast: The Daily Stories',
+                    type: 'folder',
+                    modified: new Date('2024-09-25'),
+                    children: [
+                        { name: 'Intro_Theme_Final.wav', type: 'audio', size: 88000000, modified: new Date('2024-09-25'), duration: '00:00:15' },
+                        { name: 'Outro_Theme_Final.wav', type: 'audio', size: 76000000, modified: new Date('2024-09-25'), duration: '00:00:12' },
+                        { name: 'Transition_Stinger.wav', type: 'audio', size: 12000000, modified: new Date('2024-09-24'), duration: '00:00:03' },
+                        { name: 'Podcast_Logo.png', type: 'image', size: 3200000, modified: new Date('2024-09-20'), duration: '-' }
+                    ]
+                },
+                {
+                    name: 'Wedding Video: Morrison Family',
+                    type: 'folder',
+                    modified: new Date('2024-08-15'),
+                    children: [
+                        { name: 'Morrison_Wedding_Final.mp4', type: 'video', size: 5600000000, modified: new Date('2024-08-15'), duration: '00:45:00' },
+                        { name: 'Ceremony_Highlights.mp4', type: 'video', size: 1200000000, modified: new Date('2024-08-12'), duration: '00:10:30' },
+                        { name: 'First_Dance_Music.wav', type: 'audio', size: 165000000, modified: new Date('2024-08-10'), duration: '00:04:15' },
+                        { name: 'Emotional_Underscore.wav', type: 'audio', size: 245000000, modified: new Date('2024-08-08'), duration: '00:06:30' }
+                    ]
+                }
+            ]
+        };
+
+        let currentPath = 'root';
+        let currentFolder = fileSystem.root;
+        let sortColumn = 'name';
+        let sortDirection = 'asc';
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '-';
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+        }
+
+        function formatDate(date) {
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays} days ago`;
+
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function getFileIcon(type) {
+            const icons = {
+                folder: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
+                video: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>',
+                audio: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>',
+                image: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>',
+                document: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>'
+            };
+            return icons[type] || icons.document;
+        }
+
+        function renderFiles(files = currentFolder) {
+            const tbody = document.getElementById('fileTableBody');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            // Filter files based on search
+            let filteredFiles = files;
+            if (searchTerm) {
+                filteredFiles = files.filter(file =>
+                    file.name.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            // Sort files
+            filteredFiles.sort((a, b) => {
+                let aVal, bVal;
+
+                switch(sortColumn) {
+                    case 'name':
+                        aVal = a.name.toLowerCase();
+                        bVal = b.name.toLowerCase();
+                        break;
+                    case 'modified':
+                        aVal = a.modified;
+                        bVal = b.modified;
+                        break;
+                    case 'size':
+                        aVal = a.size || 0;
+                        bVal = b.size || 0;
+                        break;
+                    case 'type':
+                        aVal = a.type;
+                        bVal = b.type;
+                        break;
+                    case 'duration':
+                        aVal = a.duration || '';
+                        bVal = b.duration || '';
+                        break;
+                }
+
+                if (a.type === 'folder' && b.type !== 'folder') return -1;
+                if (a.type !== 'folder' && b.type === 'folder') return 1;
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            tbody.innerHTML = filteredFiles.map(file => {
+                const isFolder = file.type === 'folder';
+                const typeClass = isFolder ? 'folder' : file.type;
+
+                return `
+                    <tr class="${isFolder ? 'folder' : ''}"
+                        onclick="${isFolder ? `navigateToFolder('${file.name}')` : ''}"
+                        ondblclick="${!isFolder && file.type === 'video' ? `openInReview('${file.name}')` : ''}">
+                        <td>
+                            <div class="file-name">${file.name}</div>
+                        </td>
+                        <td class="file-date">${formatDate(file.modified)}</td>
+                        <td class="file-size">${isFolder ? '-' : formatFileSize(file.size)}</td>
+                        <td>
+                            <span class="file-type-badge badge-${typeClass}">
+                                ${file.type}
+                            </span>
+                        </td>
+                        <td class="file-duration">${file.duration || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Update stats
+            document.getElementById('itemCount').textContent = filteredFiles.length;
+            const totalSize = filteredFiles.reduce((sum, file) => sum + (file.size || 0), 0);
+            document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+        }
+
+        function navigateToFolder(folderName) {
+            if (folderName === 'root') {
+                currentPath = 'root';
+                currentFolder = fileSystem.root;
+                document.getElementById('breadcrumbPath').innerHTML = '';
+            } else {
+                const folder = currentFolder.find(f => f.name === folderName && f.type === 'folder');
+                if (folder && folder.children) {
+                    currentPath = folderName;
+                    currentFolder = folder.children;
+                    document.getElementById('breadcrumbPath').innerHTML = `
+                        <span class="breadcrumb-separator">/</span>
+                        <span>${folderName}</span>
+                    `;
+                }
+            }
+            renderFiles();
+        }
+
+        function sortBy(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            renderFiles();
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', () => {
+            renderFiles();
+        });
+
+        // Open file in review page
+        function openInReview(fileName) {
+            // Send message to parent window to switch to review page and load the file
+            window.parent.postMessage({
+                type: 'openInReview',
+                fileName: fileName,
+                filePath: currentPath
+            }, '*');
+        }
+
+        // Initial render
+        renderFiles();
+    </script>
+</body>
+</html>

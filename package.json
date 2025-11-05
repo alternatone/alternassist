@@ -1,0 +1,32 @@
+{
+  "name": "alternassist",
+  "version": "1.0.0",
+  "description": "All-in-one accounting and project management web app for creative professionals",
+  "main": "main.js",
+  "scripts": {
+    "start": "unset ELECTRON_RUN_AS_NODE && electron .",
+    "dev": "unset ELECTRON_RUN_AS_NODE && electron .",
+    "web": "python3 -m http.server 8080",
+    "build": "electron-packager . Alternassist --platform=darwin --arch=arm64 --icon=assets/icon.icns --out=dist --overwrite"
+  },
+  "keywords": [
+    "accounting",
+    "project-management",
+    "invoicing",
+    "estimates",
+    "payments",
+    "creative-business"
+  ],
+  "author": "Micah Garrido",
+  "license": "MIT",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.13.4",
+    "electron-log": "^5.4.2",
+    "protobufjs": "^7.5.3"
+  },
+  "devDependencies": {
+    "@electron/packager": "^18.4.4",
+    "electron": "^38.2.1",
+    "electron-builder": "^26.0.12"
+  }
+}

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Kanban Board</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #1a1a1a;
+            --secondary-text: #333;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #007acc;
+            --accent-red: #ff6b6b;
+            --accent-green: #51cf66;
+            --accent-orange: #ff922b;
+            --accent-yellow: #ffd43b;
+            --accent-teal: #469FE0;
+            --accent-purple: #845ec2;
+            --bg-primary: #FDF8F0;
+            --bg-secondary: #FEFDFA;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'DM Sans', system-ui, -apple-system, sans-serif;
+            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+            --font-body: 'Public Sans', system-ui, sans-serif;
+            --radius-lg: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-primary); background: var(--bg-primary); color: var(--primary-text); line-height: 1.6; padding: 0; margin: 0; overflow: hidden; }
+        
+        .board-container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+        
+        .header { text-align: center; margin-bottom: 3rem; }
+        .header h1 { font-family: var(--font-display); font-size: 2.5rem; font-weight: 600; color: var(--primary-text); margin-bottom: 0.5rem; }
+        .header p { color: var(--subtle-text); font-size: 1.1rem; }
+        
+        .add-project-btn { background: var(--accent-teal); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; margin-bottom: 2rem; }
+        .add-project-btn:hover { background: #3a8bc7; }
+        
+        .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+
+        .column { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 1.5rem; border: var(--border-light); box-shadow: var(--shadow-subtle); min-height: 500px; }
+
+        .column.archive { grid-column: 1 / 2; min-height: auto; max-height: 150px; cursor: pointer; transition: max-height 0.3s ease; overflow: hidden; }
+        .column.archive.expanded { max-height: 500px; grid-column: 1 / -1; }
+        .column.archive .column-header { margin-bottom: 2.25rem; }
+        .column.archive .cards { display: flex; flex-direction: row; flex-wrap: wrap; gap: 1rem; }
+        .column.archive .card { width: 250px; flex-shrink: 0; }
+
+        .column-header { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 3px solid; }
+        .column[data-column="prospects"] .column-header { border-color: var(--accent-red); }
+        .column[data-column="in-process"] .column-header { border-color: var(--accent-orange); }
+        .column[data-column="in-review"] .column-header { border-color: var(--accent-yellow); }
+        .column[data-column="approved-billed"] .column-header { border-color: var(--accent-green); }
+        .column[data-column="archive"] .column-header { border-color: var(--accent-blue); }
+
+        .column-title { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem; }
+        .column[data-column="prospects"] .column-title { color: var(--accent-red); }
+        .column[data-column="in-process"] .column-title { color: var(--accent-orange); }
+        .column[data-column="in-review"] .column-title { color: var(--accent-yellow); }
+        .column[data-column="approved-billed"] .column-title { color: var(--accent-green); }
+        .column[data-column="archive"] .column-title { color: var(--accent-blue); }
+        
+        .column-count { font-size: 0.8rem; color: var(--muted-text); }
+        
+        .cards { display: flex; flex-direction: column; gap: 1rem; }
+        
+        .card { background: white; border-radius: 8px; padding: 1rem; border: var(--border-medium); cursor: move; transition: box-shadow 0.2s, transform 0.2s; }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .card.dragging { opacity: 0.5; }
+        
+        .card-title { font-weight: 600; color: var(--primary-text); margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .card-client { font-size: 0.85rem; color: var(--subtle-text); margin-bottom: 0.5rem; }
+        .card-status { font-size: 0.8rem; color: var(--muted-text); font-style: italic; }
+        
+        .card-actions { display: flex; gap: 0.75rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: var(--border-light); }
+        .card-btn { background: none; border: none; padding: 0.25rem; cursor: pointer; font-size: 1rem; color: var(--muted-text); transition: color 0.2s; display: flex; align-items: center; justify-content: center; }
+        .card-btn:hover { color: var(--accent-teal); }
+        .card-btn.delete:hover { color: var(--accent-red); }
+        .card-btn.pin:hover { color: var(--accent-red); }
+        .card-btn.pin.pinned { color: var(--accent-red); }
+        
+        .column.drag-over { background: rgba(70, 159, 224, 0.05); border-color: var(--accent-teal); }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; }
+        .modal.active { display: flex; align-items: center; justify-content: center; padding: 2rem 0; }
+        .modal-content { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; margin: auto; }
+        .modal-header { margin-bottom: 1.5rem; }
+        .modal-title { font-size: 1.3rem; font-weight: 600; color: var(--primary-text); }
+        
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); margin-bottom: 0.5rem; }
+        input, select, textarea { width: 100%; padding: 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-teal); }
+        textarea { resize: vertical; height: 80px; font-family: var(--font-body); }
+        
+        .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .btn-primary { background: var(--accent-teal); color: white; }
+        .btn-primary:hover { background: #3a8bc7; }
+        .btn-secondary { background: var(--subtle-text); color: white; }
+        .btn-secondary:hover { background: var(--secondary-text); }
+        
+        @media (max-width: 1024px) {
+            .board { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 640px) {
+            .board { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="board-container">
+        <div class="board">
+            <div class="column" data-column="prospects">
+                <div class="column-header">
+                    <div class="column-title">Prospects</div>
+                    <div class="column-count" id="prospects-count">0 projects</div>
+                </div>
+                <div class="cards" id="prospects-cards"></div>
+            </div>
+
+            <div class="column" data-column="in-process">
+                <div class="column-header">
+                    <div class="column-title">In Production</div>
+                    <div class="column-count" id="in-process-count">0 projects</div>
+                </div>
+                <div class="cards" id="in-process-cards"></div>
+            </div>
+
+            <div class="column" data-column="in-review">
+                <div class="column-header">
+                    <div class="column-title">In Review</div>
+                    <div class="column-count" id="in-review-count">0 projects</div>
+                </div>
+                <div class="cards" id="in-review-cards"></div>
+            </div>
+
+            <div class="column" data-column="approved-billed">
+                <div class="column-header">
+                    <div class="column-title">Approved & Billed</div>
+                    <div class="column-count" id="approved-billed-count">0 projects</div>
+                </div>
+                <div class="cards" id="approved-billed-cards"></div>
+            </div>
+
+            <div class="column archive" data-column="archive" onclick="toggleArchive()">
+                <div class="column-header">
+                    <div class="column-title">Archive</div>
+                    <div class="column-count" id="archive-count">0 projects</div>
+                </div>
+                <div class="cards" id="archive-cards"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="projectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Add Project</h3>
+            </div>
+            <div class="form-group">
+                <label for="projectTitle">Project Title</label>
+                <input type="text" id="projectTitle" placeholder="Documentary Short - Ocean Cleanup">
+            </div>
+            <div class="form-group">
+                <label for="projectClient">Point of Contact Name</label>
+                <input type="text" id="projectClient" placeholder="Point of contact name">
+            </div>
+            <div class="form-group">
+                <label for="projectContactEmail">Point of Contact Email</label>
+                <input type="email" id="projectContactEmail" placeholder="contact@email.com">
+            </div>
+
+            <div id="projectStatusDisplay" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: #e7f5ff; border-left: 3px solid var(--accent-teal); border-radius: 4px;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--accent-teal); margin-bottom: 0.25rem;">Payment Status</div>
+                <div id="projectStatusText" style="font-size: 0.9rem; color: var(--secondary-text);"></div>
+            </div>
+
+            <div id="scopeSection" style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); margin-bottom: 0.5rem;">Scope Summary</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div style="display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 0.5rem;">
+                        <label for="scopeMusic" style="font-size: 0.85rem; margin: 0; text-align: right;">Music:</label>
+                        <input type="text" id="scopeMusic" placeholder="0 mins" style="padding: 0.5rem;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 0.5rem;">
+                        <label for="scopeDialogue" style="font-size: 0.85rem; margin: 0; text-align: right;">Dialogue:</label>
+                        <input type="text" id="scopeDialogue" placeholder="0 hrs" style="padding: 0.5rem;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 0.5rem;">
+                        <label for="scopeSoundDesign" style="font-size: 0.85rem; margin: 0; text-align: right;">Sound Design:</label>
+                        <input type="text" id="scopeSoundDesign" placeholder="0 hrs" style="padding: 0.5rem;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 0.5rem;">
+                        <label for="scopeMix" style="font-size: 0.85rem; margin: 0; text-align: right;">Mix:</label>
+                        <input type="text" id="scopeMix" placeholder="0 hrs" style="padding: 0.5rem;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 0.5rem;">
+                        <label for="scopeRevisions" style="font-size: 0.85rem; margin: 0; text-align: right;">Revisions:</label>
+                        <input type="text" id="scopeRevisions" placeholder="0 hrs" style="padding: 0.5rem;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="projectNotes">Creative Direction / Notes</label>
+                <textarea id="projectNotes" placeholder="Reference tracks, mood, style notes, client preferences..." style="min-height: 80px;"></textarea>
+            </div>
+
+            <div id="hoursLoggerSection" style="margin-bottom: 1rem; display: none;">
+                <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); text-align: center;">Hours Logger</label>
+                    </div>
+                    <div style="flex: 1; max-width: 200px;">
+                        <label style="display: block; font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); text-align: center; cursor: pointer;" onclick="openCueTracker()">Cue Tracker</label>
+                    </div>
+                </div>
+                <div style="display: grid; gap: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.85rem; margin: 0; width: 100px; text-align: right;">Music:</label>
+                        <input type="text" id="loggedMusic" placeholder="0" style="width: 50px; padding: 0.5rem; text-align: center;" readonly>
+                        <span style="font-size: 0.85rem;">/</span>
+                        <span id="scopeMusicDisplay" style="font-size: 0.85rem; color: var(--muted-text);"></span>
+                        <div style="margin-left: 1rem; flex: 1; max-width: 200px;">
+                            <div id="musicProgressBar" style="display: flex; height: 20px; border-radius: 4px; overflow: hidden; background: #f0f0f0; cursor: pointer;" onclick="openCueTracker()"></div>
+                        </div>
+                    </div>
+                    <div id="dialogueRow" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.85rem; margin: 0; width: 100px; text-align: right;">Dialogue:</label>
+                        <input type="text" id="loggedDialogue" placeholder="0" style="width: 50px; padding: 0.5rem; text-align: left;">
+                        <span style="font-size: 0.85rem;">/</span>
+                        <span id="scopeDialogueDisplay" style="font-size: 0.85rem; color: var(--muted-text);"></span>
+                    </div>
+                    <div id="soundDesignRow" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.85rem; margin: 0; width: 100px; text-align: right;">Sound Design:</label>
+                        <input type="text" id="loggedSoundDesign" placeholder="0" style="width: 50px; padding: 0.5rem; text-align: left;">
+                        <span style="font-size: 0.85rem;">/</span>
+                        <span id="scopeSoundDesignDisplay" style="font-size: 0.85rem; color: var(--muted-text);"></span>
+                    </div>
+                    <div id="mixRow" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.85rem; margin: 0; width: 100px; text-align: right;">Mix:</label>
+                        <input type="text" id="loggedMix" placeholder="0" style="width: 50px; padding: 0.5rem; text-align: left;">
+                        <span style="font-size: 0.85rem;">/</span>
+                        <span id="scopeMixDisplay" style="font-size: 0.85rem; color: var(--muted-text);"></span>
+                    </div>
+                    <div id="revisionsRow" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.85rem; margin: 0; width: 100px; text-align: right;">Revisions:</label>
+                        <input type="text" id="loggedRevisions" placeholder="0" style="width: 50px; padding: 0.5rem; text-align: left;">
+                        <span style="font-size: 0.85rem;">/</span>
+                        <span id="scopeRevisionsDisplay" style="font-size: 0.85rem; color: var(--muted-text);"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" id="statusSection">
+                <label for="projectStatus">Status</label>
+                <input type="text" id="projectStatus" placeholder="Estimate sent, In composition, etc.">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="hideProjectModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveProject()">Save Project</button>
+                <button class="btn btn-primary" id="sendToInvoicesBtn" onclick="sendProjectToInvoices()" style="display: none; background: var(--accent-blue);">Send to Invoices</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let projects = [];
+        let currentProjectId = null;
+        let draggedElement = null;
+
+        function timeToSeconds(timeStr) {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':').map(p => parseInt(p) || 0);
+            if (parts.length === 3) {
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) {
+                return parts[0] * 60 + parts[1];
+            }
+            return 0;
+        }
+
+        function initializeSampleData() {
+            // Load projects from localStorage if they exist
+            const savedProjects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
+            projects = savedProjects;
+            renderBoard();
+        }
+
+        function saveProjects() {
+            localStorage.setItem('kanban-projects', JSON.stringify(projects));
+        }
+
+        function toggleArchive() {
+            const archiveColumn = document.querySelector('.column.archive');
+            archiveColumn.classList.toggle('expanded');
+        }
+
+        function renderBoard() {
+            ['prospects', 'in-process', 'in-review', 'approved-billed', 'archive'].forEach(column => {
+                const container = document.getElementById(`${column}-cards`);
+                const columnProjects = projects.filter(p => p.column === column);
+
+                document.getElementById(`${column}-count`).textContent =
+                    `${columnProjects.length} project${columnProjects.length !== 1 ? 's' : ''}`;
+
+                container.innerHTML = columnProjects.map(project => `
+                    <div class="card" draggable="true" data-id="${project.id}" onclick="editProject('${project.id}')">
+                        <div class="card-title">${project.title}</div>
+                        <div class="card-client">${project.client}</div>
+                        <div class="card-status">${project.status}</div>
+                        <div class="card-actions">
+                            <button class="card-btn pin ${project.pinned ? 'pinned' : ''}" onclick="event.stopPropagation(); togglePin('${project.id}')" title="${project.pinned ? 'Unpin from Dashboard' : 'Pin to Dashboard'}">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 17v5"></path>
+                                    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"></path>
+                                </svg>
+                            </button>
+                            <button class="card-btn delete" onclick="event.stopPropagation(); deleteProject('${project.id}')" title="Delete">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.querySelectorAll('.card').forEach(card => {
+                    card.addEventListener('dragstart', handleDragStart);
+                    card.addEventListener('dragend', handleDragEnd);
+                });
+            });
+
+            document.querySelectorAll('.column').forEach(column => {
+                column.addEventListener('dragover', handleDragOver);
+                column.addEventListener('drop', handleDrop);
+                column.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.innerHTML);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            
+            const column = e.target.closest('.column');
+            if (column) {
+                column.classList.add('drag-over');
+            }
+            return false;
+        }
+
+        function handleDragLeave(e) {
+            const column = e.target.closest('.column');
+            if (column && !column.contains(e.relatedTarget)) {
+                column.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            const column = e.target.closest('.column');
+            if (column) {
+                column.classList.remove('drag-over');
+                const newColumn = column.dataset.column;
+                const projectId = draggedElement.dataset.id;
+                
+                const project = projects.find(p => p.id === projectId);
+                if (project) {
+                    project.column = newColumn;
+                    saveProjects();
+                    renderBoard();
+                }
+            }
+            
+            return false;
+        }
+
+        function hideProjectModal() {
+            document.getElementById('projectModal').classList.remove('active');
+            currentProjectId = null;
+        }
+
+        function saveProject() {
+            const title = document.getElementById('projectTitle').value;
+            const client = document.getElementById('projectClient').value;
+            const contactEmail = document.getElementById('projectContactEmail').value;
+            const status = document.getElementById('projectStatus').value;
+            const notes = document.getElementById('projectNotes').value;
+
+            if (!title || !client) {
+                alert('Please fill in project title and client');
+                return;
+            }
+
+            const project = currentProjectId ? projects.find(p => p.id === currentProjectId) : null;
+            const isInProcess = project && project.column === 'in-process';
+            const isInReview = project && project.column === 'in-review';
+            const isApprovedBilled = project && project.column === 'approved-billed';
+
+            let scopeData, loggedHours;
+
+            if (isInProcess || isInReview || isApprovedBilled) {
+                // Save logged hours for in-process, in-review, and approved-billed projects
+                loggedHours = {
+                    music: document.getElementById('loggedMusic').value,
+                    dialogue: document.getElementById('loggedDialogue').value,
+                    soundDesign: document.getElementById('loggedSoundDesign').value,
+                    mix: document.getElementById('loggedMix').value,
+                    revisions: document.getElementById('loggedRevisions').value
+                };
+                scopeData = project.scopeData; // Keep existing scope data
+            } else {
+                // Save scope data for non-in-process projects
+                scopeData = {
+                    music: document.getElementById('scopeMusic').value,
+                    dialogue: document.getElementById('scopeDialogue').value,
+                    soundDesign: document.getElementById('scopeSoundDesign').value,
+                    mix: document.getElementById('scopeMix').value,
+                    revisions: document.getElementById('scopeRevisions').value
+                };
+                loggedHours = project ? project.loggedHours : undefined; // Keep existing logged hours if any
+            }
+
+            if (currentProjectId) {
+                Object.assign(project, { title, client, contactEmail, scopeData, loggedHours, status, notes });
+            } else {
+                projects.push({
+                    id: Date.now().toString(),
+                    title, client, contactEmail, scopeData, status, notes,
+                    column: 'prospects'
+                });
+            }
+
+            saveProjects();
+            hideProjectModal();
+            renderBoard();
+        }
+
+        function editProject(id) {
+            currentProjectId = id;
+            const project = projects.find(p => p.id === id);
+
+            document.getElementById('modalTitle').textContent = 'Project Info';
+            document.getElementById('projectTitle').value = project.title || '';
+            document.getElementById('projectClient').value = project.client || '';
+            document.getElementById('projectContactEmail').value = project.contactEmail || '';
+            document.getElementById('projectNotes').value = project.notes || '';
+
+            // Display project status if it exists
+            if (project.status && (project.status.includes('deposit') || project.status.includes('invoiced') || project.status.includes('received'))) {
+                const statusBox = document.getElementById('projectStatusDisplay');
+                const statusText = document.getElementById('projectStatusText');
+
+                statusBox.style.display = 'block';
+                statusText.textContent = project.status;
+
+                // Color-code based on status
+                if (project.status.includes('received')) {
+                    // Green for received
+                    statusBox.style.background = '#d3f9d8';
+                    statusBox.style.borderLeftColor = 'var(--accent-green)';
+                    statusBox.querySelector('div:first-child').style.color = 'var(--accent-green)';
+                } else if (project.status.includes('invoiced')) {
+                    // Yellow for invoiced
+                    statusBox.style.background = '#fff3bf';
+                    statusBox.style.borderLeftColor = 'var(--accent-orange)';
+                    statusBox.querySelector('div:first-child').style.color = 'var(--accent-orange)';
+                } else {
+                    // Default blue
+                    statusBox.style.background = '#e7f5ff';
+                    statusBox.style.borderLeftColor = 'var(--accent-teal)';
+                    statusBox.querySelector('div:first-child').style.color = 'var(--accent-teal)';
+                }
+            } else {
+                document.getElementById('projectStatusDisplay').style.display = 'none';
+            }
+
+            const scopeData = project.scopeData || {};
+            const isInProcess = project.column === 'in-process';
+            const isInReview = project.column === 'in-review';
+            const isApprovedBilled = project.column === 'approved-billed';
+
+            if (isInProcess || isInReview || isApprovedBilled) {
+                // Show hours logger for in-process, in-review, and approved-billed projects
+                document.getElementById('scopeSection').style.display = 'none';
+                document.getElementById('hoursLoggerSection').style.display = 'block';
+                document.getElementById('statusSection').style.display = 'none';
+
+                // For In Production: show all except revisions
+                // For In Review: show only music and revisions
+                // For Approved & Billed: show all including revisions
+                if (isInProcess) {
+                    document.getElementById('dialogueRow').style.display = 'flex';
+                    document.getElementById('soundDesignRow').style.display = 'flex';
+                    document.getElementById('mixRow').style.display = 'flex';
+                    document.getElementById('revisionsRow').style.display = 'none';
+                } else if (isInReview) {
+                    document.getElementById('dialogueRow').style.display = 'none';
+                    document.getElementById('soundDesignRow').style.display = 'none';
+                    document.getElementById('mixRow').style.display = 'none';
+                    document.getElementById('revisionsRow').style.display = 'flex';
+                } else if (isApprovedBilled) {
+                    document.getElementById('dialogueRow').style.display = 'flex';
+                    document.getElementById('soundDesignRow').style.display = 'flex';
+                    document.getElementById('mixRow').style.display = 'flex';
+                    document.getElementById('revisionsRow').style.display = 'flex';
+                }
+
+                // Display scope as read-only
+                document.getElementById('scopeMusicDisplay').textContent = scopeData.music || '0 mins';
+                document.getElementById('scopeDialogueDisplay').textContent = scopeData.dialogue || '0 hrs';
+                document.getElementById('scopeSoundDesignDisplay').textContent = scopeData.soundDesign || '0 hrs';
+                document.getElementById('scopeMixDisplay').textContent = scopeData.mix || '0 hrs';
+                document.getElementById('scopeRevisionsDisplay').textContent = scopeData.revisions || '0 hrs';
+
+                // Calculate approved music duration from cue tracker
+                const cues = JSON.parse(localStorage.getItem('cue-tracker-cues') || '{}');
+                const projectCues = cues[project.id] || [];
+
+                const approvedCues = projectCues.filter(cue => {
+                    const status = cue.status;
+                    return status === 'approved' || status === 'complete';
+                });
+
+                const approvedMinutes = approvedCues.reduce((total, cue) => {
+                    const start = timeToSeconds(cue.startTime);
+                    const end = timeToSeconds(cue.endTime);
+                    const durationSeconds = end - start;
+                    return total + (durationSeconds / 60);
+                }, 0);
+
+                // Update music logged hours with approved cue duration (rounded down)
+                const musicMins = Math.floor(approvedMinutes);
+                document.getElementById('loggedMusic').value = musicMins;
+
+                // Calculate status breakdown for progress bar
+                const normalizeStatus = (status) => {
+                    if (status === 'sketch') return 'to-write';
+                    if (status === 'recording') return 'written';
+                    if (status === 'mixing') return 'revisions';
+                    if (status === 'complete') return 'approved';
+                    return status;
+                };
+
+                const toWrite = projectCues.filter(c => normalizeStatus(c.status) === 'to-write').length;
+                const written = projectCues.filter(c => normalizeStatus(c.status) === 'written').length;
+                const revisions = projectCues.filter(c => normalizeStatus(c.status) === 'revisions').length;
+                const approved = projectCues.filter(c => normalizeStatus(c.status) === 'approved').length;
+                const total = projectCues.length;
+
+                // Update progress bar
+                const progressBar = document.getElementById('musicProgressBar');
+                if (total === 0) {
+                    progressBar.innerHTML = '';
+                } else {
+                    const toWritePct = (toWrite / total) * 100;
+                    const writtenPct = (written / total) * 100;
+                    const revisionsPct = (revisions / total) * 100;
+                    const approvedPct = (approved / total) * 100;
+
+                    progressBar.innerHTML = `
+                        ${toWrite > 0 ? `<div style="background: #ff6b6b; width: ${toWritePct}%; height: 100%;"></div>` : ''}
+                        ${written > 0 ? `<div style="background: #ff922b; width: ${writtenPct}%; height: 100%;"></div>` : ''}
+                        ${revisions > 0 ? `<div style="background: #ffd93d; width: ${revisionsPct}%; height: 100%;"></div>` : ''}
+                        ${approved > 0 ? `<div style="background: #51cf66; width: ${approvedPct}%; height: 100%;"></div>` : ''}
+                    `;
+                }
+
+                // Load logged hours for other fields
+                const loggedHours = project.loggedHours || {};
+                document.getElementById('loggedDialogue').value = loggedHours.dialogue || '';
+                document.getElementById('loggedSoundDesign').value = loggedHours.soundDesign || '';
+                document.getElementById('loggedMix').value = loggedHours.mix || '';
+                document.getElementById('loggedRevisions').value = loggedHours.revisions || '';
+            } else {
+                // Show scope summary for non-in-process projects
+                document.getElementById('scopeSection').style.display = 'block';
+                document.getElementById('hoursLoggerSection').style.display = 'none';
+                document.getElementById('statusSection').style.display = 'block';
+
+                document.getElementById('scopeMusic').value = scopeData.music || '';
+                document.getElementById('scopeDialogue').value = scopeData.dialogue || '';
+                document.getElementById('scopeSoundDesign').value = scopeData.soundDesign || '';
+                document.getElementById('scopeMix').value = scopeData.mix || '';
+                document.getElementById('scopeRevisions').value = scopeData.revisions || '';
+
+                document.getElementById('projectStatus').value = project.status || '';
+            }
+
+            // Show "Send to Invoices" button for prospects and approved-billed projects
+            const sendToInvoicesBtn = document.getElementById('sendToInvoicesBtn');
+            const isProspects = project && project.column === 'prospects';
+            if (isProspects || isApprovedBilled) {
+                sendToInvoicesBtn.style.display = 'inline-block';
+            } else {
+                sendToInvoicesBtn.style.display = 'none';
+            }
+
+            document.getElementById('projectModal').classList.add('active');
+        }
+
+        function openCueTracker() {
+            if (!currentProjectId) return;
+
+            // Store the project ID to select in localStorage
+            localStorage.setItem('cue-tracker-selected-project', currentProjectId);
+
+            // Navigate to the cue tracker page
+            if (window.parent && window.parent.loadModule) {
+                window.parent.loadModule('cues');
+            }
+        }
+
+        function sendProjectToInvoices() {
+            if (!currentProjectId) return;
+
+            const project = projects.find(p => p.id === currentProjectId);
+            if (!project) return;
+
+            // Get logged hours
+            const loggedHours = project.loggedHours || {};
+
+            // Get estimate data if available
+            const estimateData = project.estimateData || {};
+
+            const invoiceData = {
+                id: Date.now().toString(),
+                projectId: project.id,
+                projectName: project.title,
+                clientName: project.client,
+                contactEmail: project.contactEmail,
+                scopeData: project.scopeData,
+                loggedHours: loggedHours,
+                estimateData: estimateData,
+                projectColumn: project.column, // Track which column this came from
+                createdAt: new Date().toISOString()
+            };
+
+            // Store invoice data in localStorage (replace any existing to avoid duplicates)
+            localStorage.setItem('invoices', JSON.stringify([invoiceData]));
+
+            alert('Invoice created successfully! Navigating to Invoices page.');
+
+            hideProjectModal();
+
+            if (window.parent && window.parent.loadModule) {
+                window.parent.loadModule('invoices');
+            }
+        }
+
+        function togglePin(id) {
+            const project = projects.find(p => p.id === id);
+            if (project) {
+                project.pinned = !project.pinned;
+                saveProjects();
+                renderBoard();
+            }
+        }
+
+        function deleteProject(id) {
+            if (!confirm('Delete this project?')) return;
+            projects = projects.filter(p => p.id !== id);
+            saveProjects();
+
+            // Also remove from cue tracker projects
+            let cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
+            cueProjects = cueProjects.filter(p => p.id !== id);
+            localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
+
+            // Remove associated cues
+            const cues = JSON.parse(localStorage.getItem('cue-tracker-cues') || '{}');
+            delete cues[id];
+            localStorage.setItem('cue-tracker-cues', JSON.stringify(cues));
+
+            renderBoard();
+        }
+
+        // Listen for localStorage changes to auto-refresh
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'kanban-projects') {
+                initializeSampleData();
+            }
+        });
+
+        // Also listen for focus events to refresh when switching back to this tab
+        window.addEventListener('focus', () => {
+            initializeSampleData();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSampleData();
+        });
+
+        // Close modal when clicking outside of it
+        document.getElementById('projectModal').addEventListener('click', (e) => {
+            if (e.target.id === 'projectModal') {
+                hideProjectModal();
+            }
+        });
+    </script>
+</body>
+</html>

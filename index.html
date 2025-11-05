@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alternassist - Business Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #1a1a1a;
+            --secondary-text: #333;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #007acc;
+            --accent-red: #ff6b6b;
+            --accent-green: #51cf66;
+            --accent-orange: #ff922b;
+            --accent-teal: #469FE0;
+            --accent-purple: #845ec2;
+            --bg-primary: #FDF8F0;
+            --bg-secondary: #FEFDFA;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'DM Sans', system-ui, -apple-system, sans-serif;
+            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+            --font-body: 'Public Sans', system-ui, sans-serif;
+            --font-mono: 'Archivo', monospace;
+            --radius-lg: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: var(--font-primary); 
+            background: var(--bg-primary); 
+            color: var(--primary-text); 
+            line-height: 1.6; 
+        }
+
+        .app-container {
+            min-height: 100vh;
+        }
+
+        /* Top Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(253, 248, 240, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            z-index: 1000;
+            padding: 1.2rem 0;
+            transition: all 0.3s ease;
+            -webkit-app-region: drag;
+        }
+
+        .nav.scrolled {
+            padding: 0.8rem 0;
+            background: rgba(253, 248, 240, 0.95);
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            padding-left: 90px;
+        }
+
+        .logo {
+            font-size: 1.75rem;
+            font-weight: 400;
+            text-decoration: none;
+            color: var(--primary-text);
+            letter-spacing: -0.02em;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            -webkit-app-region: no-drag;
+        }
+
+        .logo:hover {
+            opacity: 0.7;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+            position: relative;
+            --underline-left: 0px;
+            --underline-width: 80px;
+            -webkit-app-region: no-drag;
+        }
+
+        .nav-links::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: var(--underline-left, 0px);
+            width: var(--underline-width, 80px);
+            height: 2px;
+            background: linear-gradient(90deg, #ff6b6b 0%, #007acc 100%);
+            transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-radius: 1px;
+        }
+
+        .nav-link {
+            font-family: var(--font-body);
+            text-decoration: none;
+            color: var(--subtle-text);
+            font-weight: 400;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--primary-text);
+        }
+
+
+        /* Main Content */
+        .main-content {
+            padding: 6rem 2rem 2rem;
+            min-height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Module Container */
+        .module-container {
+            display: none;
+            width: 100%;
+        }
+
+        .module-container.active {
+            display: block;
+        }
+
+        .module-frame {
+            border: none;
+            width: 100%;
+            border-radius: var(--radius-lg);
+            background: white;
+            overflow: visible;
+        }
+
+        /* Dashboard Overview */
+        .dashboard-overview {
+            display: flex;
+            justify-content: flex-start;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .overview-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            border: var(--border-light);
+            box-shadow: var(--shadow-subtle);
+            text-align: left;
+            transition: transform 0.2s;
+            cursor: pointer;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-2px);
+        }
+
+
+        .overview-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .overview-description {
+            color: var(--subtle-text);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation -->
+        <nav class="nav" id="nav">
+            <div class="nav-content">
+                <a href="#" class="logo" onclick="loadModule('dashboard')">Alternassist</a>
+                <ul class="nav-links">
+                    <li><a href="#" class="nav-link active" data-module="dashboard">dashboard</a></li>
+                    <li><a href="#" class="nav-link" data-module="estimates">estimates</a></li>
+                    <li><a href="#" class="nav-link" data-module="projects">projects</a></li>
+                    <li><a href="#" class="nav-link" data-module="cues">cues</a></li>
+                    <!-- Notes link (Electron only) -->
+                    <li id="notes-nav-item" style="display: none;">
+                        <a href="#" class="nav-link" data-module="notes">notes</a>
+                    </li>
+                    <li><a href="#" class="nav-link" data-module="invoices">invoices</a></li>
+                    <li><a href="#" class="nav-link" data-module="payments">payments</a></li>
+                    <li><a href="#" class="nav-link" data-module="accounting">accounting</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Dashboard Module -->
+            <div class="module-container active" id="dashboard-module">
+                <div id="pinnedProjectsContainer" class="dashboard-overview">
+                    <!-- Pinned projects will be dynamically inserted here -->
+                </div>
+
+                <div id="emptyDashboard" style="text-align: center; padding: 4rem 2rem; color: var(--muted-text);">
+                    <h2 style="font-size: 1.5rem; margin-bottom: 1rem; color: var(--subtle-text);">Nothing to see here</h2>
+                    <p style="font-size: 1rem;">Pin a project to get started.</p>
+                </div>
+            </div>
+
+            <!-- Project Pipeline Module -->
+            <div class="module-container" id="projects-module">
+                <iframe class="module-frame" src="HTML Sketches/kanban_board.html"></iframe>
+            </div>
+
+            <!-- Cue Tracker Module -->
+            <div class="module-container" id="cues-module">
+                <iframe class="module-frame" src="HTML Sketches/cue_tracker_demo.html"></iframe>
+            </div>
+
+            <!-- Estimate Calculator Module -->
+            <div class="module-container" id="estimates-module">
+                <iframe class="module-frame" src="HTML Sketches/estimate_calculator.html"></iframe>
+            </div>
+
+            <!-- Invoice Generator Module -->
+            <div class="module-container" id="invoices-module">
+                <iframe class="module-frame" src="HTML Sketches/invoice_generator_standalone.html"></iframe>
+            </div>
+
+            <!-- Payment Dashboard Module -->
+            <div class="module-container" id="payments-module">
+                <iframe class="module-frame" src="HTML Sketches/payment_dashboard.html"></iframe>
+            </div>
+
+            <!-- Accounting Module -->
+            <div class="module-container" id="accounting-module">
+                <iframe class="module-frame" src="HTML Sketches/accounting.html"></iframe>
+            </div>
+
+            <!-- Notes Module (NoteMarker - Electron only) -->
+            <div class="module-container" id="notes-module" style="display: none;">
+                <iframe class="module-frame" src="HTML Sketches/notemarker.html"></iframe>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Update navigation underline position
+        function updateNavUnderline(activeLink) {
+            const navLinks = document.querySelector('.nav-links');
+            
+            // Get the actual position and width of the active link
+            const linkRect = activeLink.getBoundingClientRect();
+            const navRect = navLinks.getBoundingClientRect();
+            
+            // Calculate the left offset relative to the nav-links container
+            const leftOffset = linkRect.left - navRect.left;
+            const linkWidth = linkRect.width;
+            
+            // Set CSS custom properties to position the underline
+            navLinks.style.setProperty('--underline-left', leftOffset + 'px');
+            navLinks.style.setProperty('--underline-width', linkWidth + 'px');
+        }
+
+        // Track resize observers to prevent duplicates
+        const iframeObservers = new Map();
+
+        // Auto-resize iframes to fit content
+        function resizeIframe(iframe) {
+            try {
+                const body = iframe.contentWindow.document.body;
+                const html = iframe.contentWindow.document.documentElement;
+                const height = Math.max(
+                    body.scrollHeight,
+                    body.offsetHeight,
+                    html.clientHeight,
+                    html.scrollHeight,
+                    html.offsetHeight
+                );
+                iframe.style.height = height + 'px';
+            } catch (e) {
+                // Silently fail - iframe not ready yet
+            }
+        }
+
+        function setupIframeResize(iframe) {
+            if (!iframe || iframeObservers.has(iframe)) return;
+
+            const resizeHandler = () => resizeIframe(iframe);
+
+            iframe.addEventListener('load', function onLoad() {
+                resizeIframe(iframe);
+
+                // Set up resize observer once
+                try {
+                    const observer = new ResizeObserver(resizeHandler);
+                    observer.observe(iframe.contentWindow.document.body);
+                    iframeObservers.set(iframe, observer);
+                } catch (e) {
+                    // Fallback not needed - one-time resize is enough
+                }
+            }, { once: true });
+
+            // Trigger initial resize if already loaded
+            if (iframe.contentWindow.document.readyState === 'complete') {
+                resizeIframe(iframe);
+            }
+        }
+
+        // Module Management
+        function loadModule(moduleName) {
+            // Hide all modules
+            document.querySelectorAll('.module-container').forEach(module => {
+                module.classList.remove('active');
+            });
+
+            // Show selected module
+            const targetModule = document.getElementById(`${moduleName}-module`);
+            if (targetModule) {
+                targetModule.classList.add('active');
+
+                // Reload invoices/payments iframe to pick up new data from localStorage
+                if (moduleName === 'invoices' || moduleName === 'payments') {
+                    const iframe = targetModule.querySelector('iframe');
+                    if (iframe) {
+                        iframe.contentWindow.location.reload();
+                    }
+                }
+
+                // Refresh dashboard when switching to it
+                if (moduleName === 'dashboard') {
+                    renderPinnedProjects();
+                } else {
+                    // Set up iframe resize
+                    const iframe = targetModule.querySelector('iframe');
+                    if (iframe) {
+                        setupIframeResize(iframe);
+                    }
+                }
+            }
+
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            const activeLink = document.querySelector(`[data-module="${moduleName}"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+                updateNavUnderline(activeLink);
+            }
+        }
+
+        // Navigation Event Listeners
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const moduleName = link.getAttribute('data-module');
+                loadModule(moduleName);
+            });
+        });
+
+        // Initialize navigation underline on page load
+        function renderPinnedProjects() {
+            const projects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
+            const pinnedProjects = projects.filter(p => p.pinned);
+            const container = document.getElementById('pinnedProjectsContainer');
+            const emptyState = document.getElementById('emptyDashboard');
+
+            if (pinnedProjects.length === 0) {
+                container.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            container.style.display = 'grid';
+            emptyState.style.display = 'none';
+
+            container.innerHTML = pinnedProjects.map(project => {
+                const cues = JSON.parse(localStorage.getItem('cue-tracker-cues') || '{}');
+                const projectCues = cues[project.id] || [];
+
+                // Calculate cue status breakdown
+                const toWrite = projectCues.filter(c => c.status === 'to-write').length;
+                const written = projectCues.filter(c => c.status === 'written').length;
+                const revisions = projectCues.filter(c => c.status === 'revisions').length;
+                const approved = projectCues.filter(c => c.status === 'approved').length;
+                const totalCues = projectCues.length;
+
+                return `
+                    <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer;">
+                        <h3 class="overview-title">${project.title}</h3>
+
+                        ${project.notes ? `
+                            <div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.35rem;">Creative Direction</div>
+                                <div style="font-size: 0.85rem; color: var(--secondary-text); line-height: 1.5; font-style: italic;">${project.notes}</div>
+                            </div>
+                        ` : ''}
+
+                        ${project.status && (project.status.includes('deposit') || project.status.includes('invoiced') || project.status.includes('received')) ? `
+                            <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: ${project.status.includes('received') ? '#d3f9d8' : project.status.includes('invoiced') ? '#fff3bf' : '#e7f5ff'}; border-left: 3px solid ${project.status.includes('received') ? 'var(--accent-green)' : project.status.includes('invoiced') ? 'var(--accent-orange)' : 'var(--accent-teal)'}; border-radius: 4px;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: ${project.status.includes('received') ? 'var(--accent-green)' : project.status.includes('invoiced') ? 'var(--accent-orange)' : 'var(--accent-teal)'}; margin-bottom: 0.25rem;">Payment Status</div>
+                                <div style="font-size: 0.85rem; color: var(--secondary-text);">${project.status}</div>
+                            </div>
+                        ` : ''}
+
+                        ${totalCues > 0 ? `
+                            <div style="margin-bottom: 0.5rem;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Music Cues (${totalCues})</div>
+                                <div style="display: flex; height: 24px; border-radius: 4px; overflow: hidden; background: #f0f0f0;">
+                                    ${toWrite > 0 ? `<div style="flex: ${toWrite}; background: #ff6b6b;" title="${toWrite} to write"></div>` : ''}
+                                    ${written > 0 ? `<div style="flex: ${written}; background: #ffd43b;" title="${written} written"></div>` : ''}
+                                    ${revisions > 0 ? `<div style="flex: ${revisions}; background: #ff922b;" title="${revisions} revisions"></div>` : ''}
+                                    ${approved > 0 ? `<div style="flex: ${approved}; background: #51cf66;" title="${approved} approved"></div>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const activeLink = document.querySelector('.nav-link.active');
+            if (activeLink) {
+                updateNavUnderline(activeLink);
+            }
+
+            // Render pinned projects on dashboard
+            renderPinnedProjects();
+
+            // Re-render when returning to dashboard
+            window.addEventListener('storage', () => {
+                renderPinnedProjects();
+            });
+        });
+
+        // Update underline position on window resize
+        window.addEventListener('resize', () => {
+            const activeLink = document.querySelector('.nav-link.active');
+            if (activeLink) {
+                updateNavUnderline(activeLink);
+            }
+        });
+
+        // Listen for messages from iframes (like project additions)
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'projectAdded') {
+                // Auto-switch to projects tab when a project is added
+                loadModule('projects');
+            }
+        });
+
+        // Show notes link only in Electron
+        if (typeof window.electronAPI !== 'undefined') {
+            const notesNavItem = document.getElementById('notes-nav-item');
+            const notesModule = document.getElementById('notes-module');
+            if (notesNavItem) {
+                notesNavItem.style.display = 'block';
+            }
+            if (notesModule) {
+                notesModule.style.display = '';
+            }
+        }
+    </script>
+</body>
+</html>

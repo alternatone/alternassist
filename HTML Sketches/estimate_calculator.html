@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alternatone Estimate Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #1a1a1a;
+            --secondary-text: #333;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #007acc;
+            --accent-red: #ff6b6b;
+            --accent-teal: #469FE0;
+            --bg-primary: #FDF8F0;
+            --bg-secondary: #FEFDFA;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'DM Sans', system-ui, -apple-system, sans-serif;
+            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+            --font-body: 'Public Sans', system-ui, sans-serif;
+            --radius-lg: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-primary); background: var(--bg-primary); color: var(--primary-text); line-height: 1.6; padding: 0; margin: 0; overflow: hidden; }
+        .calculator-container { max-width: 800px; margin: 0 auto; background: var(--bg-secondary); border-radius: var(--radius-lg); box-shadow: var(--shadow-subtle); padding: 2rem; border: var(--border-light); margin-top: 2rem; margin-bottom: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: var(--border-medium); }
+        .header h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: var(--primary-text); }
+        .form-section { margin-bottom: 2rem; }
+        .section-title { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-blue); margin-bottom: 1rem; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .input-with-suffix { display: flex; align-items: center; gap: 0.5rem; }
+        .input-suffix { color: var(--muted-text); font-size: 0.9rem; }
+        label { font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); margin-bottom: 0.5rem; }
+        input, select, textarea { padding: 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; transition: border-color 0.2s; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-teal); }
+        textarea { resize: vertical; font-family: var(--font-body); line-height: 1.5; }
+        .checkbox-group { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent-teal); }
+        .results { background: var(--bg-primary); border-radius: var(--radius-lg); padding: 1.5rem; margin-top: 2rem; border: var(--border-medium); }
+        .breakdown { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
+        .breakdown-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+        .breakdown-row.total { font-weight: 600; font-size: 1.1rem; padding-top: 0.75rem; border-top: var(--border-medium); color: var(--accent-teal); }
+        .breakdown-input { text-align: right; padding: 0.1rem 0.3rem; border: 2px solid var(--accent-teal); border-radius: 4px; font-size: 0.95rem; font-family: var(--font-primary); }
+        .breakdown-input:focus { outline: none; border-color: var(--accent-blue); }
+        .copy-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: var(--border-light); text-align: center; }
+        .action-buttons { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+        .action-btn { border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .action-btn { background: var(--accent-blue); color: white; }
+        .action-btn:hover { background: #005999; }
+        .action-btn.red { background: var(--accent-red); color: white; }
+        .action-btn.red:hover { background: #e55555; }
+        .logged-estimate-card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; border: var(--border-medium); }
+        .logged-estimate-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .logged-estimate-title { font-weight: 600; font-size: 1rem; color: var(--primary-text); }
+        .logged-estimate-date { font-size: 0.85rem; color: var(--muted-text); }
+        .logged-estimate-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: var(--secondary-text); }
+        .logged-estimate-delete { background: none; border: none; color: var(--muted-text); font-size: 1.2rem; cursor: pointer; transition: color 0.2s; }
+        .logged-estimate-delete:hover { color: var(--accent-red); }
+        @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="calculator-container">
+        <div class="header">
+            <h1>Project Estimate Calculator</h1>
+        </div>
+
+        <div class="form-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 class="section-title" style="margin: 0;">Project Details</h3>
+                <div>
+                    <input type="file" id="projectInfoFile" accept=".txt" style="display: none;" onchange="handleFileImport(event)">
+                    <button class="action-btn" onclick="document.getElementById('projectInfoFile').click()" style="background: var(--muted-text); padding: 0.5rem 1rem; font-size: 0.85rem;">import project info</button>
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label for="projectName">Project Name</label>
+                    <input type="text" id="projectName">
+                </div>
+                <div class="form-group full-width">
+                    <label for="clientName">Point of Contact Name</label>
+                    <input type="text" id="clientName">
+                </div>
+                <div class="form-group full-width">
+                    <label for="clientEmail">Point of Contact Email</label>
+                    <input type="email" id="clientEmail">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3 class="section-title">Music Composition</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="runtime">TRT</label>
+                    <div class="input-with-suffix">
+                        <input type="number" id="runtime" placeholder="0" min="0" step="0.1">
+                        <span class="input-suffix">mins</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="musicCoverage">Estimated Coverage %</label>
+                    <input type="number" id="musicCoverage" value="80" min="0" max="100">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3 class="section-title">Post-Production Audio</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="dialogueHours">Dialogue</label>
+                    <div class="input-with-suffix">
+                        <input type="number" id="dialogueHours" placeholder="0" min="0" step="0.5">
+                        <span class="input-suffix">hrs</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="soundDesignHours">Sound Design</label>
+                    <div class="input-with-suffix">
+                        <input type="number" id="soundDesignHours" placeholder="0" min="0" step="0.5">
+                        <span class="input-suffix">hrs</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="mixHours">Mix</label>
+                    <div class="input-with-suffix">
+                        <input type="number" id="mixHours" placeholder="0" min="0" step="0.5">
+                        <span class="input-suffix">hrs</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="revisionHours">Revisions</label>
+                    <div class="input-with-suffix">
+                        <input type="number" id="revisionHours" value="4" placeholder="0" min="0" step="0.5">
+                        <span class="input-suffix">hrs</span>
+                    </div>
+                </div>
+            </div>
+            <div class="checkbox-group" style="align-items: center;">
+                <input type="checkbox" id="bundleDiscount">
+                <label for="bundleDiscount" style="margin: 0;">Apply bundle discount</label>
+            </div>
+        </div>
+
+        <div class="results">
+            <h3 class="section-title">Estimate Breakdown</h3>
+            <div class="breakdown" id="breakdown"></div>
+
+            <div class="copy-section">
+                <h4 class="section-title">Email Copy</h4>
+                <textarea id="copyText" rows="12" style="width: 100%; min-height: 200px;"></textarea>
+                <div class="action-buttons">
+                    <button class="action-btn" onclick="sendToProjects()" style="background: var(--accent-blue);">send to projects</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logged Estimates Section -->
+        <div id="loggedEstimatesSection" style="margin-top: 3rem; display: none;">
+            <h3 class="section-title">Logged Estimates</h3>
+            <div id="loggedEstimatesList"></div>
+        </div>
+    </div>
+
+    <script>
+        const DAY_RATE = 500, MUSIC_RATE = 150, HOURS_PER_DAY = 8, TAX_RATE = 0.30;
+        let currentEstimateData = {};
+
+        function roundToHalfDay(hours) {
+            return Math.ceil(hours / (HOURS_PER_DAY / 2)) * 0.5;
+        }
+
+        function calculateEstimate() {
+            const projectName = document.getElementById('projectName').value || '';
+            const clientName = document.getElementById('clientName').value || 'Client';
+            const runtime = parseFloat(document.getElementById('runtime').value) || 0;
+            const musicCoverage = parseFloat(document.getElementById('musicCoverage').value) || 80;
+            const dialogueHours = parseFloat(document.getElementById('dialogueHours').value) || 0;
+            const soundDesignHours = parseFloat(document.getElementById('soundDesignHours').value) || 0;
+            const mixHours = parseFloat(document.getElementById('mixHours').value) || 0;
+            const revisionHours = parseFloat(document.getElementById('revisionHours').value) || 0;
+
+            const musicMinutes = runtime * (musicCoverage / 100);
+            const musicCost = musicMinutes * MUSIC_RATE;
+            const totalPostHours = dialogueHours + soundDesignHours + mixHours + revisionHours;
+            const postDays = roundToHalfDay(totalPostHours);
+            const postCost = postDays * DAY_RATE;
+
+            // Auto-check bundle discount if both music and post have values
+            if (musicCost > 0 && postCost > 0) {
+                document.getElementById('bundleDiscount').checked = true;
+            } else {
+                document.getElementById('bundleDiscount').checked = false;
+            }
+
+            const bundleDiscount = document.getElementById('bundleDiscount').checked;
+
+            currentEstimateData = { projectName, clientName, runtime, musicCoverage, dialogueHours, soundDesignHours, mixHours, revisionHours, bundleDiscount };
+            let subtotal = musicCost + postCost;
+            const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
+            const total = subtotal - discount;
+            const musicDays = musicMinutes > 0 ? Math.ceil(musicMinutes / 2) : 0;
+            const totalDays = musicDays + postDays;
+            const taxes = total * TAX_RATE;
+            const netAmount = total - taxes;
+
+            let breakdownHTML = '';
+            if (musicCost > 0) {
+                breakdownHTML += `<div class="breakdown-row"><span>Music Composition (${musicMinutes.toFixed(1)} minutes @ $${MUSIC_RATE}/min)</span><span>$${musicCost.toFixed(0)}</span></div>`;
+            }
+            if (postCost > 0) {
+                breakdownHTML += `<div class="breakdown-row"><span>Post-Production Audio (${postDays} days)</span><span>$${postCost.toFixed(0)}</span></div>`;
+            }
+            if (discount > 0) {
+                breakdownHTML += `<div class="breakdown-row"><span>Bundle Discount (10%)</span><span>-$${discount.toFixed(0)}</span></div>`;
+            }
+            if (musicDays > 0 || postDays > 0) {
+                breakdownHTML += `<div class="breakdown-row" style="margin-top: 1rem; padding-top: 0.75rem; border-top: var(--border-light);"><span style="font-weight: 500;">Estimated Timeline</span><span></span></div>`;
+                if (musicDays > 0) breakdownHTML += `<div class="breakdown-row" style="font-size: 0.9rem; color: var(--secondary-text);"><span>• Music composition</span><span>${musicDays} days</span></div>`;
+                if (postDays > 0) breakdownHTML += `<div class="breakdown-row" style="font-size: 0.9rem; color: var(--secondary-text);"><span>• Post-production audio</span><span>${postDays} days</span></div>`;
+                breakdownHTML += `<div class="breakdown-row" style="font-size: 0.9rem; color: var(--accent-teal); font-weight: 500;"><span>Total project timeline</span><span><input type="number" class="breakdown-input" id="timelineInput" value="${totalDays}" min="0" step="0.5" style="font-weight: 500; font-size: 0.9rem;"> days</span></div>`;
+            }
+
+            breakdownHTML += `
+                <div class="breakdown-row total">
+                    <span>Total Estimate</span>
+                    <span style="display: flex; align-items: center; gap: 0.25rem;">
+                        $<input type="number" class="breakdown-input" id="totalInput" value="${total.toFixed(0)}" step="100" style="font-weight: 600; font-size: 1.1rem;">
+                    </span>
+                </div>
+                <div class="breakdown-row" style="font-size: 0.9rem; color: var(--muted-text); margin-top: 0.5rem;">
+                    <span>Estimated taxes (30%)</span>
+                    <span id="taxDisplay">-$${taxes.toFixed(0)}</span>
+                </div>
+                <div class="breakdown-row" style="font-size: 0.9rem; color: var(--accent-blue); font-weight: 500;">
+                    <span>Net after taxes</span>
+                    <span id="netDisplay">$${netAmount.toFixed(0)}</span>
+                </div>
+            `;
+
+            document.getElementById('breakdown').innerHTML = breakdownHTML;
+
+            // Attach event listener to the total input
+            const totalInput = document.getElementById('totalInput');
+            if (totalInput) {
+                // Auto-resize function
+                const resizeInput = (input) => {
+                    const length = input.value.length;
+                    const minWidth = 70;
+                    const charWidth = 12; // approximate width per character
+                    const newWidth = Math.max(minWidth, length * charWidth + 30);
+                    input.style.width = newWidth + 'px';
+                };
+
+                // Initial size
+                resizeInput(totalInput);
+
+                totalInput.addEventListener('input', function() {
+                    resizeInput(this);
+
+                    const newTotal = parseFloat(this.value) || 0;
+                    const newTaxes = newTotal * TAX_RATE;
+                    const newNet = newTotal - newTaxes;
+
+                    document.getElementById('taxDisplay').textContent = `-$${newTaxes.toFixed(0)}`;
+                    document.getElementById('netDisplay').textContent = `$${newNet.toFixed(0)}`;
+
+                    const timelineInput = document.getElementById('timelineInput');
+                    const customTimeline = timelineInput ? parseFloat(timelineInput.value) : null;
+                    updateEmailText(newTotal, customTimeline);
+                });
+            }
+
+            // Attach event listener to the timeline input
+            const timelineInput = document.getElementById('timelineInput');
+            if (timelineInput) {
+                // Auto-resize function for timeline
+                const resizeTimelineInput = (input) => {
+                    const length = input.value.length;
+                    const minWidth = 40;
+                    const charWidth = 12;
+                    const newWidth = Math.max(minWidth, length * charWidth + 20);
+                    input.style.width = newWidth + 'px';
+                };
+
+                // Initial size
+                resizeTimelineInput(timelineInput);
+
+                timelineInput.addEventListener('input', function() {
+                    resizeTimelineInput(this);
+                    const totalInput = document.getElementById('totalInput');
+                    const currentTotal = totalInput ? parseFloat(totalInput.value) : total;
+                    updateEmailText(currentTotal, parseFloat(this.value));
+                });
+            }
+
+            updateEmailText(total, totalDays);
+        }
+
+        function updateEmailText(totalAmount, customTimeline = null) {
+            const clientName = document.getElementById('clientName').value || 'Client';
+            const firstName = clientName.split(' ')[0]; // Extract first name
+            const runtime = parseFloat(document.getElementById('runtime').value) || 0;
+            const musicCoverage = parseFloat(document.getElementById('musicCoverage').value) || 80;
+            const dialogueHours = parseFloat(document.getElementById('dialogueHours').value) || 0;
+            const soundDesignHours = parseFloat(document.getElementById('soundDesignHours').value) || 0;
+            const mixHours = parseFloat(document.getElementById('mixHours').value) || 0;
+            const revisionHours = parseFloat(document.getElementById('revisionHours').value) || 0;
+            const bundleDiscount = document.getElementById('bundleDiscount').checked;
+
+            const musicMinutes = runtime * (musicCoverage / 100);
+            const totalPostHours = dialogueHours + soundDesignHours + mixHours + revisionHours;
+            const postDays = roundToHalfDay(totalPostHours);
+            const musicDays = musicMinutes > 0 ? Math.ceil(musicMinutes / 2) : 0;
+            const calculatedTotalDays = musicDays + postDays;
+            const totalDays = customTimeline !== null ? customTimeline : calculatedTotalDays;
+
+            let emailText = `Hi ${firstName},\n\nMy estimate for this project is $${totalAmount.toFixed(0)}.`;
+
+            if (totalDays > 0) {
+                emailText += ` My estimated timeline is ${totalDays} ${totalDays === 1 ? 'day' : 'days'}.`;
+            }
+
+            emailText += `\n\n`;
+
+            if (musicMinutes > 0 && totalPostHours > 0) {
+                emailText += `This amount includes all music and post-production audio work including dialogue editing, sound design, mixing, and three rounds of revisions.`;
+            } else if (musicMinutes > 0) {
+                emailText += `This amount includes ${Math.ceil(musicMinutes)} minutes of original music composition.`;
+            } else if (totalPostHours > 0) {
+                emailText += `This amount includes all post-production audio work including dialogue editing, sound design, mixing, and three rounds of revisions.`;
+            }
+
+            emailText += `\n\nPayment terms: Net 15. Additional revisions beyond the estimated scope will be billed starting at my half day rate.\n\nLet me know if you have any questions!\n\nThanks,\nMicah`;
+
+            document.getElementById('copyText').value = emailText;
+        }
+
+        function sendToProjects() {
+            const projectName = document.getElementById('projectName').value;
+            const clientName = document.getElementById('clientName').value;
+            const contactName = document.getElementById('clientName').value;
+            const contactEmail = document.getElementById('clientEmail').value;
+
+            if (!projectName || !clientName) {
+                alert('Please enter project name and client contact to add to projects');
+                return;
+            }
+
+            // Build scope summary
+            const runtime = parseFloat(document.getElementById('runtime').value) || 0;
+            const musicCoverage = parseFloat(document.getElementById('musicCoverage').value) || 80;
+            const dialogueHours = parseFloat(document.getElementById('dialogueHours').value) || 0;
+            const soundDesignHours = parseFloat(document.getElementById('soundDesignHours').value) || 0;
+            const mixHours = parseFloat(document.getElementById('mixHours').value) || 0;
+            const revisionHours = parseFloat(document.getElementById('revisionHours').value) || 0;
+
+            const musicMinutes = runtime * (musicCoverage / 100);
+            const totalPostHours = dialogueHours + soundDesignHours + mixHours + revisionHours;
+
+            const scopeData = {
+                music: musicMinutes > 0 ? `${Math.round(musicMinutes)} mins` : '',
+                dialogue: dialogueHours > 0 ? `${dialogueHours} hrs` : '',
+                soundDesign: soundDesignHours > 0 ? `${soundDesignHours} hrs` : '',
+                mix: mixHours > 0 ? `${mixHours} hrs` : '',
+                revisions: revisionHours > 0 ? `${revisionHours} hrs` : ''
+            };
+
+            const projectData = {
+                id: Date.now().toString(),
+                title: projectName,
+                client: clientName,
+                contactEmail: contactEmail,
+                scopeData: scopeData,
+                status: 'Estimate sent',
+                column: 'prospects',
+                createdAt: new Date().toISOString(),
+                estimateData: { ...currentEstimateData }
+            };
+
+            const existingProjects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
+            existingProjects.push(projectData);
+            localStorage.setItem('kanban-projects', JSON.stringify(existingProjects));
+
+            // Automatically log the estimate
+            const musicCost = musicMinutes * MUSIC_RATE;
+            const postDays = roundToHalfDay(totalPostHours);
+            const postCost = postDays * DAY_RATE;
+            let subtotal = musicCost + postCost;
+            const bundleDiscount = document.getElementById('bundleDiscount').checked;
+            const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
+            const total = subtotal - discount;
+
+            const loggedEstimate = {
+                id: projectData.id, // Use same ID as project
+                projectName,
+                clientName,
+                runtime,
+                musicMinutes: Math.ceil(musicMinutes),
+                totalPostHours,
+                postDays,
+                bundleDiscount,
+                total,
+                date: new Date().toISOString(),
+                scopeData: scopeData
+            };
+
+            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
+            loggedEstimates.push(loggedEstimate);
+            localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
+            renderLoggedEstimates();
+
+            // If project has music, add it to cue tracker
+            if (musicMinutes > 0) {
+                const cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
+                if (!cueProjects.find(p => p.id === projectData.id)) {
+                    cueProjects.push({
+                        id: projectData.id,
+                        title: projectData.title,
+                        client: projectData.client
+                    });
+                    localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
+                }
+            }
+
+            alert('Project added to prospects pipeline successfully! Switch to the Projects tab to see it.');
+
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'projectAdded',
+                    data: projectData
+                }, '*');
+            }
+
+            // Clear the form after sending to projects
+            clearEstimateForm();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                parseProjectInfo(content);
+                // Clear the file input so the same file can be imported again
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function parseProjectInfo(content) {
+            // Parse the text file with flexible formatting
+            const lines = content.split('\n');
+            const data = {};
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                // Match pattern: KEY: value (case insensitive, flexible spacing)
+                const match = trimmed.match(/^([^:]+):\s*(.*)$/i);
+                if (match) {
+                    const key = match[1].trim().toLowerCase();
+                    const value = match[2].trim();
+                    data[key] = value;
+                }
+            });
+
+            // Auto-fill form fields
+            if (data.project) {
+                document.getElementById('projectName').value = data.project;
+            }
+
+            if (data.client) {
+                document.getElementById('clientName').value = data.client;
+            }
+
+            if (data.email) {
+                document.getElementById('clientEmail').value = data.email;
+            }
+
+            if (data.runtime) {
+                // Extract number from runtime (e.g., "30 mins" -> 30)
+                const runtimeMatch = data.runtime.match(/(\d+\.?\d*)/);
+                if (runtimeMatch) {
+                    document.getElementById('runtime').value = runtimeMatch[1];
+                }
+            }
+
+            // Parse SCOPE and set defaults
+            if (data.scope) {
+                const scope = data.scope.toLowerCase();
+                const runtime = parseFloat(document.getElementById('runtime').value) || 0;
+
+                // Check for music/composition
+                if (scope.includes('music') || scope.includes('composition')) {
+                    document.getElementById('musicCoverage').value = '80';
+                }
+
+                // Set default hours based on runtime or reasonable defaults
+                if (scope.includes('dialogue')) {
+                    document.getElementById('dialogueHours').value = Math.max(1, Math.round(runtime / 2));
+                }
+
+                if (scope.includes('sound design')) {
+                    document.getElementById('soundDesignHours').value = Math.max(1, Math.round(runtime / 4));
+                }
+
+                if (scope.includes('mix')) {
+                    document.getElementById('mixHours').value = Math.max(1, Math.round(runtime / 4));
+                }
+            }
+
+            // Trigger calculation to update everything including bundle discount
+            calculateEstimate();
+
+            alert('Project info imported successfully!');
+        }
+
+        function clearEstimateForm() {
+            document.getElementById('projectName').value = '';
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientEmail').value = '';
+            document.getElementById('runtime').value = '';
+            document.getElementById('musicCoverage').value = '80';
+            document.getElementById('dialogueHours').value = '';
+            document.getElementById('soundDesignHours').value = '';
+            document.getElementById('mixHours').value = '';
+            document.getElementById('revisionHours').value = '';
+            document.getElementById('bundleDiscount').checked = false;
+            calculateEstimate();
+        }
+
+        function logEstimate() {
+            const projectName = document.getElementById('projectName').value;
+            const clientName = document.getElementById('clientName').value;
+
+            if (!projectName || !clientName) {
+                alert('Please enter project name and client contact to log estimate');
+                return;
+            }
+
+            const runtime = parseFloat(document.getElementById('runtime').value) || 0;
+            const musicCoverage = parseFloat(document.getElementById('musicCoverage').value) || 80;
+            const dialogueHours = parseFloat(document.getElementById('dialogueHours').value) || 0;
+            const soundDesignHours = parseFloat(document.getElementById('soundDesignHours').value) || 0;
+            const mixHours = parseFloat(document.getElementById('mixHours').value) || 0;
+            const revisionHours = parseFloat(document.getElementById('revisionHours').value) || 0;
+            const bundleDiscount = document.getElementById('bundleDiscount').checked;
+
+            const musicMinutes = runtime * (musicCoverage / 100);
+            const musicCost = musicMinutes * MUSIC_RATE;
+            const totalPostHours = dialogueHours + soundDesignHours + mixHours + revisionHours;
+            const postDays = roundToHalfDay(totalPostHours);
+            const postCost = postDays * DAY_RATE;
+            let subtotal = musicCost + postCost;
+            const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
+            const total = subtotal - discount;
+
+            const loggedEstimate = {
+                id: Date.now().toString(),
+                projectName,
+                clientName,
+                runtime,
+                musicMinutes: Math.ceil(musicMinutes),
+                totalPostHours,
+                postDays,
+                bundleDiscount,
+                total,
+                date: new Date().toISOString()
+            };
+
+            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
+            loggedEstimates.push(loggedEstimate);
+            localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
+
+            renderLoggedEstimates();
+            alert('Estimate logged successfully!');
+        }
+
+        function renderLoggedEstimates() {
+            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
+            const section = document.getElementById('loggedEstimatesSection');
+            const list = document.getElementById('loggedEstimatesList');
+
+            if (loggedEstimates.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = loggedEstimates.reverse().map(estimate => `
+                <div class="logged-estimate-card" onclick="loadLoggedEstimate('${estimate.id}')" style="cursor: pointer;">
+                    <div class="logged-estimate-header">
+                        <div>
+                            <div class="logged-estimate-title">${estimate.projectName}</div>
+                            <div class="logged-estimate-date">${new Date(estimate.date).toLocaleDateString()}</div>
+                        </div>
+                        <button class="logged-estimate-delete" onclick="event.stopPropagation(); deleteLoggedEstimate('${estimate.id}')" title="Delete">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="logged-estimate-info">
+                        <div><strong>Client:</strong> ${estimate.clientName}</div>
+                        <div><strong>Music:</strong> ${estimate.musicMinutes} mins</div>
+                        <div><strong>Post:</strong> ${estimate.postDays} days</div>
+                        <div><strong>Total:</strong> $${estimate.total.toFixed(0)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadLoggedEstimate(id) {
+            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
+            const estimate = loggedEstimates.find(e => e.id === id);
+            if (!estimate) return;
+
+            // Populate form fields from logged estimate
+            document.getElementById('projectName').value = estimate.projectName || '';
+            document.getElementById('clientName').value = estimate.clientName || '';
+            document.getElementById('runtime').value = estimate.runtime || '';
+            document.getElementById('musicCoverage').value = 80; // Default
+            document.getElementById('dialogueHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
+            document.getElementById('soundDesignHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
+            document.getElementById('mixHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
+            document.getElementById('revisionHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
+            document.getElementById('bundleDiscount').checked = estimate.bundleDiscount || false;
+
+            // Recalculate
+            calculateEstimate();
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteLoggedEstimate(id) {
+            if (!confirm('Delete this logged estimate?')) return;
+
+            let loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
+            loggedEstimates = loggedEstimates.filter(e => e.id !== id);
+            localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
+            renderLoggedEstimates();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = document.querySelectorAll('input:not(.breakdown-input), select');
+            inputs.forEach(input => {
+                input.addEventListener('input', calculateEstimate);
+                input.addEventListener('change', calculateEstimate);
+            });
+            calculateEstimate();
+            renderLoggedEstimates();
+        });
+    </script>
+</body>
+</html>
