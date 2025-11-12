@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Video Review</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #1a1a1a;
+            --secondary-text: #333;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #007acc;
+            --accent-red: #ff6b6b;
+            --accent-green: #51cf66;
+            --accent-orange: #ff922b;
+            --accent-teal: #469FE0;
+            --accent-purple: #845ec2;
+            --bg-primary: #FDF8F0;
+            --bg-secondary: #FEFDFA;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'DM Sans', system-ui, -apple-system, sans-serif;
+            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+            --font-body: 'Public Sans', system-ui, sans-serif;
+            --font-mono: 'Archivo', monospace;
+            --font-button: 'Inter', system-ui, sans-serif;
+            --radius-lg: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-primary);
+            background: var(--bg-primary);
+            color: var(--primary-text);
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+            overflow: auto;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            min-height: 100vh;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* Video Panel */
+        .video-panel {
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            position: relative;
+        }
+
+        .video-header {
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .video-info {
+            font-size: 0.85rem;
+            color: var(--subtle-text);
+        }
+
+        .video-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            overflow: hidden;
+            transition: background 0.3s ease, border 0.3s ease;
+        }
+
+        .video-container::before,
+        .video-container::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: #000;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .video-container::before {
+            top: 0;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+
+        .video-container::after {
+            bottom: 0;
+        }
+
+        .video-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            color: var(--muted-text);
+            background: var(--bg-secondary);
+            width: 100%;
+            height: 100%;
+            position: relative;
+            z-index: 0;
+        }
+
+        .video-placeholder svg {
+            opacity: 0.3;
+        }
+
+        .video-placeholder-text {
+            font-size: 1rem;
+            color: var(--subtle-text);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        video[src]:not([src=""]) {
+            display: block;
+        }
+
+        .audio-visualizer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .audio-icon {
+            opacity: 0.3;
+        }
+
+        .audio-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+            height: 60px;
+        }
+
+        .audio-bar {
+            width: 6px;
+            background: linear-gradient(to top, #469FE0, #007acc);
+            border-radius: 3px;
+            opacity: 0.4;
+        }
+
+        .audio-bar:nth-child(1) { height: 30%; }
+        .audio-bar:nth-child(2) { height: 50%; }
+        .audio-bar:nth-child(3) { height: 70%; }
+        .audio-bar:nth-child(4) { height: 45%; }
+        .audio-bar:nth-child(5) { height: 35%; }
+
+        .video-controls {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 1rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .play-btn {
+            background: var(--accent-teal);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .play-btn:hover {
+            background: #3a8bc7;
+        }
+
+        .timecode {
+            font-family: var(--font-mono);
+            color: white;
+            font-size: 0.9rem;
+            min-width: 140px;
+        }
+
+        .progress-container {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b 0%, #007acc 100%);
+            border-radius: 3px;
+            width: 0%;
+            position: relative;
+        }
+
+        .progress-handle {
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            cursor: grab;
+        }
+
+        .progress-handle:active {
+            cursor: grabbing;
+        }
+
+        .comment-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .comment-marker {
+            position: absolute;
+            width: 3px;
+            height: 100%;
+            background: var(--accent-orange);
+            cursor: pointer;
+            pointer-events: all;
+        }
+
+        .comment-marker:hover {
+            background: var(--accent-red);
+            width: 4px;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .volume-slider {
+            width: 80px;
+        }
+
+        .fullscreen-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .fullscreen-btn:hover {
+            color: var(--accent-teal);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 400;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-family: var(--font-body);
+        }
+
+        .btn-primary {
+            background: var(--accent-teal);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3a8bc7;
+        }
+
+        .btn-secondary {
+            background: var(--subtle-text);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: var(--secondary-text);
+        }
+
+        /* Comments Panel */
+        .comments-panel {
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            border-left: var(--border-medium);
+        }
+
+        .comments-header {
+            padding: 1.5rem;
+            border-bottom: var(--border-medium);
+        }
+
+        .comments-header h2 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--primary-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .comments-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .export-to-notes-btn {
+            padding: 0.5rem 1rem;
+            background: var(--accent-teal);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: var(--font-body);
+        }
+
+        .export-to-notes-btn:hover {
+            background: #3a8bc7;
+        }
+
+        .export-to-notes-btn:disabled {
+            background: var(--muted-text);
+            cursor: not-allowed;
+        }
+
+        .comments-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: var(--subtle-text);
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stat-badge {
+            background: var(--accent-teal);
+            color: white;
+            padding: 0.1rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .comments-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .comment-card {
+            background: var(--bg-primary);
+            border: var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .comment-card:hover {
+            box-shadow: var(--shadow-subtle);
+            transform: translateY(-2px);
+        }
+
+        .comment-card.active {
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 2px rgba(70, 159, 224, 0.1);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .comment-timecode {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent-teal);
+        }
+
+        .comment-status {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-open {
+            background: rgba(255, 146, 43, 0.1);
+            color: var(--accent-orange);
+        }
+
+        .status-resolved {
+            background: rgba(81, 207, 102, 0.1);
+            color: var(--accent-green);
+        }
+
+        .comment-author {
+            font-size: 0.8rem;
+            color: var(--subtle-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .comment-text {
+            font-size: 0.9rem;
+            color: var(--secondary-text);
+            line-height: 1.5;
+            margin-bottom: 0.5rem;
+        }
+
+        .comment-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--muted-text);
+        }
+
+        .comment-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            padding: 0.25rem;
+            cursor: pointer;
+            color: var(--subtle-text);
+            transition: color 0.2s;
+        }
+
+        .icon-btn:hover {
+            color: var(--accent-teal);
+        }
+
+        .icon-btn.delete:hover {
+            color: var(--accent-red);
+        }
+
+        .add-comment-section {
+            padding: 1rem;
+            border-top: var(--border-medium);
+            background: var(--bg-secondary);
+        }
+
+        .add-comment-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .comment-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: var(--border-medium);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: var(--font-body);
+            background: white;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .comment-input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+        }
+
+        input.comment-input {
+            min-height: auto;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted-text);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input-btn {
+            padding: 0.5rem 1rem;
+            background: var(--subtle-text);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: var(--font-body);
+        }
+
+        .file-input-btn:hover {
+            background: var(--secondary-text);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .video-filename {
+            margin-left: 1rem;
+            font-size: 0.85rem;
+            color: var(--subtle-text);
+        }
+
+        /* Scrollbar styling */
+        .comments-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .comments-list::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        .comments-list::-webkit-scrollbar-thumb {
+            background: var(--border-medium);
+            border-radius: 4px;
+        }
+
+        .comments-list::-webkit-scrollbar-thumb:hover {
+            background: var(--subtle-text);
+        }
+
+        @media (max-width: 1200px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 400px;
+            }
+
+            .comments-panel {
+                border-left: none;
+                border-top: var(--border-medium);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Video Panel -->
+        <div class="video-panel">
+            <div class="video-header">
+                <button class="back-btn" onclick="window.location.href='/'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    back to files
+                </button>
+                <span class="video-filename" id="videoFilename" style="color: white; flex: 1;"></span>
+            </div>
+
+            <div class="video-container">
+                <div class="video-placeholder" id="videoPlaceholder">
+                    <svg width="200" height="200" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#E74C3C;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <text x="256" y="256" font-family="'Bricolage Grotesque', system-ui, -apple-system, sans-serif" font-size="180" font-weight="700" fill="url(#textGradient)" text-anchor="middle" dominant-baseline="middle" letter-spacing="6">Aa</text>
+                    </svg>
+                </div>
+                <div class="audio-visualizer" id="audioVisualizer" style="display: none;">
+                    <div class="audio-icon">
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+                            <path d="M9 18V5l12-2v13M9 18c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3zm12-2c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3z"/>
+                        </svg>
+                    </div>
+                    <div class="audio-bars">
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                    </div>
+                </div>
+                <video id="videoPlayer" style="display: none;">
+                    <source src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <audio id="audioPlayer" style="display: none; width: 80%; max-width: 600px;">
+                    Your browser does not support the audio tag.
+                </audio>
+            </div>
+
+            <div class="video-controls">
+                <div class="controls-row">
+                    <button class="control-btn" id="startOverBtn" title="Start over">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                            <rect x="4" y="4" width="2" height="16"/>
+                            <path d="M18 6l-8 6 8 6z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="rewind10Btn" title="Rewind 10 seconds">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M2.5 2v6h6M2.66 15.57a10 10 0 1 0 .57-8.38"></path>
+                            <text x="12" y="16" font-size="8" fill="white" text-anchor="middle" font-weight="bold">10</text>
+                        </svg>
+                    </button>
+                    <button class="play-btn" id="playBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                            <path id="playIcon" d="M8 5v14l11-7z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="forward10Btn" title="Forward 10 seconds">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"></path>
+                            <text x="12" y="16" font-size="8" fill="white" text-anchor="middle" font-weight="bold">10</text>
+                        </svg>
+                    </button>
+                    <span class="timecode" id="timecode">00:00:00 / 00:00:00</span>
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-handle"></div>
+                        </div>
+                        <div class="comment-markers" id="commentMarkers"></div>
+                    </div>
+                    <div class="volume-control">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                            <path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">
+                    </div>
+                    <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments Panel -->
+        <div class="comments-panel">
+            <div class="comments-header">
+                <div class="comments-header-row">
+                    <h2>Comments</h2>
+                    <button class="export-to-notes-btn" id="exportToNotesBtn" disabled>send to notes</button>
+                </div>
+                <div class="comments-stats">
+                    <div class="stat-item">
+                        <span class="stat-badge" id="totalComments">0</span>
+                        <span>total</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-badge" id="openComments">0</span>
+                        <span>open</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comments-list" id="commentsList">
+                <div class="empty-state">
+                    <p>No comments yet. Add a comment at the current timecode.</p>
+                </div>
+            </div>
+
+            <div class="add-comment-section">
+                <div class="add-comment-form">
+                    <input type="text" class="comment-input" id="authorInput" placeholder="your name">
+                    <textarea class="comment-input" id="commentInput" placeholder="add a comment..."></textarea>
+                    <button class="btn btn-primary" id="addCommentBtn">add comment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Review page JavaScript loaded - v1.1');
+
+        // State
+        let comments = [];
+        let currentVideoFile = null;
+        let currentFileId = null;
+        let activeCommentId = null;
+
+        // Elements
+        const videoPlayer = document.getElementById('videoPlayer');
+        const audioPlayer = document.getElementById('audioPlayer');
+        let activePlayer = null; // Will be set to either videoPlayer or audioPlayer
+        const playBtn = document.getElementById('playBtn');
+        const playIcon = document.getElementById('playIcon');
+        const timecode = document.getElementById('timecode');
+        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const videoFilename = document.getElementById('videoFilename');
+        const authorInput = document.getElementById('authorInput');
+        const commentInput = document.getElementById('commentInput');
+        const addCommentBtn = document.getElementById('addCommentBtn');
+        const commentsList = document.getElementById('commentsList');
+        const commentMarkers = document.getElementById('commentMarkers');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const videoPanel = document.querySelector('.video-panel');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+        const exportToNotesBtn = document.getElementById('exportToNotesBtn');
+
+        // Track video state for auto-pause/play
+        let wasPlayingBeforeComment = false;
+        let commentTimecode = null;
+
+        // Get file ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        currentFileId = urlParams.get('file');
+
+        // Load file from backend if specified
+        if (currentFileId) {
+            loadFileFromBackend();
+        }
+
+        async function loadFileFromBackend() {
+            try {
+                // Check authentication
+                const authResponse = await fetch('http://localhost:3000/api/projects/current');
+                if (!authResponse.ok) {
+                    window.location.href = '/';
+                    return;
+                }
+
+                // Load file metadata
+                const filesResponse = await fetch('http://localhost:3000/api/files');
+                if (!filesResponse.ok) {
+                    alert('Failed to load file');
+                    return;
+                }
+
+                const files = await filesResponse.json();
+                const file = files.find(f => f.id == currentFileId);
+
+                if (!file) {
+                    alert('File not found');
+                    window.location.href = '/';
+                    return;
+                }
+
+                // Determine which player to use based on file type
+                const audioVisualizer = document.getElementById('audioVisualizer');
+                if (file.type === 'audio') {
+                    activePlayer = audioPlayer;
+                    audioPlayer.style.display = 'block';
+                    videoPlayer.style.display = 'none';
+                    audioVisualizer.style.display = 'flex';
+                } else {
+                    activePlayer = videoPlayer;
+                    videoPlayer.style.display = 'block';
+                    audioPlayer.style.display = 'none';
+                    audioVisualizer.style.display = 'none';
+                }
+
+                // Set source to streaming endpoint
+                activePlayer.src = `/api/files/${currentFileId}/stream`;
+                videoFilename.textContent = file.name;
+                currentVideoFile = file.name;
+
+                // Hide placeholder
+                videoPlaceholder.style.display = 'none';
+                document.querySelector('.video-container').classList.add('has-video');
+
+                // Load the media
+                activePlayer.load();
+
+                // Load comments for this file
+                await loadCommentsFromBackend();
+            } catch (error) {
+                console.error('Error loading file:', error);
+                alert('Failed to load file');
+            }
+        }
+
+        async function loadCommentsFromBackend() {
+            try {
+                const response = await fetch(`http://localhost:3000/api/files/${currentFileId}/comments`);
+                if (response.ok) {
+                    comments = await response.json();
+                    renderComments();
+                }
+            } catch (error) {
+                console.error('Error loading comments:', error);
+            }
+
+            // Load saved author from localStorage
+            const savedAuthor = localStorage.getItem('video-review-author');
+            if (savedAuthor) {
+                authorInput.value = savedAuthor;
+            }
+        }
+
+        async function saveCommentToBackend(comment) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/files/${currentFileId}/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        author_name: comment.author,
+                        timecode: comment.timecode,
+                        comment_text: comment.text
+                    })
+                });
+
+                if (response.ok) {
+                    const savedComment = await response.json();
+                    return savedComment;
+                }
+            } catch (error) {
+                console.error('Error saving comment:', error);
+            }
+            return null;
+        }
+
+        // Save author to localStorage
+        function saveAuthor() {
+            if (authorInput.value) {
+                localStorage.setItem('video-review-author', authorInput.value);
+            }
+        }
+
+        // Format seconds to HH:MM:SS
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return '00:00:00';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        // Parse HH:MM:SS to seconds
+        function parseTime(timeString) {
+            const parts = timeString.split(':').map(p => parseInt(p) || 0);
+            if (parts.length === 3) {
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            }
+            return 0;
+        }
+
+        // Play/Pause
+        console.log('Adding play button listener. PlayBtn:', playBtn);
+        playBtn.addEventListener('click', () => {
+            console.log('Play button CLICKED! Active player:', activePlayer);
+            if (!activePlayer) {
+                console.error('No active player!');
+                return;
+            }
+
+            if (activePlayer.paused) {
+                console.log('Attempting to play...');
+                activePlayer.play().catch(err => console.error('Play error:', err));
+            } else {
+                console.log('Pausing...');
+                activePlayer.pause();
+            }
+        });
+
+        // Attach play/pause listeners to both players
+        function setupPlayerListeners(player) {
+            player.addEventListener('play', () => {
+                playIcon.setAttribute('d', 'M6 4h4v16H6V4zm8 0h4v16h-4V4z'); // Pause icon
+            });
+
+            player.addEventListener('pause', () => {
+                playIcon.setAttribute('d', 'M8 5v14l11-7z'); // Play icon
+            });
+
+            player.addEventListener('timeupdate', () => {
+                const current = player.currentTime;
+                const duration = player.duration;
+
+                timecode.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+
+                if (duration > 0) {
+                    const percent = (current / duration) * 100;
+                    progressBar.style.width = percent + '%';
+                }
+            });
+
+            player.addEventListener('loadedmetadata', () => {
+                renderComments();
+            });
+        }
+
+        setupPlayerListeners(videoPlayer);
+        setupPlayerListeners(audioPlayer);
+
+        // Navigation controls
+        const startOverBtn = document.getElementById('startOverBtn');
+        const rewind10Btn = document.getElementById('rewind10Btn');
+        const forward10Btn = document.getElementById('forward10Btn');
+
+        startOverBtn.addEventListener('click', () => {
+            if (!activePlayer) return;
+            activePlayer.currentTime = 0;
+        });
+
+        rewind10Btn.addEventListener('click', () => {
+            if (!activePlayer) return;
+            activePlayer.currentTime = Math.max(0, activePlayer.currentTime - 10);
+        });
+
+        forward10Btn.addEventListener('click', () => {
+            if (!activePlayer) return;
+            activePlayer.currentTime = Math.min(activePlayer.duration, activePlayer.currentTime + 10);
+        });
+
+        // Progress bar click
+        progressContainer.addEventListener('click', (e) => {
+            if (!activePlayer) return;
+            const rect = progressContainer.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            activePlayer.currentTime = percent * activePlayer.duration;
+        });
+
+        // Volume control
+        volumeSlider.addEventListener('input', (e) => {
+            if (!activePlayer) return;
+            activePlayer.volume = e.target.value / 100;
+        });
+
+        // Fullscreen toggle
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                videoPanel.requestFullscreen().catch(err => {
+                    console.error('Error entering fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Auto-pause when starting to type a comment
+        commentInput.addEventListener('focus', () => {
+            if (!activePlayer) return;
+            if (!activePlayer.paused) {
+                wasPlayingBeforeComment = true;
+                commentTimecode = activePlayer.currentTime;
+                activePlayer.pause();
+            } else {
+                wasPlayingBeforeComment = false;
+                commentTimecode = activePlayer.currentTime;
+            }
+        });
+
+        // Add comment function
+        async function addComment() {
+            const author = authorInput.value.trim();
+            const text = commentInput.value.trim();
+
+            if (!author) {
+                alert('Please enter your name');
+                return;
+            }
+
+            if (!text) {
+                alert('Please enter a comment');
+                return;
+            }
+
+            const timecodeValue = formatTime(commentTimecode);
+
+            const comment = {
+                id: Date.now().toString(),
+                author,
+                timecode: timecodeValue,
+                timeSeconds: commentTimecode,
+                text,
+                status: 'open',
+                createdAt: new Date().toISOString()
+            };
+
+            // Save author
+            saveAuthor();
+
+            // Save to backend if we have a file ID
+            if (currentFileId) {
+                const savedComment = await saveCommentToBackend(comment);
+                if (savedComment) {
+                    comment.id = savedComment.id;
+                }
+            }
+
+            comments.push(comment);
+            comments.sort((a, b) => a.timeSeconds - b.timeSeconds);
+
+            renderComments();
+
+            // Clear input
+            commentInput.value = '';
+            commentInput.blur();
+
+            // Resume video if it was playing
+            if (wasPlayingBeforeComment && activePlayer) {
+                activePlayer.play();
+            }
+        }
+
+        // Add comment button click
+        addCommentBtn.addEventListener('click', addComment);
+
+        // Enter key to submit comment
+        commentInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                addComment();
+            }
+        });
+
+        // Render comments
+        function renderComments() {
+            const total = comments.length;
+            const open = comments.filter(c => c.status === 'open').length;
+
+            document.getElementById('totalComments').textContent = total;
+            document.getElementById('openComments').textContent = open;
+
+            // Enable/disable export button based on comment count
+            if (exportToNotesBtn) {
+                exportToNotesBtn.disabled = total === 0;
+            }
+
+            if (total === 0) {
+                commentsList.innerHTML = '<div class="empty-state"><p>No comments yet. Add a comment at the current timecode.</p></div>';
+                commentMarkers.innerHTML = '';
+                return;
+            }
+
+            commentsList.innerHTML = comments.map(comment => {
+                const date = new Date(comment.createdAt);
+                const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <div class="comment-card ${activeCommentId === comment.id ? 'active' : ''}" data-id="${comment.id}">
+                        <div class="comment-header">
+                            <span class="comment-timecode">${comment.timecode}</span>
+                            <span class="comment-status status-${comment.status}">${comment.status}</span>
+                        </div>
+                        <div class="comment-author">${comment.author}</div>
+                        <div class="comment-text">${comment.text}</div>
+                        <div class="comment-meta">
+                            <span>${dateStr}</span>
+                            <div class="comment-actions">
+                                <button class="icon-btn resolve-btn" title="${comment.status === 'open' ? 'Resolve' : 'Reopen'}">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </svg>
+                                </button>
+                                <button class="icon-btn delete" title="Delete">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Render markers
+            if (activePlayer) {
+                const duration = activePlayer.duration;
+                if (duration > 0) {
+                    commentMarkers.innerHTML = comments.map(comment => {
+                        const percent = (comment.timeSeconds / duration) * 100;
+                        return `<div class="comment-marker" style="left: ${percent}%" data-id="${comment.id}"></div>`;
+                    }).join('');
+                }
+            }
+
+            attachCommentEventListeners();
+        }
+
+        // Attach event listeners to comment cards
+        function attachCommentEventListeners() {
+            // Click comment card to jump to time
+            document.querySelectorAll('.comment-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.icon-btn')) return;
+                    if (!activePlayer) return;
+
+                    const id = card.dataset.id;
+                    const comment = comments.find(c => c.id === id);
+                    if (comment) {
+                        activePlayer.currentTime = comment.timeSeconds;
+                        activeCommentId = id;
+                        renderComments();
+                    }
+                });
+            });
+
+            // Click marker to jump to time
+            document.querySelectorAll('.comment-marker').forEach(marker => {
+                marker.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!activePlayer) return;
+                    const id = marker.dataset.id;
+                    const comment = comments.find(c => c.id === id);
+                    if (comment) {
+                        activePlayer.currentTime = comment.timeSeconds;
+                        activeCommentId = id;
+                        renderComments();
+                    }
+                });
+            });
+
+            // Resolve/reopen button
+            document.querySelectorAll('.resolve-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const card = e.target.closest('.comment-card');
+                    const id = card.dataset.id;
+                    const comment = comments.find(c => c.id === id);
+                    if (comment) {
+                        comment.status = comment.status === 'open' ? 'resolved' : 'open';
+                        renderComments();
+                    }
+                });
+            });
+
+            // Delete button
+            document.querySelectorAll('.icon-btn.delete').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const card = e.target.closest('.comment-card');
+                    const id = card.dataset.id;
+                    if (confirm('Delete this comment?')) {
+                        comments = comments.filter(c => c.id !== id);
+                        renderComments();
+                    }
+                });
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!activePlayer) return;
+
+            // Space to play/pause (when not focused on input)
+            if (e.code === 'Space' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                if (activePlayer.paused) {
+                    activePlayer.play();
+                } else {
+                    activePlayer.pause();
+                }
+            }
+
+            // Left/Right arrows to skip
+            if (e.code === 'ArrowLeft' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                activePlayer.currentTime = Math.max(0, activePlayer.currentTime - 5);
+            }
+            if (e.code === 'ArrowRight' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                activePlayer.currentTime = Math.min(activePlayer.duration, activePlayer.currentTime + 5);
+            }
+
+            // M to capture timecode
+            if (e.code === 'KeyM' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                commentInput.focus();
+            }
+        });
+
+        // Export comments to notes page
+        function exportCommentsToNotes() {
+            if (comments.length === 0) {
+                alert('No comments to export');
+                return;
+            }
+
+            // Format comments for the notes page (Frame.io format)
+            const formattedComments = comments.map(comment => ({
+                timecode: comment.timecode,
+                author: comment.author,
+                text: comment.text,
+                timestamp: comment.createdAt
+            }));
+
+            // Send message to parent window to switch to notes and load comments
+            window.parent.postMessage({
+                type: 'exportToNotes',
+                comments: formattedComments,
+                source: 'review',
+                fileName: videoFilename.textContent || 'Review Comments'
+            }, '*');
+
+            // Show confirmation
+            const originalText = exportToNotesBtn.textContent;
+            exportToNotesBtn.textContent = 'Sent!';
+            exportToNotesBtn.style.background = 'var(--accent-green)';
+            setTimeout(() => {
+                exportToNotesBtn.textContent = originalText;
+                exportToNotesBtn.style.background = '';
+            }, 2000);
+        }
+
+        // Export button click handler
+        if (exportToNotesBtn) {
+            exportToNotesBtn.addEventListener('click', exportCommentsToNotes);
+        }
+
+        // Listen for messages from parent window
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'loadFile') {
+                console.log('Review page received file to load:', event.data.fileName);
+                // For now, just display the file name since we don't have actual video files
+                // In a real implementation, you would load the video file here
+                videoFilename.textContent = event.data.fileName;
+                // You could also update the placeholder or show a message
+            }
+        });
+
+    </script>
+</body>
+</html>

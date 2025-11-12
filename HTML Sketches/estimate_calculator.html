@@ -25,7 +25,7 @@
             --radius-lg: 12px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: var(--font-primary); background: var(--bg-primary); color: var(--primary-text); line-height: 1.6; padding: 0; margin: 0; overflow: hidden; }
+        body { font-family: var(--font-primary); background: var(--bg-primary); color: var(--primary-text); line-height: 1.6; padding: 0; margin: 0; overflow-y: auto; }
         .calculator-container { max-width: 800px; margin: 0 auto; background: var(--bg-secondary); border-radius: var(--radius-lg); box-shadow: var(--shadow-subtle); padding: 2rem; border: var(--border-light); margin-top: 2rem; margin-bottom: 2rem; }
         .header { text-align: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: var(--border-medium); }
         .header h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: var(--primary-text); }
@@ -344,7 +344,7 @@
             document.getElementById('copyText').value = emailText;
         }
 
-        function sendToProjects() {
+        async function sendToProjects() {
             const projectName = document.getElementById('projectName').value;
             const clientName = document.getElementById('clientName').value;
             const contactName = document.getElementById('clientName').value;
@@ -366,29 +366,45 @@
             const musicMinutes = runtime * (musicCoverage / 100);
             const totalPostHours = dialogueHours + soundDesignHours + mixHours + revisionHours;
 
+            const scopeParts = [];
+            if (musicMinutes > 0) scopeParts.push(`${Math.round(musicMinutes)} mins music`);
+            if (dialogueHours > 0) scopeParts.push(`${dialogueHours} hrs dialogue`);
+            if (soundDesignHours > 0) scopeParts.push(`${soundDesignHours} hrs sound design`);
+            if (mixHours > 0) scopeParts.push(`${mixHours} hrs mix`);
+            if (revisionHours > 0) scopeParts.push(`${revisionHours} hrs revisions`);
+            const scopeNotes = scopeParts.join(', ');
+
+            // Create project via API with structured scope data
             const scopeData = {
-                music: musicMinutes > 0 ? `${Math.round(musicMinutes)} mins` : '',
-                dialogue: dialogueHours > 0 ? `${dialogueHours} hrs` : '',
-                soundDesign: soundDesignHours > 0 ? `${soundDesignHours} hrs` : '',
-                mix: mixHours > 0 ? `${mixHours} hrs` : '',
-                revisions: revisionHours > 0 ? `${revisionHours} hrs` : ''
+                contactEmail,
+                musicMinutes: Math.round(musicMinutes),
+                dialogueHours,
+                soundDesignHours,
+                mixHours,
+                revisionHours
             };
 
-            const projectData = {
-                id: Date.now().toString(),
-                title: projectName,
-                client: clientName,
-                contactEmail: contactEmail,
-                scopeData: scopeData,
-                status: 'Estimate sent',
-                column: 'prospects',
-                createdAt: new Date().toISOString(),
-                estimateData: { ...currentEstimateData }
-            };
+            try {
+                const response = await fetch('http://localhost:3000/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: projectName,
+                        client_name: clientName,
+                        status: 'prospects',
+                        notes: JSON.stringify(scopeData), // Store scope as JSON
+                        pinned: 0,
+                        password: 'default' // Required by DB schema
+                    })
+                });
 
-            const existingProjects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
-            existingProjects.push(projectData);
-            localStorage.setItem('kanban-projects', JSON.stringify(existingProjects));
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(`Failed to create project: ${error.error}`);
+                    return;
+                }
+
+                const newProject = await response.json();
 
             // Automatically log the estimate
             const musicCost = musicMinutes * MUSIC_RATE;
@@ -399,45 +415,46 @@
             const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
             const total = subtotal - discount;
 
-            const loggedEstimate = {
-                id: projectData.id, // Use same ID as project
-                projectName,
-                clientName,
-                runtime,
-                musicMinutes: Math.ceil(musicMinutes),
-                totalPostHours,
-                postDays,
-                bundleDiscount,
-                total,
-                date: new Date().toISOString(),
-                scopeData: scopeData
-            };
+                const loggedEstimate = {
+                    id: newProject.id, // Use API-generated ID
+                    projectName,
+                    clientName,
+                    runtime,
+                    musicMinutes: Math.ceil(musicMinutes),
+                    totalPostHours,
+                    postDays,
+                    bundleDiscount,
+                    total,
+                    date: new Date().toISOString()
+                };
 
-            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
-            loggedEstimates.push(loggedEstimate);
-            localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
-            renderLoggedEstimates();
+                const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
+                loggedEstimates.push(loggedEstimate);
+                localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
+                renderLoggedEstimates();
 
-            // If project has music, add it to cue tracker
-            if (musicMinutes > 0) {
-                const cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
-                if (!cueProjects.find(p => p.id === projectData.id)) {
-                    cueProjects.push({
-                        id: projectData.id,
-                        title: projectData.title,
-                        client: projectData.client
-                    });
-                    localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
+                // If project has music, add it to cue tracker
+                if (musicMinutes > 0) {
+                    const cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
+                    if (!cueProjects.find(p => p.id === newProject.id)) {
+                        cueProjects.push({
+                            id: newProject.id,
+                            title: projectName,
+                            client: clientName
+                        });
+                        localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
+                    }
                 }
-            }
 
-            alert('Project added to prospects pipeline successfully! Switch to the Projects tab to see it.');
+                alert('Project added to prospects pipeline successfully! Switch to the Projects tab to see it.');
 
-            if (window.parent && window.parent !== window) {
-                window.parent.postMessage({
-                    type: 'projectAdded',
-                    data: projectData
-                }, '*');
+                // Notify parent window to refresh
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'projects-updated' }, '*');
+                }
+            } catch (error) {
+                console.error('Error creating project:', error);
+                alert('Failed to create project. Please try again.');
             }
 
             // Clear the form after sending to projects
@@ -652,7 +669,8 @@
             if (!confirm('Delete this logged estimate?')) return;
 
             let loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
-            loggedEstimates = loggedEstimates.filter(e => e.id !== id);
+            // Use loose equality to handle both string and number IDs
+            loggedEstimates = loggedEstimates.filter(e => e.id != id);
             localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
             renderLoggedEstimates();
         }

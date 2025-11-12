@@ -32,5 +32,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     // File dialog
-    openFileDialog: () => ipcRenderer.invoke('dialog:openFile')
+    openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),
+
+    // Alternaview folder dialogs
+    selectFolderDialog: () => ipcRenderer.invoke('dialog:selectFolder'),
+    createFolder: (projectName) => ipcRenderer.invoke('dialog:createFolder', projectName)
 });

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alternaview - Media Transfer & Review</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="media-styles.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen (hidden by default, preserved for future use) -->
+    <div id="loginScreen" class="login-container" style="display: none;">
+        <div class="login-box">
+            <h1>Alternaview</h1>
+            <p class="login-subtitle">Enter your project credentials</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="projectName">Project Name</label>
+                    <input type="text" id="projectName" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="projectPassword">Password</label>
+                    <input type="password" id="projectPassword" required>
+                </div>
+                <div id="loginError" class="error-message"></div>
+                <button type="submit" class="btn-primary">access project</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="app-container" style="display: block;">
+        <!-- Admin Project Selector (only shown in admin mode) -->
+        <div id="adminProjectSelector" class="browser-container" style="display: none;">
+            <div class="browser-header">
+                <h1>Media Projects</h1>
+            </div>
+
+            <div class="admin-actions" style="margin-bottom: 2rem;">
+                <button id="newProjectBtn" class="btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    new project
+                </button>
+            </div>
+
+            <div class="file-table-container">
+                <table class="file-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Files</th>
+                            <th>Total Size</th>
+                            <th>Folder</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectsTableBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">Loading projects...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- File Browser (shown when project is selected) -->
+        <div id="fileBrowser" class="browser-container" style="display: none;">
+            <div class="browser-header">
+                <div class="header-top">
+                    <button id="backToProjectsBtn" class="btn-action" style="display: none; margin-right: 1rem;" title="Back to projects">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                    </button>
+                    <h1 id="projectTitle">Media Files</h1>
+                </div>
+                <div class="breadcrumb">
+                    <span>Media Files</span>
+                </div>
+            </div>
+
+            <!-- Admin Controls (only shown in admin mode) -->
+            <div id="adminControls" class="admin-actions" style="display: none; margin-bottom: 1rem;">
+                <button id="assignFolderBtn" class="btn-action">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    assign folder
+                </button>
+                <button id="syncFolderBtn" class="btn-action" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    sync folder
+                </button>
+                <button id="shareLinkBtn" class="btn-action">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                    share link
+                </button>
+            </div>
+
+            <div class="browser-controls">
+                <div class="search-box">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search files...">
+                </div>
+                <div class="upload-controls">
+                    <input type="file" id="fileInput" style="display: none" multiple>
+                    <button id="uploadBtn" class="btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        upload files
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Progress -->
+            <div id="uploadProgress" class="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Uploading...</div>
+            </div>
+
+            <div class="file-table-container">
+                <table class="file-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortBy('name')">Name</th>
+                            <th class="sortable" onclick="sortBy('modified')">Date Modified</th>
+                            <th class="sortable" onclick="sortBy('size')">Size</th>
+                            <th class="sortable" onclick="sortBy('type')">Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileTableBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <p>No files yet. Upload some files to get started.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="stats-bar">
+                    <div class="stat-item">
+                        <span class="stat-value" id="itemCount">0</span>
+                        <span>items</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="totalSize">0 GB</span>
+                        <span>total</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Project Modal -->
+    <div id="newProjectModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Create New Project</h2>
+                <button class="modal-close" onclick="closeNewProjectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="newProjectForm">
+                    <div class="form-group">
+                        <label for="newProjectName">Project Name</label>
+                        <input type="text" id="newProjectName" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="newProjectPassword">Password (optional)</label>
+                        <input type="password" id="newProjectPassword">
+                        <small>Leave blank if no password needed for client access</small>
+                    </div>
+                    <div id="newProjectError" class="error-message"></div>
+                    <button type="submit" class="btn-primary">create project</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Folder Modal -->
+    <div id="assignFolderModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Assign Folder to Project</h2>
+                <button class="modal-close" onclick="closeAssignFolderModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1.5rem;">Choose a folder from /Volumes/FTP1 or create a new one:</p>
+                <div style="display: flex; gap: 1rem; flex-direction: column;">
+                    <button id="browseFolderBtn" class="btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        browse existing folder
+                    </button>
+                    <button id="createNewFolderBtn" class="btn-action">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        create new folder
+                    </button>
+                </div>
+                <div id="assignFolderError" class="error-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video/Audio Player Modal -->
+    <div id="playerModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="playerTitle">File</h2>
+                <button class="modal-close" onclick="closePlayer()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <video id="videoPlayer" controls style="display: none; width: 100%; max-height: 70vh;"></video>
+                <audio id="audioPlayer" controls style="display: none; width: 100%;"></audio>
+            </div>
+        </div>
+    </div>
+
+    <script src="media-app.js"></script>
+</body>
+</html>

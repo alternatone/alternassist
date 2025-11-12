@@ -125,6 +125,50 @@
             color: var(--primary-text);
         }
 
+        /* Dropdown Navigation */
+        .nav-item {
+            position: relative;
+        }
+
+        .nav-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            padding: 0.5rem 0;
+            min-width: 160px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 1001;
+        }
+
+        .nav-item:hover .nav-dropdown {
+            opacity: 1;
+            visibility: visible;
+            margin-top: 0.75rem;
+        }
+
+        .nav-dropdown-item {
+            display: block;
+            padding: 0.75rem 1.25rem;
+            color: var(--subtle-text);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-dropdown-item:hover,
+        .nav-dropdown-item.active {
+            background: rgba(0, 122, 204, 0.08);
+            color: var(--accent-blue);
+        }
+
 
         /* Main Content */
         .main-content {
@@ -199,17 +243,31 @@
             <div class="nav-content">
                 <a href="#" class="logo" onclick="loadModule('dashboard')">Alternassist</a>
                 <ul class="nav-links">
-                    <li><a href="#" class="nav-link active" data-module="dashboard">dashboard</a></li>
-                    <li><a href="#" class="nav-link" data-module="estimates">estimates</a></li>
-                    <li><a href="#" class="nav-link" data-module="projects">projects</a></li>
-                    <li><a href="#" class="nav-link" data-module="cues">cues</a></li>
-                    <!-- Notes link (Electron only) -->
-                    <li id="notes-nav-item" style="display: none;">
-                        <a href="#" class="nav-link" data-module="notes">notes</a>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link active" data-module="dashboard">dashboard</a>
                     </li>
-                    <li><a href="#" class="nav-link" data-module="invoices">invoices</a></li>
-                    <li><a href="#" class="nav-link" data-module="payments">payments</a></li>
-                    <li><a href="#" class="nav-link" data-module="accounting">accounting</a></li>
+
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-module="projects">projects</a>
+                        <div class="nav-dropdown">
+                            <a href="#" class="nav-dropdown-item" data-module="projects">project board</a>
+                            <a href="#" class="nav-dropdown-item" data-module="cues">cues</a>
+                            <a href="#" class="nav-dropdown-item" data-module="notes" id="notes-dropdown-item" style="display: none;">notes</a>
+                            <a href="#" class="nav-dropdown-item" data-module="media-transfer">media</a>
+                            <a href="#" class="nav-dropdown-item" data-module="media-admin">media admin</a>
+                            <a href="#" class="nav-dropdown-item" data-module="media-review">media review</a>
+                        </div>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-module="accounting">accounting</a>
+                        <div class="nav-dropdown">
+                            <a href="#" class="nav-dropdown-item" data-module="estimates">estimates</a>
+                            <a href="#" class="nav-dropdown-item" data-module="invoices">invoices</a>
+                            <a href="#" class="nav-dropdown-item" data-module="payments">payments</a>
+                            <a href="#" class="nav-dropdown-item" data-module="accounting">books</a>
+                        </div>
+                    </li>
                 </ul>
             </div>
         </nav>
@@ -260,7 +318,22 @@
 
             <!-- Notes Module (NoteMarker - Electron only) -->
             <div class="module-container" id="notes-module" style="display: none;">
-                <iframe class="module-frame" src="HTML Sketches/notemarker.html"></iframe>
+                <iframe class="module-frame" src="HTML Sketches/notes.html"></iframe>
+            </div>
+
+            <!-- Media Transfer Module (from Alternaview) -->
+            <div class="module-container" id="media-transfer-module">
+                <iframe class="module-frame" src="HTML Sketches/media_transfer.html"></iframe>
+            </div>
+
+            <!-- Media Admin Module (from Alternaview) -->
+            <div class="module-container" id="media-admin-module">
+                <iframe class="module-frame" src="HTML Sketches/media_admin.html"></iframe>
+            </div>
+
+            <!-- Media Review Module (from Alternaview) -->
+            <div class="module-container" id="media-review-module">
+                <iframe class="module-frame" src="HTML Sketches/media_review.html"></iframe>
             </div>
         </main>
     </div>
@@ -381,9 +454,57 @@
             });
         });
 
+        // Dropdown Navigation Event Listeners
+        document.querySelectorAll('.nav-dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const moduleName = item.getAttribute('data-module');
+                loadModule(moduleName);
+
+                // Update the parent nav-link to active state
+                const parentNavItem = item.closest('.nav-item');
+                const parentNavLink = parentNavItem.querySelector('.nav-link');
+
+                // Remove active from all nav-links
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+
+                // Remove active from all dropdown items
+                document.querySelectorAll('.nav-dropdown-item').forEach(dropItem => {
+                    dropItem.classList.remove('active');
+                });
+
+                // Add active to parent and current dropdown item
+                parentNavLink.classList.add('active');
+                item.classList.add('active');
+                updateNavUnderline(parentNavLink);
+            });
+        });
+
         // Initialize navigation underline on page load
-        function renderPinnedProjects() {
-            const projects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
+        async function renderPinnedProjects() {
+            // Load projects from API
+            let projects = [];
+            try {
+                const response = await fetch('http://localhost:3000/api/projects');
+                if (response.ok) {
+                    const apiProjects = await response.json();
+                    // Transform to Kanban format
+                    projects = apiProjects.map(p => ({
+                        id: p.id.toString(),
+                        title: p.name,
+                        client: p.client_name || '',
+                        notes: p.notes || '',
+                        status: p.status || '',
+                        pinned: Boolean(p.pinned)
+                    }));
+                }
+            } catch (error) {
+                console.error('Error loading projects:', error);
+            }
+
             const pinnedProjects = projects.filter(p => p.pinned);
             const container = document.getElementById('pinnedProjectsContainer');
             const emptyState = document.getElementById('emptyDashboard');
@@ -408,14 +529,26 @@
                 const approved = projectCues.filter(c => c.status === 'approved').length;
                 const totalCues = projectCues.length;
 
+                // Check if notes is JSON (scope data from estimates)
+                let displayNotes = project.notes;
+                try {
+                    const parsed = JSON.parse(project.notes);
+                    if (parsed && typeof parsed === 'object') {
+                        // It's JSON scope data, don't display it
+                        displayNotes = '';
+                    }
+                } catch (e) {
+                    // Not JSON, display as normal notes
+                }
+
                 return `
                     <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer;">
                         <h3 class="overview-title">${project.title}</h3>
 
-                        ${project.notes ? `
+                        ${displayNotes ? `
                             <div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
                                 <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.35rem;">Creative Direction</div>
-                                <div style="font-size: 0.85rem; color: var(--secondary-text); line-height: 1.5; font-style: italic;">${project.notes}</div>
+                                <div style="font-size: 0.85rem; color: var(--secondary-text); line-height: 1.5; font-style: italic; overflow-wrap: break-word; word-wrap: break-word;">${displayNotes}</div>
                             </div>
                         ` : ''}
 
@@ -451,7 +584,22 @@
             // Render pinned projects on dashboard
             renderPinnedProjects();
 
-            // Re-render when returning to dashboard
+            // Re-render when projects are updated
+            window.addEventListener('message', (e) => {
+                if (e.data && e.data.type === 'projects-updated') {
+                    renderPinnedProjects();
+
+                    // Forward message to all iframes so they can reload their data
+                    const iframes = document.querySelectorAll('iframe.module-frame');
+                    iframes.forEach(iframe => {
+                        if (iframe.contentWindow && iframe.contentWindow !== e.source) {
+                            iframe.contentWindow.postMessage({ type: 'projects-updated' }, '*');
+                        }
+                    });
+                }
+            });
+
+            // Also listen for localStorage changes (backward compatibility)
             window.addEventListener('storage', () => {
                 renderPinnedProjects();
             });
@@ -475,10 +623,10 @@
 
         // Show notes link only in Electron
         if (typeof window.electronAPI !== 'undefined') {
-            const notesNavItem = document.getElementById('notes-nav-item');
+            const notesDropdownItem = document.getElementById('notes-dropdown-item');
             const notesModule = document.getElementById('notes-module');
-            if (notesNavItem) {
-                notesNavItem.style.display = 'block';
+            if (notesDropdownItem) {
+                notesDropdownItem.style.display = 'block';
             }
             if (notesModule) {
                 notesModule.style.display = '';

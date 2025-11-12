@@ -5,6 +5,9 @@ const path = require('path');
 const { PTSLConnectionManager } = require('./src/notemarker/ptsl-connection-manager');
 const MarkerCreationPipeline = require('./src/notemarker/marker-creation-pipeline');
 
+// Alternaview server
+const alternaviewServer = require('./alternaview-server');
+
 // PTSL manager instances
 let ptslManager = null;
 let markerPipeline = null;
@@ -73,9 +76,17 @@ function initializePTSL() {
     }
 }
 
-// Initialize PTSL when app is ready
+// Initialize PTSL and Alternaview server when app is ready
 app.whenReady().then(() => {
     initializePTSL();
+
+    // Start the Alternaview Express server
+    try {
+        alternaviewServer.startServer();
+        console.log('Alternaview server started successfully');
+    } catch (error) {
+        console.error('Failed to start Alternaview server:', error);
+    }
 });
 
 // ============================================================================
@@ -172,6 +183,66 @@ ipcMain.handle('dialog:openFile', async () => {
     }
 });
 
+// ============================================================================
+// Alternaview Media Folder IPC Handlers
+// ============================================================================
+
+// Folder selection dialog for media projects
+ipcMain.handle('dialog:selectFolder', async () => {
+    try {
+        const result = await dialog.showOpenDialog({
+            properties: ['openDirectory'],
+            defaultPath: '/Volumes/FTP1',
+            title: 'Select Media Folder',
+            buttonLabel: 'Select Folder'
+        });
+
+        if (!result.canceled && result.filePaths.length > 0) {
+            const folderPath = result.filePaths[0];
+
+            // Security: Ensure folder is within /Volumes/FTP1
+            if (!folderPath.startsWith('/Volumes/FTP1')) {
+                return {
+                    success: false,
+                    error: 'Selected folder must be within /Volumes/FTP1'
+                };
+            }
+
+            return { success: true, folderPath };
+        }
+        return { success: false };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Create new folder for media project
+ipcMain.handle('dialog:createFolder', async (event, projectName) => {
+    try {
+        const fs = require('fs').promises;
+        const path = require('path');
+
+        // Sanitize project name for folder creation
+        const safeFolderName = projectName.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const folderPath = path.join('/Volumes/FTP1', safeFolderName);
+
+        // Check if folder already exists
+        try {
+            await fs.access(folderPath);
+            return {
+                success: false,
+                error: 'A folder with this name already exists'
+            };
+        } catch (err) {
+            // Folder doesn't exist, create it
+            await fs.mkdir(folderPath, { recursive: true });
+            return { success: true, folderPath };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
 // Cleanup on quit
 app.on('before-quit', async () => {
     if (ptslManager) {
@@ -180,5 +251,12 @@ app.on('before-quit', async () => {
         } catch (error) {
             console.error('Error disconnecting PTSL:', error);
         }
+    }
+
+    // Stop the Alternaview server
+    try {
+        alternaviewServer.stopServer();
+    } catch (error) {
+        console.error('Error stopping Alternaview server:', error);
     }
 });

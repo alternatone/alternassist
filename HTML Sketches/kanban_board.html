@@ -75,6 +75,7 @@
         .card-title { font-weight: 600; color: var(--primary-text); margin-bottom: 0.5rem; font-size: 0.95rem; }
         .card-client { font-size: 0.85rem; color: var(--subtle-text); margin-bottom: 0.5rem; }
         .card-status { font-size: 0.8rem; color: var(--muted-text); font-style: italic; }
+        .card-scope { font-size: 0.8rem; color: var(--secondary-text); line-height: 1.5; }
         
         .card-actions { display: flex; gap: 0.75rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: var(--border-light); }
         .card-btn { background: none; border: none; padding: 0.25rem; cursor: pointer; font-size: 1rem; color: var(--muted-text); transition: color 0.2s; display: flex; align-items: center; justify-content: center; }
@@ -270,6 +271,9 @@
         </div>
     </div>
 
+    <!-- API Adapter for SQLite backend -->
+    <script src="kanban-api-adapter.js"></script>
+
     <script>
         let projects = [];
         let currentProjectId = null;
@@ -286,20 +290,49 @@
             return 0;
         }
 
-        function initializeSampleData() {
-            // Load projects from localStorage if they exist
-            const savedProjects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
-            projects = savedProjects;
+        async function initializeSampleData() {
+            // Load projects from API (SQLite backend)
+            await window.kanbanAPI.init();
+            projects = window.kanbanAPI.getProjects();
             renderBoard();
         }
 
-        function saveProjects() {
-            localStorage.setItem('kanban-projects', JSON.stringify(projects));
+        async function saveProjects() {
+            // Save to API instead of localStorage
+            await window.kanbanAPI.saveProjects(projects);
+
+            // Also dispatch event for dashboard to refresh
+            window.parent.postMessage({ type: 'projects-updated' }, '*');
         }
 
         function toggleArchive() {
             const archiveColumn = document.querySelector('.column.archive');
             archiveColumn.classList.toggle('expanded');
+        }
+
+        // Helper function to parse and format scope data
+        function formatScopeData(notes, column) {
+            // Only show scope for prospects column
+            if (column !== 'prospects') {
+                return `<div class="card-status">${notes}</div>`;
+            }
+
+            try {
+                const scope = JSON.parse(notes);
+                const items = [];
+                if (scope.musicMinutes > 0) items.push(`${scope.musicMinutes} mins music`);
+                if (scope.dialogueHours > 0) items.push(`${scope.dialogueHours}h dialogue`);
+                if (scope.soundDesignHours > 0) items.push(`${scope.soundDesignHours}h sound design`);
+                if (scope.mixHours > 0) items.push(`${scope.mixHours}h mix`);
+                if (scope.revisionHours > 0) items.push(`${scope.revisionHours}h revisions`);
+
+                if (items.length === 0) return `<div class="card-status">${notes}</div>`;
+
+                return `<div class="card-scope">${items.join(' • ')}</div>`;
+            } catch (e) {
+                // Not JSON, just display as regular notes
+                return `<div class="card-status">${notes}</div>`;
+            }
         }
 
         function renderBoard() {
@@ -314,7 +347,7 @@
                     <div class="card" draggable="true" data-id="${project.id}" onclick="editProject('${project.id}')">
                         <div class="card-title">${project.title}</div>
                         <div class="card-client">${project.client}</div>
-                        <div class="card-status">${project.status}</div>
+                        ${formatScopeData(project.notes, column)}
                         <div class="card-actions">
                             <button class="card-btn pin ${project.pinned ? 'pinned' : ''}" onclick="event.stopPropagation(); togglePin('${project.id}')" title="${project.pinned ? 'Unpin from Dashboard' : 'Pin to Dashboard'}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -682,25 +715,39 @@
             }
         }
 
-        function deleteProject(id) {
+        async function deleteProject(id) {
             if (!confirm('Delete this project?')) return;
-            projects = projects.filter(p => p.id !== id);
-            saveProjects();
 
-            // Also remove from cue tracker projects
-            let cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
-            cueProjects = cueProjects.filter(p => p.id !== id);
-            localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
+            // Delete from API
+            const success = await window.kanbanAPI.deleteProject(id);
 
-            // Remove associated cues
-            const cues = JSON.parse(localStorage.getItem('cue-tracker-cues') || '{}');
-            delete cues[id];
-            localStorage.setItem('cue-tracker-cues', JSON.stringify(cues));
+            if (success) {
+                projects = projects.filter(p => p.id !== id);
+                renderBoard();
 
-            renderBoard();
+                // Also remove from cue tracker projects (localStorage)
+                let cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
+                cueProjects = cueProjects.filter(p => p.id !== id);
+                localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
+
+                // Remove associated cues
+                const cues = JSON.parse(localStorage.getItem('cue-tracker-cues') || '{}');
+                delete cues[id];
+                localStorage.setItem('cue-tracker-cues', JSON.stringify(cues));
+
+                // Notify parent
+                window.parent.postMessage({ type: 'projects-updated' }, '*');
+            }
         }
 
-        // Listen for localStorage changes to auto-refresh
+        // Listen for project updates from parent window
+        window.addEventListener('message', async (e) => {
+            if (e.data && e.data.type === 'projects-updated') {
+                await initializeSampleData();
+            }
+        });
+
+        // Also listen for localStorage changes (for backward compatibility)
         window.addEventListener('storage', (e) => {
             if (e.key === 'kanban-projects') {
                 initializeSampleData();
