@@ -54,6 +54,7 @@ function startServer() {
   app.use('/api/cues', require('./server/routes/cues'));
   app.use('/api/invoices', require('./server/routes/invoices'));
   app.use('/api/payments', require('./server/routes/payments'));
+  app.use('/api/accounting', require('./server/routes/accounting'));
 
   // Error handling middleware
   app.use((err, req, res, next) => {

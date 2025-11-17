@@ -254,6 +254,7 @@
         </div>
     </div>
 
+    <script src="api-helpers.js"></script>
     <script>
         const MUSIC_RATE = 150;
         const DAY_RATE = 500;
@@ -267,7 +268,7 @@
         let useEstimateTotal = false; // Flag to use estimate total instead of recalculating
         let estimateTotal = 0; // Store the estimate total
 
-        function loadEstimateData() {
+        async function loadEstimateData() {
             // Check for invoice data from projects first
             const invoicesRaw = localStorage.getItem('invoices');
             console.log('Raw invoices data:', invoicesRaw);
@@ -294,6 +295,9 @@
             } else {
                 console.log('No invoice or estimate data found');
             }
+
+            // Load logged invoices from API
+            await renderLoggedInvoices();
         }
 
         function populateFromProject(invoiceData) {
@@ -311,10 +315,11 @@
                 estimateTotal = 0;
             }
 
-            // Set today's date and get current invoice number (don't increment yet)
+            // Set today's date and get current invoice number
             document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
-            const invoiceCount = parseInt(localStorage.getItem('invoice-count') || '22'); // Default starts at 2523
-            document.getElementById('invoiceNumber').value = '25' + String(invoiceCount + 1).padStart(2, '0');
+            // Use timestamp-based invoice number instead of localStorage counter
+            const invoiceNumber = '25' + new Date().getFullYear().toString().slice(-2) + String(Math.floor(Date.now() / 1000) % 10000).padStart(4, '0');
+            document.getElementById('invoiceNumber').value = invoiceNumber;
 
             // Set project and client info
             document.getElementById('projectName').value = invoiceData.projectName || '';
@@ -382,11 +387,13 @@
                 document.querySelectorAll('.split-option')[1].classList.add('active'); // Second option is 50%
             } else if (isApprovedBilled) {
                 // This is a final invoice
-                // Check if there's a previous 50% deposit invoice for this project
-                const outstandingPayments = JSON.parse(localStorage.getItem('outstanding-payments') || '[]');
-                const previousInvoice = outstandingPayments.find(p => p.projectId === currentProjectId);
+                // Check if there's a previous 50% deposit invoice for this project via API
+                (async () => {
+                    try {
+                        const projectPayments = await PaymentsAPI.getByProject(currentProjectId);
+                        const previousInvoice = projectPayments.find(p => p.payment_type === 'deposit');
 
-                if (previousInvoice && previousInvoice.paymentSplit === '50%') {
+                        if (previousInvoice) {
                     // There was a 50% deposit, so we need to calculate remaining 50% + overages
                     // Get the original estimated values from scope
                     const estimatedMusicMins = musicMinutes; // From scope
@@ -401,15 +408,19 @@
                     const actualPostHours = actualDialogue + actualSoundDesign + actualMix + actualRevisions;
                     const actualPostDays = actualPostHours / 8; // NO rounding for exact calculations
 
-                    // Use actual logged hours for final invoice
-                    document.getElementById('musicMinutes').value = actualMusicMins;
-                    document.getElementById('postDays').value = actualPostDays;
-                }
+                            // Use actual logged hours for final invoice
+                            document.getElementById('musicMinutes').value = actualMusicMins;
+                            document.getElementById('postDays').value = actualPostDays;
+                        }
 
-                // Set to full payment (user will see the total with overages if any)
-                paymentSplit = 'full';
-                document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
-                document.querySelectorAll('.split-option')[0].classList.add('active'); // First option is full
+                        // Set to full payment (user will see the total with overages if any)
+                        paymentSplit = 'full';
+                        document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
+                        document.querySelectorAll('.split-option')[0].classList.add('active'); // First option is full
+                    } catch (error) {
+                        console.error('Error loading payments for project:', error);
+                    }
+                })();
             }
 
             generateInvoice();
@@ -559,14 +570,15 @@
 
             // Set new invoice number and date
             document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
-            const invoiceCount = parseInt(localStorage.getItem('invoice-count') || '0') + 1;
-            document.getElementById('invoiceNumber').value = String(invoiceCount).padStart(3, '0');
+            // Use timestamp-based invoice number
+            const invoiceNumber = '25' + new Date().getFullYear().toString().slice(-2) + String(Math.floor(Date.now() / 1000) % 10000).padStart(4, '0');
+            document.getElementById('invoiceNumber').value = invoiceNumber;
 
             // Regenerate empty invoice
             generateInvoice();
         }
 
-        function logInvoice() {
+        async function logInvoice() {
             const invoiceNumber = document.getElementById('invoiceNumber').value;
             const projectName = document.getElementById('projectName').value;
             const clientName = document.getElementById('clientName').value;
@@ -580,117 +592,159 @@
             const musicMinutes = parseFloat(document.getElementById('musicMinutes').value) || 0;
             const postDays = parseFloat(document.getElementById('postDays').value) || 0;
 
-            // Use the already-calculated amounts from the invoice display
-            const loggedInvoice = {
-                id: Date.now().toString(),
-                invoiceNumber,
-                projectName,
-                clientName,
-                musicMinutes,
-                postDays,
-                paymentSplit,
-                total: lastCalculatedFinalAmount,
-                fullTotal: lastCalculatedTotal,
-                date: invoiceDate,
-                createdAt: new Date().toISOString()
-            };
+            try {
+                // Create invoice via API
+                const invoiceData = {
+                    project_id: currentProjectId,
+                    invoice_number: invoiceNumber,
+                    amount: lastCalculatedFinalAmount,
+                    deposit_amount: paymentSplit === '50%' ? lastCalculatedFinalAmount : 0,
+                    deposit_percentage: paymentSplit === '50%' ? 50 : 0,
+                    final_amount: paymentSplit === 'final' ? lastCalculatedFinalAmount : lastCalculatedTotal,
+                    status: 'draft',
+                    due_date: new Date(new Date(invoiceDate).getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    issue_date: invoiceDate,
+                    line_items: JSON.stringify([
+                        { description: `Music Composition: ${musicMinutes} minutes`, amount: musicMinutes * MUSIC_RATE },
+                        { description: `Post Audio: ${postDays} days`, amount: postDays * DAY_RATE }
+                    ])
+                };
 
-            const loggedInvoices = JSON.parse(localStorage.getItem('logged-invoices') || '[]');
-            loggedInvoices.push(loggedInvoice);
-            localStorage.setItem('logged-invoices', JSON.stringify(loggedInvoices));
-
-            renderLoggedInvoices();
-            alert('Invoice logged successfully!');
+                await InvoicesAPI.create(invoiceData);
+                await renderLoggedInvoices();
+                alert('Invoice logged successfully!');
+            } catch (error) {
+                console.error('Error logging invoice:', error);
+                alert('Failed to log invoice. Please try again.');
+            }
         }
 
-        function renderLoggedInvoices() {
-            const loggedInvoices = JSON.parse(localStorage.getItem('logged-invoices') || '[]');
+        async function renderLoggedInvoices() {
             const section = document.getElementById('loggedInvoicesSection');
             const list = document.getElementById('loggedInvoicesList');
 
-            if (loggedInvoices.length === 0) {
-                section.style.display = 'none';
-                return;
-            }
+            try {
+                const invoices = await InvoicesAPI.getAll();
 
-            section.style.display = 'block';
-            list.innerHTML = loggedInvoices.reverse().map(invoice => `
-                <div class="logged-invoice-card" onclick="loadLoggedInvoice('${invoice.id}')" style="cursor: pointer;">
-                    <div class="logged-invoice-header">
-                        <div>
-                            <div class="logged-invoice-title">Invoice #${invoice.invoiceNumber} - ${invoice.projectName || 'Untitled'}</div>
-                            <div class="logged-invoice-date">${new Date(invoice.date).toLocaleDateString()}</div>
+                // Get all projects to map IDs to names
+                const projects = await ProjectsAPI.getAll();
+                const projectMap = {};
+                projects.forEach(p => {
+                    projectMap[p.id] = { name: p.name, client: p.client_name || '' };
+                });
+
+                if (invoices.length === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+
+                section.style.display = 'block';
+                list.innerHTML = invoices.reverse().map(invoice => {
+                    const project = projectMap[invoice.project_id] || { name: 'Untitled', client: '' };
+                    const lineItems = invoice.line_items ? JSON.parse(invoice.line_items) : [];
+                    const musicMinutes = lineItems.find(item => item.description.includes('Music'))?.amount / MUSIC_RATE || 0;
+                    const postDays = lineItems.find(item => item.description.includes('Post'))?.amount / DAY_RATE || 0;
+                    const paymentType = invoice.deposit_percentage === 50 ? '50%' : 'Full';
+
+                    return `
+                        <div class="logged-invoice-card" onclick="loadLoggedInvoice(${invoice.id})" style="cursor: pointer;">
+                            <div class="logged-invoice-header">
+                                <div>
+                                    <div class="logged-invoice-title">Invoice #${invoice.invoice_number} - ${project.name}</div>
+                                    <div class="logged-invoice-date">${new Date(invoice.issue_date).toLocaleDateString()}</div>
+                                </div>
+                                <button class="logged-invoice-delete" onclick="event.stopPropagation(); deleteLoggedInvoice(${invoice.id})" title="Delete">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="logged-invoice-info">
+                                <div><strong>Client:</strong> ${project.client}</div>
+                                <div><strong>Music:</strong> ${Math.round(musicMinutes)} mins</div>
+                                <div><strong>Post:</strong> ${postDays.toFixed(1)} days</div>
+                                <div><strong>Split:</strong> ${paymentType}</div>
+                                <div><strong>Amount:</strong> $${invoice.amount}</div>
+                            </div>
                         </div>
-                        <button class="logged-invoice-delete" onclick="event.stopPropagation(); deleteLoggedInvoice('${invoice.id}')" title="Delete">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                <line x1="10" y1="11" x2="10" y2="17"></line>
-                                <line x1="14" y1="11" x2="14" y2="17"></line>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="logged-invoice-info">
-                        <div><strong>Client:</strong> ${invoice.clientName}</div>
-                        <div><strong>Music:</strong> ${invoice.musicMinutes} mins</div>
-                        <div><strong>Post:</strong> ${invoice.postDays} days</div>
-                        <div><strong>Split:</strong> ${invoice.paymentSplit === '50%' ? '50%' : 'Full'}</div>
-                        <div><strong>Amount:</strong> $${invoice.total}</div>
-                    </div>
-                </div>
-            `).join('');
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading invoices:', error);
+                section.style.display = 'none';
+            }
         }
 
-        function loadLoggedInvoice(id) {
-            const loggedInvoices = JSON.parse(localStorage.getItem('logged-invoices') || '[]');
-            const invoice = loggedInvoices.find(i => i.id === id);
-            if (!invoice) return;
+        async function loadLoggedInvoice(id) {
+            try {
+                const invoice = await InvoicesAPI.getById(id);
+                if (!invoice) return;
 
-            // Populate form fields from logged invoice
-            document.getElementById('invoiceNumber').value = invoice.invoiceNumber || '';
-            document.getElementById('invoiceDate').value = invoice.date || new Date().toISOString().split('T')[0];
-            document.getElementById('projectName').value = invoice.projectName || '';
-            document.getElementById('clientName').value = invoice.clientName || '';
-            document.getElementById('musicMinutes').value = invoice.musicMinutes || 0;
-            document.getElementById('postDays').value = invoice.postDays || 0;
+                // Get project info
+                const project = await ProjectsAPI.getById(invoice.project_id);
 
-            // Set category based on services
-            const hasMusic = invoice.musicMinutes > 0;
-            const hasPost = invoice.postDays > 0;
-            if (hasMusic && hasPost) {
-                document.getElementById('category').value = 'Music & Post-Production';
-            } else if (hasMusic) {
-                document.getElementById('category').value = 'Music Composition';
-            } else if (hasPost) {
-                document.getElementById('category').value = 'Post-Production Audio';
+                // Parse line items
+                const lineItems = invoice.line_items ? JSON.parse(invoice.line_items) : [];
+                const musicMinutes = lineItems.find(item => item.description.includes('Music'))?.amount / MUSIC_RATE || 0;
+                const postDays = lineItems.find(item => item.description.includes('Post'))?.amount / DAY_RATE || 0;
+
+                // Populate form fields from logged invoice
+                document.getElementById('invoiceNumber').value = invoice.invoice_number || '';
+                document.getElementById('invoiceDate').value = invoice.issue_date || new Date().toISOString().split('T')[0];
+                document.getElementById('projectName').value = project.name || '';
+                document.getElementById('clientName').value = project.client_name || '';
+                document.getElementById('musicMinutes').value = musicMinutes;
+                document.getElementById('postDays').value = postDays;
+
+                // Set payment split
+                paymentSplit = invoice.deposit_percentage === 50 ? '50%' : 'full';
+                currentProjectId = invoice.project_id;
+
+                // Set category based on services
+                const hasPost = postDays > 0;
+                if (hasMusic && hasPost) {
+                    document.getElementById('category').value = 'Music & Post-Production';
+                } else if (hasMusic) {
+                    document.getElementById('category').value = 'Music Composition';
+                } else if (hasPost) {
+                    document.getElementById('category').value = 'Post-Production Audio';
+                }
+
+                // Set payment split UI
+                document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
+                if (paymentSplit === '50%') {
+                    document.querySelectorAll('.split-option')[1].classList.add('active');
+                } else {
+                    document.querySelectorAll('.split-option')[0].classList.add('active');
+                }
+
+                // Regenerate invoice
+                generateInvoice();
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error loading invoice:', error);
+                alert('Failed to load invoice.');
             }
-
-            // Set payment split
-            paymentSplit = invoice.paymentSplit || 'full';
-            document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
-            if (paymentSplit === '50%') {
-                document.querySelectorAll('.split-option')[1].classList.add('active');
-            } else {
-                document.querySelectorAll('.split-option')[0].classList.add('active');
-            }
-
-            // Regenerate invoice
-            generateInvoice();
-
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function deleteLoggedInvoice(id) {
+        async function deleteLoggedInvoice(id) {
             if (!confirm('Delete this logged invoice?')) return;
 
-            let loggedInvoices = JSON.parse(localStorage.getItem('logged-invoices') || '[]');
-            loggedInvoices = loggedInvoices.filter(e => e.id !== id);
-            localStorage.setItem('logged-invoices', JSON.stringify(loggedInvoices));
-            renderLoggedInvoices();
+            try {
+                await InvoicesAPI.delete(id);
+                await renderLoggedInvoices();
+            } catch (error) {
+                console.error('Error deleting invoice:', error);
+                alert('Failed to delete invoice.');
+            }
         }
 
-        function sendToPayments() {
+        async function sendToPayments() {
             const invoiceNumber = document.getElementById('invoiceNumber').value;
             const clientName = document.getElementById('clientName').value;
             const invoiceDate = document.getElementById('invoiceDate').value;
@@ -700,79 +754,67 @@
                 return;
             }
 
-            // Calculate due date (Net 15)
-            const dueDate = new Date(invoiceDate);
-            dueDate.setDate(dueDate.getDate() + 15);
+            try {
+                // Calculate due date (Net 15)
+                const dueDate = new Date(invoiceDate);
+                dueDate.setDate(dueDate.getDate() + 15);
 
-            // Use the already-calculated amounts from the invoice display
-            const projectName = document.getElementById('projectName').value;
-            const payment = {
-                id: Date.now().toString(),
-                invoiceNumber: invoiceNumber,
-                projectName: projectName,
-                clientName: clientName,
-                amount: lastCalculatedFinalAmount,
-                totalAmount: lastCalculatedTotal,
-                invoiceDate: invoiceDate,
-                dueDate: dueDate.toISOString().split('T')[0],
-                status: 'outstanding',
-                paymentSplit: paymentSplit,
-                projectId: currentProjectId,
-                createdAt: new Date().toISOString()
-            };
+                const projectName = document.getElementById('projectName').value;
+                const musicMinutes = parseFloat(document.getElementById('musicMinutes').value) || 0;
+                const postDays = parseFloat(document.getElementById('postDays').value) || 0;
 
-            const existingPayments = JSON.parse(localStorage.getItem('outstanding-payments') || '[]');
-            existingPayments.push(payment);
-            localStorage.setItem('outstanding-payments', JSON.stringify(existingPayments));
+                // Create invoice
+                const invoiceData = {
+                    project_id: currentProjectId,
+                    invoice_number: invoiceNumber,
+                    amount: lastCalculatedFinalAmount,
+                    deposit_amount: paymentSplit === '50%' ? lastCalculatedFinalAmount : 0,
+                    deposit_percentage: paymentSplit === '50%' ? 50 : 0,
+                    final_amount: paymentSplit === 'final' ? lastCalculatedFinalAmount : lastCalculatedTotal,
+                    status: 'sent',
+                    due_date: dueDate.toISOString().split('T')[0],
+                    issue_date: invoiceDate,
+                    line_items: JSON.stringify([
+                        { description: `Music Composition: ${musicMinutes} minutes`, amount: musicMinutes * MUSIC_RATE },
+                        { description: `Post Audio: ${postDays} days`, amount: postDays * DAY_RATE }
+                    ])
+                };
 
-            // Increment the invoice count now that it's been sent
-            const invoiceCount = parseInt(localStorage.getItem('invoice-count') || '22') + 1;
-            localStorage.setItem('invoice-count', invoiceCount.toString());
+                const createdInvoice = await InvoicesAPI.create(invoiceData);
 
-            // Automatically log the invoice
-            const projectName = document.getElementById('projectName').value;
-            const musicMinutes = parseFloat(document.getElementById('musicMinutes').value) || 0;
-            const postDays = parseFloat(document.getElementById('postDays').value) || 0;
+                // Create payment record
+                await PaymentsAPI.create({
+                    invoice_id: createdInvoice.id,
+                    project_id: currentProjectId,
+                    amount: lastCalculatedFinalAmount,
+                    payment_date: null, // Not paid yet
+                    payment_method: null,
+                    payment_type: paymentSplit === '50%' ? 'deposit' : 'final',
+                    notes: `Outstanding payment for invoice #${invoiceNumber}`
+                });
 
-            const loggedInvoice = {
-                id: payment.id, // Use same ID as payment
-                invoiceNumber,
-                projectName,
-                clientName,
-                musicMinutes,
-                postDays,
-                paymentSplit,
-                total: lastCalculatedFinalAmount,
-                fullTotal: lastCalculatedTotal,
-                date: invoiceDate,
-                createdAt: new Date().toISOString()
-            };
-
-            const loggedInvoices = JSON.parse(localStorage.getItem('logged-invoices') || '[]');
-            loggedInvoices.push(loggedInvoice);
-            localStorage.setItem('logged-invoices', JSON.stringify(loggedInvoices));
-            renderLoggedInvoices();
-
-            // Update project status if this is a 50% deposit invoice
-            if (currentProjectId && paymentSplit === '50%') {
-                const projects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
-                const project = projects.find(p => p.id === currentProjectId);
-                if (project) {
-                    project.status = '50% deposit invoiced';
-                    localStorage.setItem('kanban-projects', JSON.stringify(projects));
+                // Update project status if this is a 50% deposit invoice
+                if (currentProjectId && paymentSplit === '50%') {
+                    await ProjectsAPI.update(currentProjectId, {
+                        status: '50% deposit invoiced'
+                    });
                 }
+
+                await renderLoggedInvoices();
+                alert('Invoice logged as outstanding payment! Navigating to Payments page.');
+
+                if (window.parent && window.parent.loadModule) {
+                    window.parent.loadModule('payments');
+                }
+
+                // Clear the form for next invoice after navigation
+                setTimeout(() => {
+                    clearForm();
+                }, 100);
+            } catch (error) {
+                console.error('Error sending to payments:', error);
+                alert('Failed to send invoice to payments. Please try again.');
             }
-
-            alert('Invoice logged as outstanding payment! Navigating to Payments page.');
-
-            if (window.parent && window.parent.loadModule) {
-                window.parent.loadModule('payments');
-            }
-
-            // Clear the form for next invoice after navigation
-            setTimeout(() => {
-                clearForm();
-            }, 100);
         }
 
         // Event listeners

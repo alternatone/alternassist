@@ -553,6 +553,7 @@
         </div>
     </div>
 
+    <script src="api-helpers.js"></script>
     <script>
         // Sample data structure
         let transactions = [];
@@ -565,94 +566,107 @@
         // Set up last 30 days by default
         resetToLast30Days();
 
-        // Load transactions from localStorage
-        function loadTransactions() {
-            const saved = localStorage.getItem('accountingTransactions');
-            if (saved) {
-                transactions = JSON.parse(saved);
+        // Load transactions from API
+        async function loadTransactions() {
+            try {
+                const records = await AccountingAPI.getAll();
+                transactions = records.map(record => ({
+                    id: record.id,
+                    type: record.transaction_type,
+                    date: record.transaction_date,
+                    description: record.description || '',
+                    category: record.category || '',
+                    account: 'Business Checking',
+                    amount: record.amount
+                }));
+
+                // Also load income from paid invoices
+                await loadIncomeFromPayments();
+
+                renderTransactions();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading transactions:', error);
             }
-
-            // Simulate loading income from payments (this will be replaced with actual payment data)
-            loadIncomeFromPayments();
-
-            renderTransactions();
-            updateStats();
         }
 
-        // Load income from payment dashboard
-        function loadIncomeFromPayments() {
-            // Pull paid invoices from payment dashboard
-            const paidInvoices = JSON.parse(localStorage.getItem('outstanding-payments') || '[]')
-                .filter(inv => inv.status === 'paid');
+        // Load income from paid invoices via API
+        async function loadIncomeFromPayments() {
+            try {
+                // Get all payments that have been received
+                const payments = await PaymentsAPI.getAll();
+                const paidPayments = payments.filter(p => p.payment_date !== null);
 
-            paidInvoices.forEach(invoice => {
-                // Check if this invoice already exists in transactions
-                const exists = transactions.some(t =>
-                    t.type === 'income' &&
-                    t.invoice === invoice.invoiceNumber
-                );
+                // Get all projects for names
+                const projects = await ProjectsAPI.getAll();
+                const projectMap = {};
+                projects.forEach(p => {
+                    projectMap[p.id] = p.name;
+                });
 
-                if (!exists) {
-                    // Add as income transaction
-                    transactions.push({
-                        id: Date.now() + Math.random(),
-                        type: 'income',
-                        date: invoice.datePaid || invoice.dueDate || new Date().toISOString().split('T')[0],
-                        description: invoice.description || invoice.projectTitle || 'Payment',
-                        invoice: invoice.invoiceNumber,
-                        customName: invoice.projectTitle || invoice.description,
-                        account: 'Business Checking',
-                        category: 'income',
-                        amount: invoice.total || 0,
-                        notes: 'Auto-imported from Payments'
-                    });
+                for (const payment of paidPayments) {
+                    // Check if this payment already exists in transactions
+                    const exists = transactions.some(t =>
+                        t.type === 'income' &&
+                        t.description.includes(projectMap[payment.project_id])
+                    );
+
+                    if (!exists) {
+                        // Add as income transaction
+                        transactions.push({
+                            id: payment.id,
+                            type: 'income',
+                            date: payment.payment_date,
+                            description: `Payment for ${projectMap[payment.project_id] || 'Project'}`,
+                            category: 'income',
+                            account: 'Business Checking',
+                            amount: payment.amount,
+                            notes: payment.notes || 'Payment received'
+                        });
+                    }
                 }
-            });
-
-            saveTransactions();
-        }
-
-        // Save transactions to localStorage
-        function saveTransactions() {
-            localStorage.setItem('accountingTransactions', JSON.stringify(transactions));
+            } catch (error) {
+                console.error('Error loading income from payments:', error);
+            }
         }
 
         // Add expense
-        function addExpense(event) {
+        async function addExpense(event) {
             event.preventDefault();
 
-            const expense = {
-                id: Date.now(),
-                type: 'expense',
-                date: document.getElementById('expenseDate').value,
-                description: document.getElementById('expenseDescription').value,
-                category: document.getElementById('expenseCategory').value,
-                account: document.getElementById('expenseAccount').value,
-                taxCategory: document.getElementById('expenseTaxCategory').value,
-                amount: parseFloat(document.getElementById('expenseAmount').value),
-                notes: document.getElementById('expenseNotes').value
-            };
+            try {
+                const recordData = {
+                    project_id: null, // Expenses are generally not project-specific
+                    transaction_type: 'expense',
+                    category: document.getElementById('expenseCategory').value,
+                    amount: -Math.abs(parseFloat(document.getElementById('expenseAmount').value)), // Expenses are negative
+                    transaction_date: document.getElementById('expenseDate').value,
+                    description: document.getElementById('expenseDescription').value + ' - ' + document.getElementById('expenseNotes').value
+                };
 
-            transactions.push(expense);
-            saveTransactions();
-            renderOverviewTransactions();
-            renderExpenseTransactions();
-            updateStats();
-            closeExpenseModal();
+                await AccountingAPI.create(recordData);
+                await loadTransactions();
+                closeExpenseModal();
 
-            // Reset form
-            document.getElementById('expenseForm').reset();
-            document.getElementById('expenseDate').valueAsDate = new Date();
+                // Reset form
+                document.getElementById('expenseForm').reset();
+                document.getElementById('expenseDate').valueAsDate = new Date();
+            } catch (error) {
+                console.error('Error adding expense:', error);
+                alert('Failed to add expense. Please try again.');
+            }
         }
 
         // Delete transaction
-        function deleteTransaction(id) {
+        async function deleteTransaction(id) {
             if (confirm('Are you sure you want to delete this transaction?')) {
-                transactions = transactions.filter(t => t.id !== id);
-                saveTransactions();
-                renderOverviewTransactions();
-                renderExpenseTransactions();
-                updateStats();
+                try {
+                    await AccountingAPI.delete(id);
+                    await loadTransactions();
+                } catch (error) {
+                    console.error('Error deleting transaction:', error);
+                    alert('Failed to delete transaction.');
+                }
             }
         }
 

@@ -182,12 +182,61 @@
         </div>
     </div>
 
+    <script src="api-helpers.js"></script>
     <script>
         let invoiceData = {
-            invoices: JSON.parse(localStorage.getItem('outstanding-payments') || '[]'),
-            payments: JSON.parse(localStorage.getItem('alternatone-payments') || '[]'),
+            invoices: [],
+            payments: [],
             currentInvoiceId: null
         };
+
+        // Load initial data from API
+        async function loadPaymentData() {
+            try {
+                // Load all invoices
+                const allInvoices = await InvoicesAPI.getAll();
+
+                // Get projects for mapping
+                const projects = await ProjectsAPI.getAll();
+                const projectMap = {};
+                projects.forEach(p => {
+                    projectMap[p.id] = { name: p.name, client: p.client_name || '' };
+                });
+
+                // Map invoices to payment dashboard format
+                invoiceData.invoices = allInvoices.map(inv => ({
+                    id: inv.id,
+                    invoiceNumber: inv.invoice_number,
+                    projectName: projectMap[inv.project_id]?.name || 'Unknown',
+                    clientName: projectMap[inv.project_id]?.client || '',
+                    amount: inv.amount,
+                    dueDate: inv.due_date,
+                    status: inv.status === 'paid' ? 'paid' : 'sent',
+                    invoiceDate: inv.issue_date,
+                    projectId: inv.project_id
+                }));
+
+                // Load all payments
+                const allPayments = await PaymentsAPI.getAll();
+                invoiceData.payments = allPayments
+                    .filter(p => p.payment_date !== null)
+                    .map(p => ({
+                        id: p.id,
+                        invoiceId: p.invoice_id,
+                        projectName: projectMap[p.project_id]?.name || 'Unknown',
+                        amount: p.amount,
+                        date: p.payment_date,
+                        method: p.payment_method || 'Unknown',
+                        notes: p.notes || ''
+                    }));
+
+                updateStats();
+                renderOutstandingInvoices();
+                renderPaymentHistory();
+            } catch (error) {
+                console.error('Error loading payment data:', error);
+            }
+        }
 
         function updateStats() {
             const now = new Date();
@@ -359,55 +408,61 @@
             invoiceData.currentInvoiceId = null;
         }
 
-        function markAsPaid() {
+        async function markAsPaid() {
             if (!invoiceData.currentInvoiceId) return;
-            
+
             const paidAmount = parseFloat(document.getElementById('paidAmount').value);
             const paidDate = document.getElementById('paidDate').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
-            
+
             if (!paidAmount || !paidDate) {
                 alert('Please fill in payment amount and date');
                 return;
             }
-            
-            const invoice = invoiceData.invoices.find(inv => inv.id === invoiceData.currentInvoiceId);
-            invoice.status = 'paid';
-            invoice.paidDate = paidDate;
-            invoice.paidAmount = paidAmount;
 
-            const payment = {
-                id: Date.now().toString(),
-                invoiceId: invoiceData.currentInvoiceId,
-                amount: paidAmount,
-                date: paidDate,
-                method: paymentMethod,
-                createdAt: new Date().toISOString()
-            };
+            try {
+                const invoice = invoiceData.invoices.find(inv => inv.id === invoiceData.currentInvoiceId);
 
-            invoiceData.payments.push(payment);
+                // Update invoice status to paid
+                await InvoicesAPI.update(invoiceData.currentInvoiceId, {
+                    status: 'paid'
+                });
 
-            // Update associated project status
-            if (invoice.projectId) {
-                const projects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
-                const project = projects.find(p => p.id === invoice.projectId);
-                if (project) {
-                    // If this was a 50% deposit, update status (don't archive yet)
-                    if (invoice.paymentSplit === '50%') {
-                        project.status = '50% deposit received';
+                // Create payment record
+                await PaymentsAPI.create({
+                    invoice_id: invoiceData.currentInvoiceId,
+                    project_id: invoice.projectId,
+                    amount: paidAmount,
+                    payment_date: paidDate,
+                    payment_method: paymentMethod,
+                    payment_type: invoice.amount < invoice.finalAmount ? 'partial' : 'final',
+                    notes: 'Payment received'
+                });
+
+                // Update associated project status
+                if (invoice.projectId) {
+                    // Get invoice details to determine if deposit or final
+                    const fullInvoice = await InvoicesAPI.getById(invoiceData.currentInvoiceId);
+
+                    if (fullInvoice.deposit_percentage === 50) {
+                        // This was a 50% deposit
+                        await ProjectsAPI.update(invoice.projectId, {
+                            status: '50% deposit received'
+                        });
                     } else {
                         // Full payment received, move to archive
-                        project.column = 'archive';
+                        await ProjectsAPI.update(invoice.projectId, {
+                            status: 'archive'
+                        });
                     }
-                    localStorage.setItem('kanban-projects', JSON.stringify(projects));
                 }
-            }
 
-            localStorage.setItem('outstanding-payments', JSON.stringify(invoiceData.invoices));
-            localStorage.setItem('alternatone-payments', JSON.stringify(invoiceData.payments));
-            
-            hidePaidModal();
-            refreshDashboard();
+                hidePaidModal();
+                await loadPaymentData();
+            } catch (error) {
+                console.error('Error marking invoice as paid:', error);
+                alert('Failed to mark invoice as paid. Please try again.');
+            }
         }
 
         function logFollowUp(invoiceId) {
@@ -439,7 +494,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            refreshDashboard();
+            loadPaymentData();
         });
     </script>
 </body>

@@ -277,6 +277,41 @@ async function getProjectsWithMusic() {
   return projectsWithMusic;
 }
 
+// ============================================
+// ACCOUNTING API
+// ============================================
+const AccountingAPI = {
+  async getAll() {
+    const response = await fetch(`${API_BASE}/accounting`);
+    if (!response.ok) throw new Error('Failed to fetch accounting records');
+    return response.json();
+  },
+
+  async getByProject(projectId) {
+    const response = await fetch(`${API_BASE}/accounting/project/${projectId}`);
+    if (!response.ok) throw new Error('Failed to fetch accounting records');
+    return response.json();
+  },
+
+  async create(recordData) {
+    const response = await fetch(`${API_BASE}/accounting`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(recordData)
+    });
+    if (!response.ok) throw new Error('Failed to create accounting record');
+    return response.json();
+  },
+
+  async delete(id) {
+    const response = await fetch(`${API_BASE}/accounting/${id}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) throw new Error('Failed to delete accounting record');
+    return response.json();
+  }
+};
+
 // Export for use in other scripts
 if (typeof window !== 'undefined') {
   window.ProjectsAPI = ProjectsAPI;
@@ -285,5 +320,6 @@ if (typeof window !== 'undefined') {
   window.ScopeAPI = ScopeAPI;
   window.InvoicesAPI = InvoicesAPI;
   window.PaymentsAPI = PaymentsAPI;
+  window.AccountingAPI = AccountingAPI;
   window.getProjectsWithMusic = getProjectsWithMusic;
 }
