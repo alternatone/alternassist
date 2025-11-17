@@ -6,47 +6,94 @@
 const API_BASE = 'http://localhost:3000/api';
 
 // ============================================
+// ERROR HANDLING
+// ============================================
+class APIError extends Error {
+  constructor(message, status, details) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+    this.details = details;
+  }
+}
+
+// Centralized API caller
+async function apiCall(endpoint, options = {}) {
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      let errorDetails;
+      try {
+        errorDetails = await response.json();
+      } catch (e) {
+        errorDetails = { error: response.statusText };
+      }
+      throw new APIError(
+        errorDetails.error || `Request failed: ${response.status}`,
+        response.status,
+        errorDetails
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+    // Network error or server not responding
+    throw new APIError(
+      'Cannot connect to server. Make sure the app is running.',
+      0,
+      { originalError: error.message }
+    );
+  }
+}
+
+// ============================================
 // PROJECTS API
 // ============================================
 const ProjectsAPI = {
-  async getAll() {
-    const response = await fetch(`${API_BASE}/projects`);
-    if (!response.ok) throw new Error('Failed to fetch projects');
-    return response.json();
-  },
-
-  async getById(id) {
-    const response = await fetch(`${API_BASE}/projects/${id}`);
-    if (!response.ok) throw new Error('Failed to fetch project');
-    return response.json();
-  },
-
-  async create(projectData) {
-    const response = await fetch(`${API_BASE}/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(projectData)
-    });
-    if (!response.ok) throw new Error('Failed to create project');
-    return response.json();
-  },
-
-  async update(id, projectData) {
-    const response = await fetch(`${API_BASE}/projects/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(projectData)
-    });
-    if (!response.ok) throw new Error('Failed to update project');
-    return response.json();
-  },
-
+  getAll: () => apiCall('/projects'),
+  getById: (id) => apiCall(`/projects/${id}`),
+  create: (data) => apiCall('/projects', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  update: (id, data) => apiCall(`/projects/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }),
   async delete(id) {
-    const response = await fetch(`${API_BASE}/projects/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete project');
-    return response.json();
+    // First try without confirm to get warning
+    try {
+      return await apiCall(`/projects/${id}`, { method: 'DELETE' });
+    } catch (error) {
+      if (error.status === 409 && error.details.warning) {
+        // Show confirmation dialog
+        const relatedData = error.details.relatedData;
+        const items = Object.entries(relatedData)
+          .filter(([_, count]) => count > 0)
+          .map(([type, count]) => `${count} ${type}`)
+          .join(', ');
+
+        const message = `This will permanently delete:\n\n${items}\n\nThis cannot be undone. Continue?`;
+
+        if (confirm(message)) {
+          // Retry with confirm flag
+          return await apiCall(`/projects/${id}?confirm=true`, { method: 'DELETE' });
+        } else {
+          throw new Error('Delete cancelled by user');
+        }
+      }
+      throw error;
+    }
   }
 };
 
@@ -54,159 +101,77 @@ const ProjectsAPI = {
 // CUES API
 // ============================================
 const CuesAPI = {
-  async getAll() {
-    const response = await fetch(`${API_BASE}/cues`);
-    if (!response.ok) throw new Error('Failed to fetch cues');
-    return response.json();
-  },
-
-  async getByProject(projectId) {
-    const response = await fetch(`${API_BASE}/cues/project/${projectId}`);
-    if (!response.ok) throw new Error('Failed to fetch cues for project');
-    return response.json();
-  },
-
-  async create(cueData) {
-    const response = await fetch(`${API_BASE}/cues`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cueData)
-    });
-    if (!response.ok) throw new Error('Failed to create cue');
-    return response.json();
-  },
-
-  async update(id, cueData) {
-    const response = await fetch(`${API_BASE}/cues/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cueData)
-    });
-    if (!response.ok) throw new Error('Failed to update cue');
-    return response.json();
-  },
-
-  async delete(id) {
-    const response = await fetch(`${API_BASE}/cues/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete cue');
-    return response.json();
-  },
-
-  async deleteByProject(projectId) {
-    const response = await fetch(`${API_BASE}/cues/project/${projectId}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete project cues');
-    return response.json();
-  }
+  getAll: () => apiCall('/cues'),
+  getByProject: (projectId) => apiCall(`/cues/project/${projectId}`),
+  create: (data) => apiCall('/cues', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  update: (id, data) => apiCall(`/cues/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }),
+  delete: (id) => apiCall(`/cues/${id}`, { method: 'DELETE' }),
+  deleteByProject: (projectId) => apiCall(`/cues/project/${projectId}`, { method: 'DELETE' })
 };
 
 // ============================================
 // ESTIMATES API
 // ============================================
 const EstimatesAPI = {
-  async getAll() {
-    const response = await fetch(`${API_BASE}/estimates`);
-    if (!response.ok) throw new Error('Failed to fetch estimates');
-    return response.json();
-  },
-
-  async getByProject(projectId) {
-    const response = await fetch(`${API_BASE}/estimates/project/${projectId}`);
-    if (!response.ok) throw new Error('Failed to fetch estimates for project');
-    return response.json();
-  },
-
-  async create(estimateData) {
-    const response = await fetch(`${API_BASE}/estimates`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(estimateData)
-    });
-    if (!response.ok) throw new Error('Failed to create estimate');
-    return response.json();
-  },
-
-  async delete(id) {
-    const response = await fetch(`${API_BASE}/estimates/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete estimate');
-    return response.json();
-  }
+  getAll: () => apiCall('/estimates'),
+  getByProject: (projectId) => apiCall(`/estimates/project/${projectId}`),
+  create: (data) => apiCall('/estimates', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  delete: (id) => apiCall(`/estimates/${id}`, { method: 'DELETE' })
 };
 
 // ============================================
 // SCOPE API
 // ============================================
 const ScopeAPI = {
-  async get(projectId) {
-    const response = await fetch(`${API_BASE}/estimates/scope/${projectId}`);
-    if (!response.ok) throw new Error('Failed to fetch scope');
-    return response.json();
-  },
-
-  async upsert(scopeData) {
-    const response = await fetch(`${API_BASE}/estimates/scope`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scopeData)
-    });
-    if (!response.ok) throw new Error('Failed to save scope');
-    return response.json();
-  }
+  get: (projectId) => apiCall(`/estimates/scope/${projectId}`),
+  upsert: (data) => apiCall('/estimates/scope', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
 };
 
 // ============================================
 // INVOICES API
 // ============================================
 const InvoicesAPI = {
-  async getAll() {
-    const response = await fetch(`${API_BASE}/invoices`);
-    if (!response.ok) throw new Error('Failed to fetch invoices');
-    return response.json();
-  },
-
-  async getById(id) {
-    const response = await fetch(`${API_BASE}/invoices/${id}`);
-    if (!response.ok) throw new Error('Failed to fetch invoice');
-    return response.json();
-  },
-
-  async getByProject(projectId) {
-    const response = await fetch(`${API_BASE}/invoices/project/${projectId}`);
-    if (!response.ok) throw new Error('Failed to fetch invoices for project');
-    return response.json();
-  },
-
-  async create(invoiceData) {
-    const response = await fetch(`${API_BASE}/invoices`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(invoiceData)
-    });
-    if (!response.ok) throw new Error('Failed to create invoice');
-    return response.json();
-  },
-
-  async update(id, invoiceData) {
-    const response = await fetch(`${API_BASE}/invoices/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(invoiceData)
-    });
-    if (!response.ok) throw new Error('Failed to update invoice');
-    return response.json();
-  },
-
+  getAll: () => apiCall('/invoices'),
+  getById: (id) => apiCall(`/invoices/${id}`),
+  getByProject: (projectId) => apiCall(`/invoices/project/${projectId}`),
+  create: (data) => apiCall('/invoices', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  update: (id, data) => apiCall(`/invoices/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }),
   async delete(id) {
-    const response = await fetch(`${API_BASE}/invoices/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete invoice');
-    return response.json();
+    // First try without confirm to get warning
+    try {
+      return await apiCall(`/invoices/${id}`, { method: 'DELETE' });
+    } catch (error) {
+      if (error.status === 409 && error.details.warning) {
+        // Show confirmation dialog
+        const message = error.details.message || 'This invoice has related data that will be deleted. Continue?';
+
+        if (confirm(message)) {
+          // Retry with confirm flag
+          return await apiCall(`/invoices/${id}?confirm=true`, { method: 'DELETE' });
+        } else {
+          throw new Error('Delete cancelled by user');
+        }
+      }
+      throw error;
+    }
   }
 };
 
@@ -214,41 +179,14 @@ const InvoicesAPI = {
 // PAYMENTS API
 // ============================================
 const PaymentsAPI = {
-  async getAll() {
-    const response = await fetch(`${API_BASE}/payments`);
-    if (!response.ok) throw new Error('Failed to fetch payments');
-    return response.json();
-  },
-
-  async getByProject(projectId) {
-    const response = await fetch(`${API_BASE}/payments/project/${projectId}`);
-    if (!response.ok) throw new Error('Failed to fetch payments for project');
-    return response.json();
-  },
-
-  async getByInvoice(invoiceId) {
-    const response = await fetch(`${API_BASE}/payments/invoice/${invoiceId}`);
-    if (!response.ok) throw new Error('Failed to fetch payments for invoice');
-    return response.json();
-  },
-
-  async create(paymentData) {
-    const response = await fetch(`${API_BASE}/payments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(paymentData)
-    });
-    if (!response.ok) throw new Error('Failed to create payment');
-    return response.json();
-  },
-
-  async delete(id) {
-    const response = await fetch(`${API_BASE}/payments/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete payment');
-    return response.json();
-  }
+  getAll: () => apiCall('/payments'),
+  getByProject: (projectId) => apiCall(`/payments/project/${projectId}`),
+  getByInvoice: (invoiceId) => apiCall(`/payments/invoice/${invoiceId}`),
+  create: (data) => apiCall('/payments', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  delete: (id) => apiCall(`/payments/${id}`, { method: 'DELETE' })
 };
 
 // ============================================
@@ -281,39 +219,18 @@ async function getProjectsWithMusic() {
 // ACCOUNTING API
 // ============================================
 const AccountingAPI = {
-  async getAll() {
-    const response = await fetch(`${API_BASE}/accounting`);
-    if (!response.ok) throw new Error('Failed to fetch accounting records');
-    return response.json();
-  },
-
-  async getByProject(projectId) {
-    const response = await fetch(`${API_BASE}/accounting/project/${projectId}`);
-    if (!response.ok) throw new Error('Failed to fetch accounting records');
-    return response.json();
-  },
-
-  async create(recordData) {
-    const response = await fetch(`${API_BASE}/accounting`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(recordData)
-    });
-    if (!response.ok) throw new Error('Failed to create accounting record');
-    return response.json();
-  },
-
-  async delete(id) {
-    const response = await fetch(`${API_BASE}/accounting/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete accounting record');
-    return response.json();
-  }
+  getAll: () => apiCall('/accounting'),
+  getByProject: (projectId) => apiCall(`/accounting/project/${projectId}`),
+  create: (data) => apiCall('/accounting', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  delete: (id) => apiCall(`/accounting/${id}`, { method: 'DELETE' })
 };
 
 // Export for use in other scripts
 if (typeof window !== 'undefined') {
+  window.APIError = APIError;
   window.ProjectsAPI = ProjectsAPI;
   window.CuesAPI = CuesAPI;
   window.EstimatesAPI = EstimatesAPI;

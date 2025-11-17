@@ -5,7 +5,7 @@ const { cueQueries, projectQueries } = require('../models/database');
 // Get all cues
 router.get('/', (req, res) => {
   try {
-    const cues = cueQueries.findByProject.all();
+    const cues = cueQueries.getAll.all();
     res.json(cues);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -32,6 +32,7 @@ router.post('/', (req, res) => {
       title,
       status,
       duration,
+      theme,
       notes
     } = req.body;
 
@@ -51,6 +52,7 @@ router.post('/', (req, res) => {
       title || '',
       status || 'to-write',
       duration || null,
+      theme || null,
       notes || null
     );
 
@@ -70,6 +72,7 @@ router.patch('/:id', (req, res) => {
       title,
       status,
       duration,
+      theme,
       notes
     } = req.body;
 
@@ -83,6 +86,7 @@ router.patch('/:id', (req, res) => {
       title !== undefined ? title : cue.title,
       status !== undefined ? status : cue.status,
       duration !== undefined ? duration : cue.duration,
+      theme !== undefined ? theme : cue.theme,
       notes !== undefined ? notes : cue.notes,
       id
     );

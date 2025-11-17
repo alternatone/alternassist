@@ -13,14 +13,17 @@ const config = {
 };
 
 let serverInstance = null;
+let startupAttempts = 0;
+const MAX_STARTUP_ATTEMPTS = 3;
 
 function startServer() {
   if (serverInstance) {
     console.log('Alternaview server already running');
-    return serverInstance;
+    return Promise.resolve(serverInstance);
   }
 
-  const app = express();
+  return new Promise((resolve, reject) => {
+    const app = express();
 
   // Create storage directory if it doesn't exist
   if (!fs.existsSync(config.storagePath)) {
@@ -47,6 +50,11 @@ function startServer() {
   // Serve static files from HTML Sketches directory
   app.use('/media', express.static(path.join(__dirname, 'HTML Sketches')));
 
+  // Health check endpoint
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // API Routes
   app.use('/api/projects', require('./server/routes/projects'));
   app.use('/api/files', require('./server/routes/files'));
@@ -56,40 +64,67 @@ function startServer() {
   app.use('/api/payments', require('./server/routes/payments'));
   app.use('/api/accounting', require('./server/routes/accounting'));
 
-  // Error handling middleware
-  app.use((err, req, res, next) => {
-    console.error('Alternaview Error:', err);
-    res.status(err.status || 500).json({
-      error: err.message || 'Internal server error'
+    // Error handling middleware
+    app.use((err, req, res, next) => {
+      console.error('Alternaview Error:', err);
+      res.status(err.status || 500).json({
+        error: err.message || 'Internal server error'
+      });
     });
-  });
 
-  // Start server
-  serverInstance = app.listen(config.port, () => {
-    console.log(`Alternaview server running on http://localhost:${config.port}`);
-  });
+    // Start server with error handling
+    try {
+      serverInstance = app.listen(config.port, () => {
+        console.log(`Alternaview server running on http://localhost:${config.port}`);
+        startupAttempts = 0;
+        resolve(serverInstance);
+      });
 
-  serverInstance.on('error', (err) => {
-    console.error('Server error:', err);
-    if (err.code === 'EADDRINUSE') {
-      console.error(`Port ${config.port} is already in use`);
+      serverInstance.on('error', (err) => {
+        console.error('Server error:', err);
+
+        if (err.code === 'EADDRINUSE') {
+          console.error(`Port ${config.port} is already in use`);
+
+          if (startupAttempts < MAX_STARTUP_ATTEMPTS) {
+            startupAttempts++;
+            // Try different port
+            config.port = config.port + 1;
+            console.log(`Retrying on port ${config.port}...`);
+            serverInstance = null;
+            setTimeout(() => {
+              startServer().then(resolve).catch(reject);
+            }, 1000);
+          } else {
+            reject(new Error(`Failed to start server after ${MAX_STARTUP_ATTEMPTS} attempts`));
+          }
+        } else {
+          reject(err);
+        }
+      });
+    } catch (err) {
+      reject(err);
     }
   });
-
-  return serverInstance;
 }
 
 function stopServer() {
-  if (serverInstance) {
-    serverInstance.close(() => {
-      console.log('Alternaview server stopped');
-      serverInstance = null;
-    });
-  }
+  return new Promise((resolve) => {
+    if (serverInstance) {
+      serverInstance.close(() => {
+        console.log('Alternaview server stopped');
+        serverInstance = null;
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
 }
 
 module.exports = {
   startServer,
   stopServer,
-  config
+  config,
+  isRunning: () => !!serverInstance
 };

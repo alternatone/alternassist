@@ -6,7 +6,9 @@ const config = require('../../alternaview-config');
 const dbPath = config.dbPath || path.join(__dirname, '../../alternaview.db');
 const db = new Database(dbPath);
 
-// Enable foreign keys
+// Enable WAL mode for better concurrent performance
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
 db.pragma('foreign_keys = ON');
 
 // Create tables
@@ -58,41 +60,13 @@ function initDatabase() {
     )
   `);
 
-  // Migration: Add transcoded_file_path column if it doesn't exist
-  const fileColumns = db.prepare("PRAGMA table_info(files)").all();
-  const hasTranscodedPath = fileColumns.some(col => col.name === 'transcoded_file_path');
-  if (!hasTranscodedPath) {
-    db.exec('ALTER TABLE files ADD COLUMN transcoded_file_path TEXT');
-    console.log('Added transcoded_file_path column to files table');
-  }
-
-  // Migration: Add Kanban fields to projects table if they don't exist
-  const projectColumns = db.prepare("PRAGMA table_info(projects)").all();
-  const kanbanFields = ['client_name', 'status', 'notes', 'pinned', 'media_folder_path', 'password_protected'];
-
-  kanbanFields.forEach(field => {
-    const hasField = projectColumns.some(col => col.name === field);
-    if (!hasField) {
-      let fieldType = 'TEXT';
-      let fieldDefault = '';
-
-      if (field === 'pinned' || field === 'password_protected') {
-        fieldType = 'BOOLEAN';
-        fieldDefault = ' DEFAULT 0';
-      } else if (field === 'status') {
-        fieldDefault = " DEFAULT 'prospects'";
-      }
-
-      db.exec(`ALTER TABLE projects ADD COLUMN ${field} ${fieldType}${fieldDefault}`);
-      console.log(`Added ${field} column to projects table`);
-    }
-  });
-
-  // Migration: Make password nullable in projects table (existing constraint can't be changed, so we note it)
-  const passwordColumn = projectColumns.find(col => col.name === 'password');
-  if (passwordColumn && passwordColumn.notnull === 1) {
-    console.log('Note: password column is still NOT NULL in existing databases. New projects can have NULL passwords.');
-  }
+  // Migration tracking table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
   // Comments table (for future use)
   db.exec(`
@@ -231,8 +205,119 @@ function initDatabase() {
   console.log('Database initialized successfully');
 }
 
+// Migration runner
+function runMigrations() {
+  const migrations = [
+    {
+      version: 1,
+      name: 'add_transcoded_file_path',
+      up: () => {
+        const columns = db.prepare("PRAGMA table_info(files)").all();
+        if (!columns.some(col => col.name === 'transcoded_file_path')) {
+          db.exec('ALTER TABLE files ADD COLUMN transcoded_file_path TEXT');
+          console.log('Migration 1: Added transcoded_file_path column');
+        }
+      }
+    },
+    {
+      version: 2,
+      name: 'add_kanban_fields',
+      up: () => {
+        const columns = db.prepare("PRAGMA table_info(projects)").all();
+        const kanbanFields = [
+          { name: 'client_name', type: 'TEXT', default: null },
+          { name: 'status', type: 'TEXT', default: "'prospects'" },
+          { name: 'notes', type: 'TEXT', default: null },
+          { name: 'pinned', type: 'BOOLEAN', default: '0' },
+          { name: 'media_folder_path', type: 'TEXT', default: null },
+          { name: 'password_protected', type: 'BOOLEAN', default: '0' }
+        ];
+
+        kanbanFields.forEach(field => {
+          if (!columns.some(col => col.name === field.name)) {
+            const defaultClause = field.default ? ` DEFAULT ${field.default}` : '';
+            db.exec(`ALTER TABLE projects ADD COLUMN ${field.name} ${field.type}${defaultClause}`);
+            console.log(`Migration 2: Added ${field.name} column`);
+          }
+        });
+      }
+    },
+    {
+      version: 3,
+      name: 'add_cue_theme_column',
+      up: () => {
+        const columns = db.prepare("PRAGMA table_info(cues)").all();
+        if (!columns.some(col => col.name === 'theme')) {
+          db.exec('ALTER TABLE cues ADD COLUMN theme TEXT');
+          console.log('Migration 3: Added theme column to cues');
+        }
+      }
+    }
+  ];
+
+  // Get current schema version
+  const currentVersion = db.prepare(
+    'SELECT MAX(version) as version FROM schema_migrations'
+  ).get()?.version || 0;
+
+  // Run pending migrations in transaction
+  const runMigration = db.transaction((migration) => {
+    console.log(`Running migration ${migration.version}: ${migration.name}`);
+    migration.up();
+    db.prepare('INSERT INTO schema_migrations (version) VALUES (?)').run(migration.version);
+  });
+
+  migrations
+    .filter(m => m.version > currentVersion)
+    .forEach(migration => {
+      try {
+        runMigration(migration);
+        console.log(`✓ Migration ${migration.version} complete`);
+      } catch (error) {
+        console.error(`✗ Migration ${migration.version} failed:`, error);
+        throw error; // Stop on first failure
+      }
+    });
+}
+
+// Create indexes for foreign keys and commonly queried fields
+function createIndexes() {
+  const indexes = [
+    // Foreign key indexes
+    'CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id)',
+    'CREATE INDEX IF NOT EXISTS idx_share_links_project_id ON share_links(project_id)',
+    'CREATE INDEX IF NOT EXISTS idx_share_links_file_id ON share_links(file_id)',
+    'CREATE INDEX IF NOT EXISTS idx_comments_file_id ON comments(file_id)',
+    'CREATE INDEX IF NOT EXISTS idx_access_logs_project_id ON access_logs(project_id)',
+    'CREATE INDEX IF NOT EXISTS idx_estimates_project_id ON estimates(project_id)',
+    'CREATE INDEX IF NOT EXISTS idx_cues_project_id ON cues(project_id)',
+    'CREATE INDEX IF NOT EXISTS idx_invoices_project_id ON invoices(project_id)',
+    'CREATE INDEX IF NOT EXISTS idx_payments_project_id ON payments(project_id)',
+    'CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments(invoice_id)',
+    'CREATE INDEX IF NOT EXISTS idx_accounting_project_id ON accounting_records(project_id)',
+
+    // Commonly queried fields
+    'CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status)',
+    'CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)',
+    'CREATE INDEX IF NOT EXISTS idx_cues_status ON cues(status)',
+
+    // Date range queries
+    'CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date)',
+    'CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)',
+    'CREATE INDEX IF NOT EXISTS idx_accounting_date ON accounting_records(transaction_date)'
+  ];
+
+  indexes.forEach(sql => {
+    db.exec(sql);
+  });
+
+  console.log('Database indexes created');
+}
+
 // Initialize database tables immediately
 initDatabase();
+runMigrations();
+createIndexes();
 
 // Project queries
 const projectQueries = {
@@ -346,10 +431,11 @@ const estimateQueries = {
 
 // Cue queries
 const cueQueries = {
-  create: db.prepare('INSERT INTO cues (project_id, cue_number, title, status, duration, notes) VALUES (?, ?, ?, ?, ?, ?)'),
+  create: db.prepare('INSERT INTO cues (project_id, cue_number, title, status, duration, theme, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'),
   findById: db.prepare('SELECT * FROM cues WHERE id = ?'),
   findByProject: db.prepare('SELECT * FROM cues WHERE project_id = ? ORDER BY cue_number'),
-  update: db.prepare('UPDATE cues SET cue_number = ?, title = ?, status = ?, duration = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  getAll: db.prepare('SELECT * FROM cues ORDER BY project_id, cue_number'),
+  update: db.prepare('UPDATE cues SET cue_number = ?, title = ?, status = ?, duration = ?, theme = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   delete: db.prepare('DELETE FROM cues WHERE id = ?'),
   deleteByProject: db.prepare('DELETE FROM cues WHERE project_id = ?')
 };
@@ -393,6 +479,7 @@ const accountingQueries = {
 module.exports = {
   db,
   initDatabase,
+  runMigrations,
   projectQueries,
   fileQueries,
   commentQueries,

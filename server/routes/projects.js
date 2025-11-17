@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { projectQueries, fileQueries, shareLinkQueries } = require('../models/database');
+const {
+  projectQueries,
+  fileQueries,
+  shareLinkQueries,
+  estimateQueries,
+  cueQueries,
+  invoiceQueries,
+  paymentQueries
+} = require('../models/database');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -184,11 +192,32 @@ router.patch('/:id', (req, res) => {
 // Delete project (admin only - add auth later)
 router.delete('/:id', (req, res) => {
   try {
-    const projectId = req.params.id;
+    const projectId = parseInt(req.params.id);
     const project = projectQueries.findById.get(projectId);
 
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check what will be deleted
+    const relatedData = {
+      estimates: estimateQueries.findByProject.all(projectId).length,
+      cues: cueQueries.findByProject.all(projectId).length,
+      invoices: invoiceQueries.findByProject.all(projectId).length,
+      payments: paymentQueries.findByProject.all(projectId).length,
+      files: fileQueries.findByProject.all(projectId).length
+    };
+
+    const totalItems = Object.values(relatedData).reduce((sum, count) => sum + count, 0);
+
+    // Return warning if there's related data
+    if (totalItems > 0 && !req.query.confirm) {
+      return res.status(409).json({
+        error: 'Project has related data',
+        warning: true,
+        relatedData,
+        message: `This project has ${totalItems} related items that will be permanently deleted. Add ?confirm=true to proceed.`
+      });
     }
 
     // Delete project directory
@@ -200,7 +229,11 @@ router.delete('/:id', (req, res) => {
     // Delete from database (cascades to files and comments)
     projectQueries.delete.run(projectId);
 
-    res.json({ success: true, message: 'Project deleted' });
+    res.json({
+      success: true,
+      message: 'Project deleted',
+      deletedItems: relatedData
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

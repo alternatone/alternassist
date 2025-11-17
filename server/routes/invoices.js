@@ -136,6 +136,20 @@ router.patch('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
+
+    // Check for related payments
+    const payments = paymentQueries.findByInvoice.all(id);
+
+    if (payments.length > 0 && !req.query.confirm) {
+      const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+      return res.status(409).json({
+        error: 'Invoice has payments',
+        warning: true,
+        paymentCount: payments.length,
+        message: `This invoice has ${payments.length} payment(s) totaling $${totalAmount.toFixed(2)}. Add ?confirm=true to proceed.`
+      });
+    }
+
     invoiceQueries.delete.run(id);
     res.json({ success: true, message: 'Invoice deleted' });
   } catch (error) {
