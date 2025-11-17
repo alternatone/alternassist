@@ -245,160 +245,72 @@
         </div>
     </div>
 
+    <script src="api-helpers.js"></script>
     <script>
         let currentProject = null;
         let currentCueId = null;
-        let cues = {};
+        let cues = {}; // Stores cues by project_id
 
-        function initializeSampleData() {
-            // Version check for sample data - increment to force refresh
-            const SAMPLE_DATA_VERSION = 3;
-            const currentVersion = parseInt(localStorage.getItem('cue-sample-data-version') || '0');
+        async function initializeSampleData() {
+            try {
+                // Load projects with music from API
+                const projectsWithMusic = await getProjectsWithMusic();
 
-            // Load cues from localStorage
-            const savedCues = localStorage.getItem('cue-tracker-cues');
-            cues = savedCues ? JSON.parse(savedCues) : {};
+                // Load all cues from API
+                const allCues = await CuesAPI.getAll();
 
-            // Load projects from localStorage
-            let cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
-
-            // Check kanban projects for any with music that aren't in cue tracker yet
-            const kanbanProjects = JSON.parse(localStorage.getItem('kanban-projects') || '[]');
-            const kanbanProjectIds = kanbanProjects.map(p => p.id);
-
-            // Remove projects from cue tracker that no longer exist in kanban
-            cueProjects = cueProjects.filter(p => kanbanProjectIds.includes(p.id));
-
-            // Add new projects with music
-            kanbanProjects.forEach(project => {
-                const scopeData = project.scopeData || {};
-                if (scopeData.music && scopeData.music !== '' && !cueProjects.find(p => p.id === project.id)) {
-                    cueProjects.push({
-                        id: project.id,
-                        title: project.title,
-                        client: project.client
-                    });
-                }
-            });
-            localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
-
-            // Add sample cues for BUILD project if it exists and has no cues OR if version changed
-            const buildProject = cueProjects.find(p => p.title === 'BUILD');
-            if (buildProject && (currentVersion < SAMPLE_DATA_VERSION || !cues[buildProject.id] || cues[buildProject.id].length === 0)) {
-                cues[buildProject.id] = [
-                    {
-                        id: Date.now().toString() + '-1',
-                        number: '1m1',
-                        title: 'Main Title',
-                        startTime: '00:00:00',
-                        endTime: '00:02:30',
-                        theme: 'Main Theme',
-                        status: 'complete',
-                        notes: 'Energetic build montage theme',
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now().toString() + '-2',
-                        number: '1m2',
-                        title: 'Planning Phase',
-                        startTime: '00:03:15',
-                        endTime: '00:09:15',
-                        theme: 'Contemplation',
-                        status: 'complete',
-                        notes: 'Thoughtful, contemplative underscore',
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now().toString() + '-3',
-                        number: '2m1',
-                        title: 'Construction Begins',
-                        startTime: '00:11:30',
-                        endTime: '00:20:00',
-                        theme: 'Building Energy',
-                        status: 'mixing',
-                        notes: 'Rhythmic, industrial percussion with synth layers',
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now().toString() + '-4',
-                        number: '2m2',
-                        title: 'Progress Montage',
-                        startTime: '00:22:00',
-                        endTime: '00:29:00',
-                        theme: 'Building Energy',
-                        status: 'recording',
-                        notes: 'Uplifting build with driving beat',
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now().toString() + '-5',
-                        number: '3m1',
-                        title: 'Obstacles',
-                        startTime: '00:31:45',
-                        endTime: '00:37:00',
-                        theme: 'Tension',
-                        status: 'sketch',
-                        notes: 'Tension and uncertainty',
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now().toString() + '-6',
-                        number: '3m2',
-                        title: 'Final Push',
-                        startTime: '00:39:30',
-                        endTime: '00:49:15',
-                        theme: 'Building Energy',
-                        status: 'sketch',
-                        notes: 'High energy, building to completion',
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now().toString() + '-7',
-                        number: '4m1',
-                        title: 'Reveal & Credits',
-                        startTime: '00:51:00',
-                        endTime: '01:00:00',
-                        theme: 'Main Theme',
-                        status: 'sketch',
-                        notes: 'Triumphant reveal, callback to main theme',
-                        createdAt: new Date().toISOString()
+                // Group cues by project_id
+                cues = {};
+                allCues.forEach(cue => {
+                    if (!cues[cue.project_id]) {
+                        cues[cue.project_id] = [];
                     }
-                ];
-                localStorage.setItem('cue-sample-data-version', SAMPLE_DATA_VERSION.toString());
-                saveCues();
-            }
+                    cues[cue.project_id].push({
+                        id: cue.id,
+                        number: cue.cue_number,
+                        title: cue.title,
+                        startTime: '00:00:00', // Not stored yet
+                        endTime: '00:00:00',
+                        theme: cue.notes || '',
+                        status: cue.status,
+                        version: '',
+                        notes: cue.notes,
+                        duration: cue.duration
+                    });
+                });
 
-            const select = document.getElementById('projectSelect');
-            const selectedValue = select.value; // Preserve current selection
+                // Populate project select
+                const select = document.getElementById('projectSelect');
+                const selectedValue = select.value; // Preserve current selection
 
-            // Check if we should auto-select a project from the kanban board
-            const autoSelectProjectId = localStorage.getItem('cue-tracker-selected-project');
-            if (autoSelectProjectId) {
-                localStorage.removeItem('cue-tracker-selected-project'); // Clear after reading
-            }
+                select.innerHTML = '<option value="">select project...</option>';
 
-            select.innerHTML = '<option value="">select project...</option>';
+                projectsWithMusic.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = `${project.name} (${project.musicMinutes} mins)`;
+                    if (project.id == selectedValue) {
+                        option.selected = true;
+                        currentProject = project.id;
+                    }
+                    select.appendChild(option);
+                });
 
-            cueProjects.forEach(project => {
-                const option = document.createElement('option');
-                option.value = project.id;
-                option.textContent = project.title;
-                if (project.id === selectedValue || project.id === autoSelectProjectId) {
-                    option.selected = true;
-                    currentProject = project.id;
+                // Only reset currentProject if it was null or the project no longer exists
+                if (currentProject && !projectsWithMusic.find(p => p.id == currentProject)) {
+                    currentProject = null;
                 }
-                select.appendChild(option);
-            });
 
-            // Only reset currentProject if it was null or the project no longer exists
-            if (currentProject && !cueProjects.find(p => p.id === currentProject)) {
-                currentProject = null;
+                renderCues();
+            } catch (error) {
+                console.error('Error loading cue tracker data:', error);
+                alert('Failed to load cue tracker data. Please refresh.');
             }
-            renderCues();
         }
 
-        function saveCues() {
-            localStorage.setItem('cue-tracker-cues', JSON.stringify(cues));
+        // No longer needed - using API directly
+        async function saveCues() {
+            // Deprecated - individual cue operations now use API directly
         }
 
         function updateStats() {
@@ -566,18 +478,35 @@
             updateStats();
         }
 
-        function updateCueField(cueId, fieldName, newValue) {
+        async function updateCueField(cueId, fieldName, newValue) {
             const cue = cues[currentProject].find(c => c.id === cueId);
             if (cue) {
+                // Update local copy immediately for UI responsiveness
                 cue[fieldName] = newValue;
-                saveCues();
-                // Only re-render if theme changed (to update datalists) or if time changed (to update duration) or if status changed (to update colors)
-                if (fieldName === 'theme' || fieldName === 'startTime' || fieldName === 'endTime' || fieldName === 'status') {
-                    renderCues();
-                }
-                // Update stats if status changed
-                if (fieldName === 'status') {
-                    updateStats();
+
+                // Map field names to API fields
+                const apiData = {
+                    cue_number: cue.number,
+                    title: cue.title,
+                    status: cue.status,
+                    duration: cue.duration || null,
+                    notes: cue.notes || null
+                };
+
+                try {
+                    await CuesAPI.update(cueId, apiData);
+
+                    // Only re-render if theme changed (to update datalists) or if time changed (to update duration) or if status changed (to update colors)
+                    if (fieldName === 'theme' || fieldName === 'startTime' || fieldName === 'endTime' || fieldName === 'status') {
+                        renderCues();
+                    }
+                    // Update stats if status changed
+                    if (fieldName === 'status') {
+                        updateStats();
+                    }
+                } catch (error) {
+                    console.error('Error updating cue:', error);
+                    alert('Failed to update cue');
                 }
             }
         }
@@ -627,7 +556,7 @@
             currentCueId = null;
         }
 
-        function saveCue() {
+        async function saveCue() {
             const number = document.getElementById('cueNumber').value;
             const title = document.getElementById('cueTitle').value;
             const startTime = document.getElementById('startTime').value;
@@ -637,8 +566,8 @@
             const version = document.getElementById('cueVersion').value;
             const notes = document.getElementById('cueNotes').value;
 
-            if (!number || !title || !startTime || !endTime) {
-                alert('Please fill in cue number, title, start time, and end time');
+            if (!number || !title) {
+                alert('Please fill in cue number and title');
                 return;
             }
 
@@ -646,24 +575,53 @@
                 cues[currentProject] = [];
             }
 
-            if (currentCueId) {
-                const cueIndex = cues[currentProject].findIndex(c => c.id === currentCueId);
-                cues[currentProject][cueIndex] = {
-                    id: currentCueId,
-                    number, title, startTime, endTime, theme, status, version, notes
-                };
-            } else {
-                const cue = {
-                    id: Date.now().toString(),
-                    number, title, startTime, endTime, theme, status, version, notes,
-                    createdAt: new Date().toISOString()
-                };
-                cues[currentProject].push(cue);
-            }
+            try {
+                // Calculate duration from start/end time
+                const duration = calculateDuration(startTime, endTime);
 
-            saveCues();
-            hideCueModal();
-            renderCues();
+                if (currentCueId) {
+                    // Update existing cue
+                    await CuesAPI.update(currentCueId, {
+                        cue_number: number,
+                        title: title,
+                        status: status,
+                        duration: formatDuration(duration),
+                        notes: notes || theme
+                    });
+
+                    // Update local copy
+                    const cueIndex = cues[currentProject].findIndex(c => c.id === currentCueId);
+                    cues[currentProject][cueIndex] = {
+                        id: currentCueId,
+                        number, title, startTime, endTime, theme, status, version, notes,
+                        duration: formatDuration(duration)
+                    };
+                } else {
+                    // Create new cue
+                    const newCue = await CuesAPI.create({
+                        project_id: currentProject,
+                        cue_number: number,
+                        title: title,
+                        status: status,
+                        duration: formatDuration(duration),
+                        notes: notes || theme
+                    });
+
+                    // Add to local copy
+                    cues[currentProject].push({
+                        id: newCue.id,
+                        number, title, startTime, endTime, theme, status, version, notes,
+                        duration: formatDuration(duration),
+                        createdAt: newCue.created_at
+                    });
+                }
+
+                hideCueModal();
+                renderCues();
+            } catch (error) {
+                console.error('Error saving cue:', error);
+                alert('Failed to save cue');
+            }
         }
 
         function editCue(cueId) {
@@ -689,12 +647,17 @@
             document.getElementById('cueModal').classList.add('active');
         }
 
-        function deleteCue(cueId) {
+        async function deleteCue(cueId) {
             if (!confirm('Delete this cue?')) return;
 
-            cues[currentProject] = cues[currentProject].filter(c => c.id !== cueId);
-            saveCues();
-            renderCues();
+            try {
+                await CuesAPI.delete(cueId);
+                cues[currentProject] = cues[currentProject].filter(c => c.id !== cueId);
+                renderCues();
+            } catch (error) {
+                console.error('Error deleting cue:', error);
+                alert('Failed to delete cue');
+            }
         }
 
         function handleSpottingNotesImport(event) {
