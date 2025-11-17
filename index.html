@@ -518,9 +518,26 @@
             container.style.display = 'grid';
             emptyState.style.display = 'none';
 
+            // Fetch cues for all projects
+            let cuesByProject = {};
+            try {
+                const cuesResponse = await fetch('http://localhost:3000/api/cues');
+                if (cuesResponse.ok) {
+                    const allCues = await cuesResponse.json();
+                    // Group cues by project_id
+                    allCues.forEach(cue => {
+                        if (!cuesByProject[cue.project_id]) {
+                            cuesByProject[cue.project_id] = [];
+                        }
+                        cuesByProject[cue.project_id].push(cue);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading cues:', error);
+            }
+
             container.innerHTML = pinnedProjects.map(project => {
-                const cues = JSON.parse(localStorage.getItem('cue-tracker-cues') || '{}');
-                const projectCues = cues[project.id] || [];
+                const projectCues = cuesByProject[project.id] || [];
 
                 // Calculate cue status breakdown
                 const toWrite = projectCues.filter(c => c.status === 'to-write').length;
@@ -529,17 +546,8 @@
                 const approved = projectCues.filter(c => c.status === 'approved').length;
                 const totalCues = projectCues.length;
 
-                // Check if notes is JSON (scope data from estimates)
-                let displayNotes = project.notes;
-                try {
-                    const parsed = JSON.parse(project.notes);
-                    if (parsed && typeof parsed === 'object') {
-                        // It's JSON scope data, don't display it
-                        displayNotes = '';
-                    }
-                } catch (e) {
-                    // Not JSON, display as normal notes
-                }
+                // Display notes directly (no longer JSON)
+                const displayNotes = project.notes || '';
 
                 return `
                     <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer;">

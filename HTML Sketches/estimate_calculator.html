@@ -374,77 +374,76 @@
             if (revisionHours > 0) scopeParts.push(`${revisionHours} hrs revisions`);
             const scopeNotes = scopeParts.join(', ');
 
-            // Create project via API with structured scope data
-            const scopeData = {
-                contactEmail,
-                musicMinutes: Math.round(musicMinutes),
-                dialogueHours,
-                soundDesignHours,
-                mixHours,
-                revisionHours
-            };
-
             try {
-                const response = await fetch('http://localhost:3000/api/projects', {
+                // Step 1: Create project
+                const projectResponse = await fetch('http://localhost:3000/api/projects', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: projectName,
                         client_name: clientName,
                         status: 'prospects',
-                        notes: JSON.stringify(scopeData), // Store scope as JSON
+                        notes: '', // No longer using notes for scope data
                         pinned: 0,
-                        password: 'default' // Required by DB schema
+                        password: 'default'
                     })
                 });
 
-                if (!response.ok) {
-                    const error = await response.json();
+                if (!projectResponse.ok) {
+                    const error = await projectResponse.json();
                     alert(`Failed to create project: ${error.error}`);
                     return;
                 }
 
-                const newProject = await response.json();
+                const newProject = await projectResponse.json();
+                const projectId = newProject.id;
 
-            // Automatically log the estimate
-            const musicCost = musicMinutes * MUSIC_RATE;
-            const postDays = roundToHalfDay(totalPostHours);
-            const postCost = postDays * DAY_RATE;
-            let subtotal = musicCost + postCost;
-            const bundleDiscount = document.getElementById('bundleDiscount').checked;
-            const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
-            const total = subtotal - discount;
+                // Step 2: Create project scope
+                await fetch('http://localhost:3000/api/estimates/scope', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: projectId,
+                        contact_email: contactEmail,
+                        music_minutes: Math.round(musicMinutes),
+                        dialogue_hours: dialogueHours,
+                        sound_design_hours: soundDesignHours,
+                        mix_hours: mixHours,
+                        revision_hours: revisionHours
+                    })
+                });
 
-                const loggedEstimate = {
-                    id: newProject.id, // Use API-generated ID
-                    projectName,
-                    clientName,
-                    runtime,
-                    musicMinutes: Math.ceil(musicMinutes),
-                    totalPostHours,
-                    postDays,
-                    bundleDiscount,
-                    total,
-                    date: new Date().toISOString()
-                };
+                // Step 3: Log the estimate
+                const musicCost = musicMinutes * MUSIC_RATE;
+                const postDays = roundToHalfDay(totalPostHours);
+                const postCost = postDays * DAY_RATE;
+                let subtotal = musicCost + postCost;
+                const bundleDiscount = document.getElementById('bundleDiscount').checked;
+                const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
+                const total = subtotal - discount;
 
-                const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
-                loggedEstimates.push(loggedEstimate);
-                localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
-                renderLoggedEstimates();
+                await fetch('http://localhost:3000/api/estimates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: projectId,
+                        runtime: runtime,
+                        music_minutes: Math.round(musicMinutes),
+                        dialogue_hours: dialogueHours,
+                        sound_design_hours: soundDesignHours,
+                        mix_hours: mixHours,
+                        revision_hours: revisionHours,
+                        post_days: postDays,
+                        bundle_discount: bundleDiscount ? 1 : 0,
+                        music_cost: musicCost,
+                        post_cost: postCost,
+                        discount_amount: discount,
+                        total_cost: total
+                    })
+                });
 
-                // If project has music, add it to cue tracker
-                if (musicMinutes > 0) {
-                    const cueProjects = JSON.parse(localStorage.getItem('cue-projects') || '[]');
-                    if (!cueProjects.find(p => p.id === newProject.id)) {
-                        cueProjects.push({
-                            id: newProject.id,
-                            title: projectName,
-                            client: clientName
-                        });
-                        localStorage.setItem('cue-projects', JSON.stringify(cueProjects));
-                    }
-                }
+                // Refresh logged estimates display
+                await renderLoggedEstimates();
 
                 alert('Project added to prospects pipeline successfully! Switch to the Projects tab to see it.');
 
@@ -605,74 +604,123 @@
             alert('Estimate logged successfully!');
         }
 
-        function renderLoggedEstimates() {
-            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
+        async function renderLoggedEstimates() {
             const section = document.getElementById('loggedEstimatesSection');
             const list = document.getElementById('loggedEstimatesList');
 
-            if (loggedEstimates.length === 0) {
-                section.style.display = 'none';
-                return;
-            }
+            try {
+                // Fetch all estimates from API
+                const response = await fetch('http://localhost:3000/api/estimates');
+                if (!response.ok) throw new Error('Failed to load estimates');
 
-            section.style.display = 'block';
-            list.innerHTML = loggedEstimates.reverse().map(estimate => `
-                <div class="logged-estimate-card" onclick="loadLoggedEstimate('${estimate.id}')" style="cursor: pointer;">
-                    <div class="logged-estimate-header">
-                        <div>
-                            <div class="logged-estimate-title">${estimate.projectName}</div>
-                            <div class="logged-estimate-date">${new Date(estimate.date).toLocaleDateString()}</div>
+                const estimates = await response.json();
+
+                // Fetch all projects to get names
+                const projectsResponse = await fetch('http://localhost:3000/api/projects');
+                const projects = await projectsResponse.json();
+
+                // Map project IDs to names
+                const projectMap = {};
+                projects.forEach(p => {
+                    projectMap[p.id] = { name: p.name, client: p.client_name || '' };
+                });
+
+                if (estimates.length === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+
+                section.style.display = 'block';
+                list.innerHTML = estimates.reverse().map(estimate => {
+                    const project = projectMap[estimate.project_id] || { name: 'Unknown', client: '' };
+                    return `
+                        <div class="logged-estimate-card" onclick="loadLoggedEstimate(${estimate.id})" style="cursor: pointer;">
+                            <div class="logged-estimate-header">
+                                <div>
+                                    <div class="logged-estimate-title">${project.name}</div>
+                                    <div class="logged-estimate-date">${new Date(estimate.created_at).toLocaleDateString()}</div>
+                                </div>
+                                <button class="logged-estimate-delete" onclick="event.stopPropagation(); deleteLoggedEstimate(${estimate.id})" title="Delete">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="logged-estimate-info">
+                                <div><strong>Client:</strong> ${project.client}</div>
+                                <div><strong>Music:</strong> ${estimate.music_minutes} mins</div>
+                                <div><strong>Post:</strong> ${estimate.post_days} days</div>
+                                <div><strong>Total:</strong> $${(estimate.total_cost || 0).toFixed(0)}</div>
+                            </div>
                         </div>
-                        <button class="logged-estimate-delete" onclick="event.stopPropagation(); deleteLoggedEstimate('${estimate.id}')" title="Delete">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                <line x1="10" y1="11" x2="10" y2="17"></line>
-                                <line x1="14" y1="11" x2="14" y2="17"></line>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="logged-estimate-info">
-                        <div><strong>Client:</strong> ${estimate.clientName}</div>
-                        <div><strong>Music:</strong> ${estimate.musicMinutes} mins</div>
-                        <div><strong>Post:</strong> ${estimate.postDays} days</div>
-                        <div><strong>Total:</strong> $${estimate.total.toFixed(0)}</div>
-                    </div>
-                </div>
-            `).join('');
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading estimates:', error);
+                section.style.display = 'none';
+            }
         }
 
-        function loadLoggedEstimate(id) {
-            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
-            const estimate = loggedEstimates.find(e => e.id === id);
-            if (!estimate) return;
+        async function loadLoggedEstimate(id) {
+            try {
+                // Fetch estimate from API
+                const response = await fetch(`http://localhost:3000/api/estimates`);
+                if (!response.ok) throw new Error('Failed to load estimates');
 
-            // Populate form fields from logged estimate
-            document.getElementById('projectName').value = estimate.projectName || '';
-            document.getElementById('clientName').value = estimate.clientName || '';
-            document.getElementById('runtime').value = estimate.runtime || '';
-            document.getElementById('musicCoverage').value = 80; // Default
-            document.getElementById('dialogueHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
-            document.getElementById('soundDesignHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
-            document.getElementById('mixHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
-            document.getElementById('revisionHours').value = estimate.totalPostHours ? Math.round(estimate.totalPostHours * 0.25) : '';
-            document.getElementById('bundleDiscount').checked = estimate.bundleDiscount || false;
+                const estimates = await response.json();
+                const estimate = estimates.find(e => e.id === id);
+                if (!estimate) return;
 
-            // Recalculate
-            calculateEstimate();
+                // Fetch project details
+                const projectResponse = await fetch(`http://localhost:3000/api/projects`);
+                const projects = await projectResponse.json();
+                const project = projects.find(p => p.id === estimate.project_id);
 
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (project) {
+                    document.getElementById('projectName').value = project.name || '';
+                    document.getElementById('clientName').value = project.client_name || '';
+                }
+
+                // Populate form fields from logged estimate
+                document.getElementById('runtime').value = estimate.runtime || '';
+                document.getElementById('musicCoverage').value = 80; // Default
+                document.getElementById('dialogueHours').value = estimate.dialogue_hours || '';
+                document.getElementById('soundDesignHours').value = estimate.sound_design_hours || '';
+                document.getElementById('mixHours').value = estimate.mix_hours || '';
+                document.getElementById('revisionHours').value = estimate.revision_hours || '';
+                document.getElementById('bundleDiscount').checked = estimate.bundle_discount || false;
+
+                // Recalculate
+                calculateEstimate();
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error loading estimate:', error);
+                alert('Failed to load estimate');
+            }
         }
 
-        function deleteLoggedEstimate(id) {
+        async function deleteLoggedEstimate(id) {
             if (!confirm('Delete this logged estimate?')) return;
 
-            let loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
-            // Use loose equality to handle both string and number IDs
-            loggedEstimates = loggedEstimates.filter(e => e.id != id);
-            localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
-            renderLoggedEstimates();
+            try {
+                const response = await fetch(`http://localhost:3000/api/estimates/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    await renderLoggedEstimates();
+                } else {
+                    alert('Failed to delete estimate');
+                }
+            } catch (error) {
+                console.error('Error deleting estimate:', error);
+                alert('Failed to delete estimate');
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {

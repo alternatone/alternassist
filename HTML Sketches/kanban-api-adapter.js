@@ -28,36 +28,39 @@ class KanbanAPIAdapter {
 
       const apiProjects = await response.json();
 
-      // Transform API format to Kanban format
-      this.projects = apiProjects.map(p => {
-        // Try to parse notes as JSON scope data
-        let scopeData = {};
-        let contactEmail = '';
-        let notes = p.notes || '';
-
+      // Fetch all project scopes
+      const scopePromises = apiProjects.map(async (p) => {
         try {
-          const parsed = JSON.parse(p.notes);
-          if (parsed && typeof parsed === 'object') {
-            scopeData = parsed;
-            contactEmail = parsed.contactEmail || '';
-            // Don't show raw JSON as notes for prospects
-            notes = '';
+          const scopeResponse = await fetch(`http://localhost:3000/api/estimates/scope/${p.id}`);
+          if (scopeResponse.ok) {
+            return { projectId: p.id, scope: await scopeResponse.json() };
           }
         } catch (e) {
-          // Not JSON, use as regular notes
-          notes = p.notes || '';
+          console.error(`Failed to fetch scope for project ${p.id}:`, e);
         }
+        return { projectId: p.id, scope: null };
+      });
+
+      const scopesData = await Promise.all(scopePromises);
+      const scopeMap = {};
+      scopesData.forEach(({ projectId, scope }) => {
+        scopeMap[projectId] = scope;
+      });
+
+      // Transform API format to Kanban format
+      this.projects = apiProjects.map(p => {
+        const scope = scopeMap[p.id] || {};
 
         return {
           id: p.id.toString(),
           title: p.name,
           client: p.client_name || '',
-          contactEmail: contactEmail,
-          status: notes, // Use parsed notes or empty for scope data
-          notes: p.notes || '', // Keep original for saving back
+          contactEmail: scope.contact_email || '',
+          status: p.notes || '', // Use notes field for status text
+          notes: p.notes || '',
           column: this.statusToColumn(p.status),
           pinned: Boolean(p.pinned),
-          scopeData: scopeData,
+          scopeData: scope,
           loggedHours: {} // Not used yet
         };
       });

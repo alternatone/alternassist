@@ -50,6 +50,10 @@ function startServer() {
   // API Routes
   app.use('/api/projects', require('./server/routes/projects'));
   app.use('/api/files', require('./server/routes/files'));
+  app.use('/api/estimates', require('./server/routes/estimates'));
+  app.use('/api/cues', require('./server/routes/cues'));
+  app.use('/api/invoices', require('./server/routes/invoices'));
+  app.use('/api/payments', require('./server/routes/payments'));
 
   // Error handling middleware
   app.use((err, req, res, next) => {

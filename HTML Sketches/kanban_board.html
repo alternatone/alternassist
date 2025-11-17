@@ -310,29 +310,29 @@
             archiveColumn.classList.toggle('expanded');
         }
 
-        // Helper function to parse and format scope data
-        function formatScopeData(notes, column) {
+        // Helper function to format scope data
+        function formatScopeData(project, column) {
             // Only show scope for prospects column
             if (column !== 'prospects') {
-                return `<div class="card-status">${notes}</div>`;
+                return `<div class="card-status">${project.status || ''}</div>`;
             }
 
-            try {
-                const scope = JSON.parse(notes);
-                const items = [];
-                if (scope.musicMinutes > 0) items.push(`${scope.musicMinutes} mins music`);
-                if (scope.dialogueHours > 0) items.push(`${scope.dialogueHours}h dialogue`);
-                if (scope.soundDesignHours > 0) items.push(`${scope.soundDesignHours}h sound design`);
-                if (scope.mixHours > 0) items.push(`${scope.mixHours}h mix`);
-                if (scope.revisionHours > 0) items.push(`${scope.revisionHours}h revisions`);
-
-                if (items.length === 0) return `<div class="card-status">${notes}</div>`;
-
-                return `<div class="card-scope">${items.join(' • ')}</div>`;
-            } catch (e) {
-                // Not JSON, just display as regular notes
-                return `<div class="card-status">${notes}</div>`;
+            // Check if project has scope data
+            if (!project.scopeData || Object.keys(project.scopeData).length === 0) {
+                return `<div class="card-status">${project.status || ''}</div>`;
             }
+
+            const scope = project.scopeData;
+            const items = [];
+            if (scope.music_minutes > 0) items.push(`${scope.music_minutes} mins music`);
+            if (scope.dialogue_hours > 0) items.push(`${scope.dialogue_hours}h dialogue`);
+            if (scope.sound_design_hours > 0) items.push(`${scope.sound_design_hours}h sound design`);
+            if (scope.mix_hours > 0) items.push(`${scope.mix_hours}h mix`);
+            if (scope.revision_hours > 0) items.push(`${scope.revision_hours}h revisions`);
+
+            if (items.length === 0) return `<div class="card-status">${project.status || ''}</div>`;
+
+            return `<div class="card-scope">${items.join(' • ')}</div>`;
         }
 
         function renderBoard() {
@@ -347,7 +347,7 @@
                     <div class="card" draggable="true" data-id="${project.id}" onclick="editProject('${project.id}')">
                         <div class="card-title">${project.title}</div>
                         <div class="card-client">${project.client}</div>
-                        ${formatScopeData(project.notes, column)}
+                        ${formatScopeData(project, column)}
                         <div class="card-actions">
                             <button class="card-btn pin ${project.pinned ? 'pinned' : ''}" onclick="event.stopPropagation(); togglePin('${project.id}')" title="${project.pinned ? 'Unpin from Dashboard' : 'Pin to Dashboard'}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

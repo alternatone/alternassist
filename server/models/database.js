@@ -121,6 +121,113 @@ function initDatabase() {
     )
   `);
 
+  // Project scope table (replaces JSON in notes field)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS project_scope (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL UNIQUE,
+      contact_email TEXT,
+      music_minutes INTEGER DEFAULT 0,
+      dialogue_hours REAL DEFAULT 0,
+      sound_design_hours REAL DEFAULT 0,
+      mix_hours REAL DEFAULT 0,
+      revision_hours REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Estimates table (replaces localStorage 'logged-estimates')
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS estimates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      runtime TEXT,
+      music_minutes INTEGER DEFAULT 0,
+      dialogue_hours REAL DEFAULT 0,
+      sound_design_hours REAL DEFAULT 0,
+      mix_hours REAL DEFAULT 0,
+      revision_hours REAL DEFAULT 0,
+      post_days REAL DEFAULT 0,
+      bundle_discount BOOLEAN DEFAULT 0,
+      music_cost REAL DEFAULT 0,
+      post_cost REAL DEFAULT 0,
+      discount_amount REAL DEFAULT 0,
+      total_cost REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Cues table (replaces localStorage 'cue-tracker-cues')
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cues (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      cue_number TEXT NOT NULL,
+      title TEXT,
+      status TEXT DEFAULT 'to-write',
+      duration TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Invoices table (replaces localStorage invoice data)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      invoice_number TEXT UNIQUE,
+      amount REAL,
+      deposit_amount REAL,
+      deposit_percentage REAL,
+      final_amount REAL,
+      status TEXT DEFAULT 'draft',
+      due_date DATE,
+      issue_date DATE,
+      line_items TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Payments table (replaces localStorage payment tracking)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_id INTEGER,
+      project_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      payment_date DATE,
+      payment_method TEXT,
+      payment_type TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Accounting records table (replaces localStorage accounting data)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS accounting_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER,
+      transaction_type TEXT NOT NULL,
+      category TEXT,
+      amount REAL NOT NULL,
+      transaction_date DATE,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+    )
+  `);
+
   console.log('Database initialized successfully');
 }
 
@@ -198,6 +305,91 @@ const shareLinkQueries = {
   deleteByProject: db.prepare('DELETE FROM share_links WHERE project_id = ?')
 };
 
+// Project scope queries
+const scopeQueries = {
+  create: db.prepare(`
+    INSERT INTO project_scope (project_id, contact_email, music_minutes, dialogue_hours, sound_design_hours, mix_hours, revision_hours)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `),
+  findByProject: db.prepare('SELECT * FROM project_scope WHERE project_id = ?'),
+  update: db.prepare(`
+    UPDATE project_scope
+    SET contact_email = ?, music_minutes = ?, dialogue_hours = ?, sound_design_hours = ?, mix_hours = ?, revision_hours = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = ?
+  `),
+  upsert: db.prepare(`
+    INSERT INTO project_scope (project_id, contact_email, music_minutes, dialogue_hours, sound_design_hours, mix_hours, revision_hours)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(project_id) DO UPDATE SET
+      contact_email = excluded.contact_email,
+      music_minutes = excluded.music_minutes,
+      dialogue_hours = excluded.dialogue_hours,
+      sound_design_hours = excluded.sound_design_hours,
+      mix_hours = excluded.mix_hours,
+      revision_hours = excluded.revision_hours,
+      updated_at = CURRENT_TIMESTAMP
+  `),
+  delete: db.prepare('DELETE FROM project_scope WHERE project_id = ?')
+};
+
+// Estimate queries
+const estimateQueries = {
+  create: db.prepare(`
+    INSERT INTO estimates (project_id, runtime, music_minutes, dialogue_hours, sound_design_hours, mix_hours, revision_hours, post_days, bundle_discount, music_cost, post_cost, discount_amount, total_cost)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  findById: db.prepare('SELECT * FROM estimates WHERE id = ?'),
+  findByProject: db.prepare('SELECT * FROM estimates WHERE project_id = ? ORDER BY created_at DESC'),
+  getAll: db.prepare('SELECT * FROM estimates ORDER BY created_at DESC'),
+  delete: db.prepare('DELETE FROM estimates WHERE id = ?')
+};
+
+// Cue queries
+const cueQueries = {
+  create: db.prepare('INSERT INTO cues (project_id, cue_number, title, status, duration, notes) VALUES (?, ?, ?, ?, ?, ?)'),
+  findById: db.prepare('SELECT * FROM cues WHERE id = ?'),
+  findByProject: db.prepare('SELECT * FROM cues WHERE project_id = ? ORDER BY cue_number'),
+  update: db.prepare('UPDATE cues SET cue_number = ?, title = ?, status = ?, duration = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  delete: db.prepare('DELETE FROM cues WHERE id = ?'),
+  deleteByProject: db.prepare('DELETE FROM cues WHERE project_id = ?')
+};
+
+// Invoice queries
+const invoiceQueries = {
+  create: db.prepare(`
+    INSERT INTO invoices (project_id, invoice_number, amount, deposit_amount, deposit_percentage, final_amount, status, due_date, issue_date, line_items)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  findById: db.prepare('SELECT * FROM invoices WHERE id = ?'),
+  findByProject: db.prepare('SELECT * FROM invoices WHERE project_id = ? ORDER BY created_at DESC'),
+  getAll: db.prepare('SELECT * FROM invoices ORDER BY created_at DESC'),
+  update: db.prepare(`
+    UPDATE invoices
+    SET invoice_number = ?, amount = ?, deposit_amount = ?, deposit_percentage = ?, final_amount = ?, status = ?, due_date = ?, issue_date = ?, line_items = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `),
+  delete: db.prepare('DELETE FROM invoices WHERE id = ?')
+};
+
+// Payment queries
+const paymentQueries = {
+  create: db.prepare('INSERT INTO payments (invoice_id, project_id, amount, payment_date, payment_method, payment_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+  findById: db.prepare('SELECT * FROM payments WHERE id = ?'),
+  findByInvoice: db.prepare('SELECT * FROM payments WHERE invoice_id = ? ORDER BY payment_date DESC'),
+  findByProject: db.prepare('SELECT * FROM payments WHERE project_id = ? ORDER BY payment_date DESC'),
+  getAll: db.prepare('SELECT * FROM payments ORDER BY payment_date DESC'),
+  delete: db.prepare('DELETE FROM payments WHERE id = ?')
+};
+
+// Accounting queries
+const accountingQueries = {
+  create: db.prepare('INSERT INTO accounting_records (project_id, transaction_type, category, amount, transaction_date, description) VALUES (?, ?, ?, ?, ?, ?)'),
+  findById: db.prepare('SELECT * FROM accounting_records WHERE id = ?'),
+  findByProject: db.prepare('SELECT * FROM accounting_records WHERE project_id = ? ORDER BY transaction_date DESC'),
+  getAll: db.prepare('SELECT * FROM accounting_records ORDER BY transaction_date DESC'),
+  delete: db.prepare('DELETE FROM accounting_records WHERE id = ?')
+};
+
 module.exports = {
   db,
   initDatabase,
@@ -205,5 +397,11 @@ module.exports = {
   fileQueries,
   commentQueries,
   logQueries,
-  shareLinkQueries
+  shareLinkQueries,
+  scopeQueries,
+  estimateQueries,
+  cueQueries,
+  invoiceQueries,
+  paymentQueries,
+  accountingQueries
 };
