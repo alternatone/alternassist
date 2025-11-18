@@ -636,11 +636,11 @@
                 document.getElementById('hoursLoggerSection').style.display = 'none';
                 document.getElementById('statusSection').style.display = 'block';
 
-                document.getElementById('scopeMusic').value = scopeData.music || '';
-                document.getElementById('scopeDialogue').value = scopeData.dialogue || '';
-                document.getElementById('scopeSoundDesign').value = scopeData.soundDesign || '';
-                document.getElementById('scopeMix').value = scopeData.mix || '';
-                document.getElementById('scopeRevisions').value = scopeData.revisions || '';
+                document.getElementById('scopeMusic').value = scopeData.music_minutes || '';
+                document.getElementById('scopeDialogue').value = scopeData.dialogue_hours || '';
+                document.getElementById('scopeSoundDesign').value = scopeData.sound_design_hours || '';
+                document.getElementById('scopeMix').value = scopeData.mix_hours || '';
+                document.getElementById('scopeRevisions').value = scopeData.revision_hours || '';
 
                 document.getElementById('projectStatus').value = project.status || '';
             }
@@ -706,11 +706,15 @@
             }
         }
 
-        function togglePin(id) {
+        async function togglePin(id) {
             const project = projects.find(p => p.id === id);
             if (project) {
                 project.pinned = !project.pinned;
-                saveProjects();
+                await saveProjects();
+
+                // Reload projects from API to ensure we have the latest state
+                await window.kanbanAPI.loadProjects();
+                projects = window.kanbanAPI.getProjects();
                 renderBoard();
             }
         }

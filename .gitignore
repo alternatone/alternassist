@@ -14,3 +14,14 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# Custom user configuration
+alternaview-custom-config.json
+
+# User data
+alternaview.db
+alternaview-storage/
+
+# FTP storage (keep README, ignore contents)
+ftp-storage/*
+!ftp-storage/README.md

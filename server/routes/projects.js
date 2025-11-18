@@ -7,6 +7,11 @@ const crypto = require('crypto');
 const config = require('../../alternaview-config');
 const folderSync = require('../services/folder-sync');
 
+// Get storage path configuration
+router.get('/config/storage-path', (req, res) => {
+  res.json({ storagePath: config.storagePath });
+});
+
 // Get all projects (admin view)
 router.get('/', (req, res) => {
   try {
@@ -216,9 +221,9 @@ router.post('/:id/assign-folder', async (req, res) => {
       return res.status(400).json({ error: 'Folder path is required' });
     }
 
-    // Security: Ensure folder is within /Volumes/FTP1
-    if (!folderPath.startsWith('/Volumes/FTP1')) {
-      return res.status(400).json({ error: 'Folder must be within /Volumes/FTP1' });
+    // Security: Ensure folder is within configured storage path
+    if (!folderPath.startsWith(config.storagePath)) {
+      return res.status(400).json({ error: `Folder must be within ${config.storagePath}` });
     }
 
     // Verify folder exists

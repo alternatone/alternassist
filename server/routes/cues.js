@@ -5,7 +5,7 @@ const { cueQueries, projectQueries } = require('../models/database');
 // Get all cues
 router.get('/', (req, res) => {
   try {
-    const cues = cueQueries.findByProject.all();
+    const cues = cueQueries.getAll.all();
     res.json(cues);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -32,7 +32,11 @@ router.post('/', (req, res) => {
       title,
       status,
       duration,
-      notes
+      notes,
+      start_time,
+      end_time,
+      theme,
+      version
     } = req.body;
 
     if (!project_id) {
@@ -51,7 +55,11 @@ router.post('/', (req, res) => {
       title || '',
       status || 'to-write',
       duration || null,
-      notes || null
+      notes || null,
+      start_time || null,
+      end_time || null,
+      theme || null,
+      version || null
     );
 
     const cue = cueQueries.findById.get(result.lastInsertRowid);
@@ -65,12 +73,17 @@ router.post('/', (req, res) => {
 router.patch('/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    console.log(`PATCH /api/cues/${id}`, req.body);
     const {
       cue_number,
       title,
       status,
       duration,
-      notes
+      notes,
+      start_time,
+      end_time,
+      theme,
+      version
     } = req.body;
 
     const cue = cueQueries.findById.get(id);
@@ -84,6 +97,10 @@ router.patch('/:id', (req, res) => {
       status !== undefined ? status : cue.status,
       duration !== undefined ? duration : cue.duration,
       notes !== undefined ? notes : cue.notes,
+      start_time !== undefined ? start_time : cue.start_time,
+      end_time !== undefined ? end_time : cue.end_time,
+      theme !== undefined ? theme : cue.theme,
+      version !== undefined ? version : cue.version,
       id
     );
 

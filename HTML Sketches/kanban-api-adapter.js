@@ -51,13 +51,29 @@ class KanbanAPIAdapter {
       this.projects = apiProjects.map(p => {
         const scope = scopeMap[p.id] || {};
 
+        // Check if notes contains JSON scope data - if so, don't use it as status text
+        let statusText = '';
+        let notesField = p.notes || '';
+        try {
+          const parsed = JSON.parse(p.notes);
+          // If it's JSON with scope fields, don't use it as status text
+          if (!(parsed.musicMinutes !== undefined || parsed.dialogueHours !== undefined ||
+                parsed.soundDesignHours !== undefined || parsed.mixHours !== undefined)) {
+            // It's JSON but not scope data, use it as status
+            statusText = p.notes;
+          }
+        } catch (e) {
+          // Not JSON, use as regular status text
+          statusText = p.notes || '';
+        }
+
         return {
           id: p.id.toString(),
           title: p.name,
           client: p.client_name || '',
           contactEmail: scope.contact_email || '',
-          status: p.notes || '', // Use notes field for status text
-          notes: p.notes || '',
+          status: statusText,
+          notes: notesField,
           column: this.statusToColumn(p.status),
           pinned: Boolean(p.pinned),
           scopeData: scope,

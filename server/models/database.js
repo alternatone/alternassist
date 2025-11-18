@@ -170,11 +170,29 @@ function initDatabase() {
       status TEXT DEFAULT 'to-write',
       duration TEXT,
       notes TEXT,
+      start_time TEXT,
+      end_time TEXT,
+      theme TEXT,
+      version TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
+
+  // Add new columns to existing cues table if they don't exist
+  try {
+    db.exec(`ALTER TABLE cues ADD COLUMN start_time TEXT`);
+  } catch (e) { /* Column already exists */ }
+  try {
+    db.exec(`ALTER TABLE cues ADD COLUMN end_time TEXT`);
+  } catch (e) { /* Column already exists */ }
+  try {
+    db.exec(`ALTER TABLE cues ADD COLUMN theme TEXT`);
+  } catch (e) { /* Column already exists */ }
+  try {
+    db.exec(`ALTER TABLE cues ADD COLUMN version TEXT`);
+  } catch (e) { /* Column already exists */ }
 
   // Invoices table (replaces localStorage invoice data)
   db.exec(`
@@ -346,10 +364,11 @@ const estimateQueries = {
 
 // Cue queries
 const cueQueries = {
-  create: db.prepare('INSERT INTO cues (project_id, cue_number, title, status, duration, notes) VALUES (?, ?, ?, ?, ?, ?)'),
+  create: db.prepare('INSERT INTO cues (project_id, cue_number, title, status, duration, notes, start_time, end_time, theme, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   findById: db.prepare('SELECT * FROM cues WHERE id = ?'),
   findByProject: db.prepare('SELECT * FROM cues WHERE project_id = ? ORDER BY cue_number'),
-  update: db.prepare('UPDATE cues SET cue_number = ?, title = ?, status = ?, duration = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  getAll: db.prepare('SELECT * FROM cues ORDER BY project_id, cue_number'),
+  update: db.prepare('UPDATE cues SET cue_number = ?, title = ?, status = ?, duration = ?, notes = ?, start_time = ?, end_time = ?, theme = ?, version = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   delete: db.prepare('DELETE FROM cues WHERE id = ?'),
   deleteByProject: db.prepare('DELETE FROM cues WHERE project_id = ?')
 };

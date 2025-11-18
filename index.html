@@ -198,8 +198,8 @@
 
         /* Dashboard Overview */
         .dashboard-overview {
-            display: flex;
-            justify-content: flex-start;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 1.5rem;
             margin-bottom: 3rem;
         }
@@ -213,8 +213,9 @@
             text-align: left;
             transition: transform 0.2s;
             cursor: pointer;
-            max-width: 600px;
-            width: 100%;
+            aspect-ratio: 3 / 2;
+            display: flex;
+            flex-direction: column;
         }
 
         .overview-card:hover {
@@ -248,7 +249,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="#" class="nav-link" data-module="projects">projects</a>
+                        <a href="#" class="nav-link" onclick="event.preventDefault();">projects</a>
                         <div class="nav-dropdown">
                             <a href="#" class="nav-dropdown-item" data-module="projects">project board</a>
                             <a href="#" class="nav-dropdown-item" data-module="cues">cues</a>
@@ -260,7 +261,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="#" class="nav-link" data-module="accounting">accounting</a>
+                        <a href="#" class="nav-link" onclick="event.preventDefault();">accounting</a>
                         <div class="nav-dropdown">
                             <a href="#" class="nav-dropdown-item" data-module="estimates">estimates</a>
                             <a href="#" class="nav-dropdown-item" data-module="invoices">invoices</a>
@@ -293,7 +294,7 @@
 
             <!-- Cue Tracker Module -->
             <div class="module-container" id="cues-module">
-                <iframe class="module-frame" src="HTML Sketches/cue_tracker_demo.html"></iframe>
+                <iframe class="module-frame" src="HTML Sketches/cue_tracker_demo.html?v=2"></iframe>
             </div>
 
             <!-- Estimate Calculator Module -->
@@ -450,7 +451,10 @@
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const moduleName = link.getAttribute('data-module');
-                loadModule(moduleName);
+                // Only load module if data-module attribute exists
+                if (moduleName) {
+                    loadModule(moduleName);
+                }
             });
         });
 
@@ -491,15 +495,55 @@
                 const response = await fetch('http://localhost:3000/api/projects');
                 if (response.ok) {
                     const apiProjects = await response.json();
-                    // Transform to Kanban format
-                    projects = apiProjects.map(p => ({
-                        id: p.id.toString(),
-                        title: p.name,
-                        client: p.client_name || '',
-                        notes: p.notes || '',
-                        status: p.status || '',
-                        pinned: Boolean(p.pinned)
-                    }));
+
+                    // Fetch scope data for all projects
+                    const scopePromises = apiProjects.map(async (p) => {
+                        try {
+                            const scopeResponse = await fetch(`http://localhost:3000/api/estimates/scope/${p.id}`);
+                            if (scopeResponse.ok) {
+                                return { projectId: p.id, scope: await scopeResponse.json() };
+                            }
+                        } catch (e) {
+                            console.error(`Failed to fetch scope for project ${p.id}:`, e);
+                        }
+                        return { projectId: p.id, scope: null };
+                    });
+
+                    const scopesData = await Promise.all(scopePromises);
+                    const scopeMap = {};
+                    scopesData.forEach(({ projectId, scope }) => {
+                        scopeMap[projectId] = scope;
+                    });
+
+                    // Transform to dashboard format
+                    projects = apiProjects.map(p => {
+                        const scope = scopeMap[p.id] || {};
+
+                        // Check if notes contains JSON scope data - if so, don't use it as display notes
+                        let displayNotes = '';
+                        try {
+                            const parsed = JSON.parse(p.notes);
+                            // If it's JSON with scope fields, don't use it as notes
+                            if (!(parsed.musicMinutes !== undefined || parsed.dialogueHours !== undefined ||
+                                  parsed.soundDesignHours !== undefined || parsed.mixHours !== undefined)) {
+                                // It's JSON but not scope data, use it as notes
+                                displayNotes = p.notes;
+                            }
+                        } catch (e) {
+                            // Not JSON, use as regular notes
+                            displayNotes = p.notes || '';
+                        }
+
+                        return {
+                            id: p.id.toString(),
+                            title: p.name,
+                            client: p.client_name || '',
+                            notes: displayNotes,
+                            scopeData: scope,
+                            status: p.status || '',
+                            pinned: Boolean(p.pinned)
+                        };
+                    });
                 }
             } catch (error) {
                 console.error('Error loading projects:', error);
@@ -546,17 +590,23 @@
                 const approved = projectCues.filter(c => c.status === 'approved').length;
                 const totalCues = projectCues.length;
 
-                // Display notes directly (no longer JSON)
-                const displayNotes = project.notes || '';
+                // Format scope data for display
+                const scope = project.scopeData || {};
+                const scopeItems = [];
+                if (scope.music_minutes > 0) scopeItems.push(`${scope.music_minutes} mins music`);
+                if (scope.dialogue_hours > 0) scopeItems.push(`${scope.dialogue_hours}h dialogue`);
+                if (scope.sound_design_hours > 0) scopeItems.push(`${scope.sound_design_hours}h sound design`);
+                if (scope.mix_hours > 0) scopeItems.push(`${scope.mix_hours}h mix`);
+                if (scope.revision_hours > 0) scopeItems.push(`${scope.revision_hours}h revisions`);
 
                 return `
                     <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer;">
                         <h3 class="overview-title">${project.title}</h3>
 
-                        ${displayNotes ? `
+                        ${project.notes ? `
                             <div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
                                 <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.35rem;">Creative Direction</div>
-                                <div style="font-size: 0.85rem; color: var(--secondary-text); line-height: 1.5; font-style: italic; overflow-wrap: break-word; word-wrap: break-word;">${displayNotes}</div>
+                                <div style="font-size: 0.85rem; color: var(--secondary-text); line-height: 1.5; font-style: italic; overflow-wrap: break-word; word-wrap: break-word;">${project.notes}</div>
                             </div>
                         ` : ''}
 
@@ -567,15 +617,64 @@
                             </div>
                         ` : ''}
 
-                        ${totalCues > 0 ? `
-                            <div style="margin-bottom: 0.5rem;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Music Cues (${totalCues})</div>
-                                <div style="display: flex; height: 24px; border-radius: 4px; overflow: hidden; background: #f0f0f0;">
-                                    ${toWrite > 0 ? `<div style="flex: ${toWrite}; background: #ff6b6b;" title="${toWrite} to write"></div>` : ''}
-                                    ${written > 0 ? `<div style="flex: ${written}; background: #ffd43b;" title="${written} written"></div>` : ''}
-                                    ${revisions > 0 ? `<div style="flex: ${revisions}; background: #ff922b;" title="${revisions} revisions"></div>` : ''}
-                                    ${approved > 0 ? `<div style="flex: ${approved}; background: #51cf66;" title="${approved} approved"></div>` : ''}
-                                </div>
+                        ${scopeItems.length > 0 ? `
+                            <div style="margin-bottom: 0.75rem;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Hour Tracking</div>
+                                ${scope.music_minutes > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Music</span>
+                                            <span>0 / ${scope.music_minutes} mins</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: 0%; background: #469FE0;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${scope.dialogue_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Dialogue</span>
+                                            <span>0 / ${scope.dialogue_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: 0%; background: #845ec2;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${scope.sound_design_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Sound Design</span>
+                                            <span>0 / ${scope.sound_design_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: 0%; background: #ff922b;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${scope.mix_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Mix</span>
+                                            <span>0 / ${scope.mix_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: 0%; background: #51cf66;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${scope.revision_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Revisions</span>
+                                            <span>0 / ${scope.revision_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: 0%; background: #ffd43b;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
                             </div>
                         ` : ''}
                     </div>

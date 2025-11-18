@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Cue Tracker</title>
+    <title>Cue Tracker v2.0</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -65,7 +65,7 @@
         
         .cue-table { width: 100%; border-collapse: collapse; }
         .cue-table th { background: var(--bg-primary); padding: 0.75rem 0.5rem; text-align: left; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--subtle-text); border-bottom: 2px solid var(--border-medium); position: sticky; top: 0; }
-        .cue-table td { padding: 0.75rem 0.5rem; border-bottom: var(--border-light); font-size: 0.9rem; color: var(--secondary-text); }
+        .cue-table td { padding: 0.75rem 0.5rem; border-bottom: var(--border-light); font-size: 0.9rem; color: var(--secondary-text); text-align: left; }
         .cue-table tr:hover { background: var(--bg-primary); }
         .cue-table th:first-child, .cue-table td:first-child { width: 80px; max-width: 80px; }
         .cue-table th:nth-child(3), .cue-table td:nth-child(3) { width: 100px; max-width: 100px; }
@@ -104,13 +104,14 @@
         textarea { resize: vertical; height: 80px; font-family: var(--font-body); }
         #cueNumber { font-family: var(--font-mono); font-weight: 600; color: var(--accent-teal); }
 
-        .inline-theme-input { width: 100%; padding: 0.5rem; border: 1px solid transparent; border-radius: 4px; font-size: 0.85rem; font-family: var(--font-primary); background: transparent; color: var(--subtle-text); transition: all 0.2s; }
+        .inline-theme-input { width: 100%; padding: 0; border: none; background: transparent; font-size: 0.85rem; font-family: var(--font-primary); transition: all 0.2s; }
+        .inline-theme-input:not(select) { color: var(--subtle-text); }
         .inline-theme-input:hover { background: var(--bg-primary); border-color: var(--border-light); }
         .inline-theme-input:focus { outline: none; border-color: var(--accent-teal); background: white; }
         select.inline-theme-input { cursor: pointer; }
         select.inline-theme-input.status-to-write { color: var(--accent-red); font-weight: 600; }
         select.inline-theme-input.status-written { color: var(--accent-orange); font-weight: 600; }
-        select.inline-theme-input.status-revisions { color: #d4a800; font-weight: 600; }
+        select.inline-theme-input.status-revisions { color: #ffd93d; font-weight: 600; }
         select.inline-theme-input.status-approved { color: var(--accent-green); font-weight: 600; }
 
         .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
@@ -269,12 +270,12 @@
                         id: cue.id,
                         number: cue.cue_number,
                         title: cue.title,
-                        startTime: '00:00:00', // Not stored yet
-                        endTime: '00:00:00',
-                        theme: cue.notes || '',
+                        startTime: cue.start_time || '00:00:00',
+                        endTime: cue.end_time || '00:00:00',
+                        theme: cue.theme || '',
                         status: cue.status,
-                        version: '',
-                        notes: cue.notes,
+                        version: cue.version || '',
+                        notes: cue.notes || '',
                         duration: cue.duration
                     });
                 });
@@ -434,10 +435,10 @@
 
                 return `
                     <tr>
-                        <td><input type="text" class="inline-theme-input cue-number" value="${cue.number}" onchange="updateCueField('${cue.id}', 'number', this.value)" placeholder="1m1"></td>
-                        <td><input type="text" class="inline-theme-input" value="${cue.title}" onchange="updateCueField('${cue.id}', 'title', this.value)" placeholder="Cue title"></td>
-                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.startTime}" onchange="updateCueField('${cue.id}', 'startTime', this.value)" placeholder="00:00:00"></td>
-                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.endTime}" onchange="updateCueField('${cue.id}', 'endTime', this.value)" placeholder="00:00:00"></td>
+                        <td><input type="text" class="inline-theme-input cue-number" value="${cue.number || ''}" onchange="updateCueField('${cue.id}', 'number', this.value)" placeholder="1m1"></td>
+                        <td><input type="text" class="inline-theme-input" value="${cue.title || ''}" onchange="updateCueField('${cue.id}', 'title', this.value)" placeholder="Cue title"></td>
+                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.startTime || ''}" onchange="updateCueField('${cue.id}', 'startTime', this.value)" placeholder="00:00:00"></td>
+                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.endTime || ''}" onchange="updateCueField('${cue.id}', 'endTime', this.value)" placeholder="00:00:00"></td>
                         <td><span class="cue-timing">${formatDuration(duration)}</span></td>
                         <td><input type="text" list="themeList-${cue.id}" class="inline-theme-input" value="${cue.theme || cue.usage || ''}" onchange="updateCueField('${cue.id}', 'theme', this.value)" placeholder="Enter theme">
                             <datalist id="themeList-${cue.id}"></datalist>
@@ -484,22 +485,51 @@
                 // Update local copy immediately for UI responsiveness
                 cue[fieldName] = newValue;
 
+                // If start or end time changed, recalculate duration and update the display
+                if (fieldName === 'startTime' || fieldName === 'endTime') {
+                    const durationSeconds = calculateDuration(cue.startTime, cue.endTime);
+                    cue.duration = formatDuration(durationSeconds);
+
+                    // Update duration display without re-rendering entire table
+                    const row = document.querySelector(`input[onchange*="'${cueId}'"]`)?.closest('tr');
+                    if (row) {
+                        const durationCell = row.querySelector('td:nth-child(5) span');
+                        if (durationCell) {
+                            durationCell.textContent = cue.duration;
+                        }
+                    }
+                }
+
+                // If status changed, update the select element's color class
+                if (fieldName === 'status') {
+                    const row = document.querySelector(`select[onchange*="'${cueId}'"]`)?.closest('tr');
+                    if (row) {
+                        const selectEl = row.querySelector('select');
+                        if (selectEl) {
+                            selectEl.className = `inline-theme-input status-${newValue}`;
+                        }
+                    }
+                }
+
                 // Map field names to API fields
                 const apiData = {
                     cue_number: cue.number,
                     title: cue.title,
                     status: cue.status,
-                    duration: cue.duration || null,
-                    notes: cue.notes || null
+                    duration: cue.duration,
+                    notes: cue.notes,
+                    start_time: cue.startTime,
+                    end_time: cue.endTime,
+                    theme: cue.theme,
+                    version: cue.version
                 };
+
+                console.log('Updating cue', cueId, 'field', fieldName, 'with data:', apiData);
 
                 try {
                     await CuesAPI.update(cueId, apiData);
+                    console.log('Update successful');
 
-                    // Only re-render if theme changed (to update datalists) or if time changed (to update duration) or if status changed (to update colors)
-                    if (fieldName === 'theme' || fieldName === 'startTime' || fieldName === 'endTime' || fieldName === 'status') {
-                        renderCues();
-                    }
                     // Update stats if status changed
                     if (fieldName === 'status') {
                         updateStats();
@@ -586,7 +616,11 @@
                         title: title,
                         status: status,
                         duration: formatDuration(duration),
-                        notes: notes || theme
+                        notes: notes,
+                        start_time: startTime,
+                        end_time: endTime,
+                        theme: theme,
+                        version: version
                     });
 
                     // Update local copy
@@ -604,7 +638,11 @@
                         title: title,
                         status: status,
                         duration: formatDuration(duration),
-                        notes: notes || theme
+                        notes: notes,
+                        start_time: startTime,
+                        end_time: endTime,
+                        theme: theme,
+                        version: version
                     });
 
                     // Add to local copy
@@ -919,17 +957,7 @@
             initializeSampleData();
         });
 
-        // Listen for localStorage changes to auto-refresh
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'cue-projects' || e.key === 'kanban-projects') {
-                initializeSampleData();
-            }
-        });
-
-        // Also listen for focus events to refresh when switching back to this tab
-        window.addEventListener('focus', () => {
-            initializeSampleData();
-        });
+        // Removed auto-refresh listeners to prevent clearing user edits
     </script>
 </body>
 </html>
