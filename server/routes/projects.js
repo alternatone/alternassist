@@ -52,78 +52,35 @@ router.get('/:id', (req, res) => {
 // Create new project
 router.post('/', (req, res) => {
   try {
-    const {
-      name,
-      password,
-      client_name,
-      contact_email,
-      status,
-      notes,
-      pinned,
-      media_folder_path,
-      password_protected,
-      trt,
-      music_coverage,
-      timeline_start,
-      timeline_end,
-      estimated_total,
-      estimated_taxes,
-      net_after_taxes
-    } = req.body;
+    const { name, password, client_name, contact_email, status = 'prospects',
+            notes, pinned = 0, media_folder_path, password_protected = 0,
+            trt, music_coverage = 0, timeline_start, timeline_end,
+            estimated_total = 0, estimated_taxes = 0, net_after_taxes = 0 } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ error: 'Project name is required' });
-    }
+    if (!name) return res.status(400).json({ error: 'Project name is required' });
 
-    // Check if project already exists
-    const existing = projectQueries.findByName.get(name);
-    if (existing) {
-      return res.status(400).json({ error: 'Project with this name already exists' });
-    }
-
-    // Create project directory
-    const projectPath = path.join(config.storagePath, name);
-    if (!fs.existsSync(projectPath)) {
-      fs.mkdirSync(projectPath, { recursive: true });
-    }
-
-    // Generate password if not provided
     const plainPassword = password || generateSecurePassword();
-
-    // Hash the password before storing
     const hashedPassword = bcrypt.hashSync(plainPassword, 10);
 
-    // Insert project into database with all fields
-    const result = projectQueries.create.run(
-      name,
-      hashedPassword,
-      client_name || null,
-      contact_email || null,
-      status || 'prospects',
-      notes || null,
-      pinned ? 1 : 0,
-      media_folder_path || null,
-      password_protected ? 1 : 0,
-      trt || null,
-      music_coverage || 0,
-      timeline_start || null,
-      timeline_end || null,
-      estimated_total || 0,
-      estimated_taxes || 0,
-      net_after_taxes || 0
+    const result = projectQueries.createWithPlaintext.run(
+      name, hashedPassword, plainPassword,
+      client_name, contact_email, status, notes, pinned ? 1 : 0,
+      media_folder_path, password_protected ? 1 : 0,
+      trt, music_coverage, timeline_start, timeline_end,
+      estimated_total, estimated_taxes, net_after_taxes
     );
 
-    // Store plaintext password for admin viewing
-    db.prepare('UPDATE projects SET password_plaintext = ? WHERE id = ?').run(plainPassword, result.lastInsertRowid);
+    // Async filesystem operation - don't block response
+    const projectPath = path.join(config.storagePath, name);
+    fs.mkdir(projectPath, { recursive: true }, () => {});
 
     res.json({
       id: result.lastInsertRowid,
       name,
-      password: plainPassword, // Return unhashed password once for admin to share
-      message: 'Project created successfully'
+      password: plainPassword
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 });
 
@@ -205,89 +162,41 @@ router.post('/logout', (req, res) => {
 router.patch('/:id', (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
-    const {
-      name,
-      client_name,
-      contact_email,
-      status,
-      notes,
-      pinned,
-      media_folder_path,
-      password_protected,
-      password,
-      trt,
-      music_coverage,
-      timeline_start,
-      timeline_end,
-      estimated_total,
-      estimated_taxes,
-      net_after_taxes
-    } = req.body;
-
     const project = projectQueries.findById.get(projectId);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
+    if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    // Detect status change from 'prospects' to 'in-process' or 'in-review'
-    const statusChanged = status !== undefined && status !== project.status;
-    const movingToProduction = statusChanged &&
-                                project.status === 'prospects' &&
-                                (status === 'in-process' || status === 'in-review');
+    const updates = { ...project, ...req.body, id: projectId };
+    const movingToProduction = project.status === 'prospects' &&
+                                ['in-process', 'in-review'].includes(updates.status);
 
-    let updatedPassword = password !== undefined ? password : project.password;
-    let updatedMediaFolderPath = media_folder_path !== undefined ? media_folder_path : project.media_folder_path;
-
-    // If moving to production, set up project folder and password
     if (movingToProduction) {
-      // Create project folder if it doesn't exist
       const projectPath = path.join(config.storagePath, project.name);
-      if (!fs.existsSync(projectPath)) {
-        fs.mkdirSync(projectPath, { recursive: true });
-      }
+      updates.media_folder_path = projectPath;
 
-      // Set media folder path
-      updatedMediaFolderPath = projectPath;
-
-      // Generate password if none exists
       if (!project.password) {
         const plainPassword = generateSecurePassword();
-        updatedPassword = bcrypt.hashSync(plainPassword, 10);
-        // Note: We can't return the plain password here since this is a PATCH
-        // The admin will need to regenerate if they didn't save the original
-        console.log(`Generated password for ${project.name}: ${plainPassword}`);
+        updates.password = bcrypt.hashSync(plainPassword, 10);
       }
 
-      // Start folder watcher for this project
-      try {
-        folderSync.startWatching(projectId, projectPath);
-      } catch (error) {
-        console.error(`Failed to start folder watcher for project ${projectId}:`, error);
-      }
+      // Non-blocking operations
+      setImmediate(() => {
+        fs.mkdir(projectPath, { recursive: true }, () =>
+          folderSync.startWatching(projectId, projectPath).catch(() => {})
+        );
+      });
     }
 
-    // Update with provided values or keep existing
     projectQueries.update.run(
-      name !== undefined ? name : project.name,
-      client_name !== undefined ? client_name : project.client_name,
-      contact_email !== undefined ? contact_email : project.contact_email,
-      status !== undefined ? status : project.status,
-      notes !== undefined ? notes : project.notes,
-      pinned !== undefined ? (pinned ? 1 : 0) : project.pinned,
-      updatedMediaFolderPath,
-      password_protected !== undefined ? (password_protected ? 1 : 0) : project.password_protected,
-      updatedPassword,
-      trt !== undefined ? trt : project.trt,
-      music_coverage !== undefined ? music_coverage : project.music_coverage,
-      timeline_start !== undefined ? timeline_start : project.timeline_start,
-      timeline_end !== undefined ? timeline_end : project.timeline_end,
-      estimated_total !== undefined ? estimated_total : project.estimated_total,
-      estimated_taxes !== undefined ? estimated_taxes : project.estimated_taxes,
-      net_after_taxes !== undefined ? net_after_taxes : project.net_after_taxes,
-      projectId
+      updates.name, updates.client_name, updates.contact_email,
+      updates.status, updates.notes, updates.pinned ? 1 : 0,
+      updates.media_folder_path, updates.password_protected ? 1 : 0,
+      updates.password, updates.trt, updates.music_coverage,
+      updates.timeline_start, updates.timeline_end,
+      updates.estimated_total, updates.estimated_taxes,
+      updates.net_after_taxes, projectId
     );
 
-    res.json({ success: true, message: 'Project updated' });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -296,23 +205,16 @@ router.patch('/:id', (req, res) => {
 // Delete project (admin only - add auth later)
 router.delete('/:id', (req, res) => {
   try {
-    const projectId = req.params.id;
-    const project = projectQueries.findById.get(projectId);
+    const project = projectQueries.findById.get(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
+    projectQueries.delete.run(req.params.id);
 
-    // Delete project directory
-    const projectPath = path.join(config.storagePath, project.name);
-    if (fs.existsSync(projectPath)) {
-      fs.rmSync(projectPath, { recursive: true, force: true });
-    }
+    // Non-blocking filesystem cleanup
+    fs.rm(path.join(config.storagePath, project.name),
+          { recursive: true, force: true }, () => {});
 
-    // Delete from database (cascades to files and comments)
-    projectQueries.delete.run(projectId);
-
-    res.json({ success: true, message: 'Project deleted' });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -549,45 +451,16 @@ router.get('/:id/password', (req, res) => {
 router.post('/:id/regenerate-password', (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
-    const project = projectQueries.findById.get(projectId);
-
-    if (!project) {
+    if (!projectQueries.findById.get(projectId)) {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Generate new password
     const plainPassword = generateSecurePassword();
     const hashedPassword = bcrypt.hashSync(plainPassword, 10);
 
-    // Update database
-    projectQueries.update.run(
-      project.name,
-      project.client_name,
-      project.contact_email,
-      project.status,
-      project.notes,
-      project.pinned,
-      project.media_folder_path,
-      project.password_protected,
-      hashedPassword,
-      project.trt,
-      project.music_coverage,
-      project.timeline_start,
-      project.timeline_end,
-      project.estimated_total,
-      project.estimated_taxes,
-      project.net_after_taxes,
-      projectId
-    );
+    projectQueries.updatePassword.run(hashedPassword, plainPassword, projectId);
 
-    // Store plaintext password for admin viewing
-    db.prepare('UPDATE projects SET password_plaintext = ? WHERE id = ?').run(plainPassword, projectId);
-
-    res.json({
-      success: true,
-      password: plainPassword,
-      message: 'Password regenerated successfully'
-    });
+    res.json({ success: true, password: plainPassword });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

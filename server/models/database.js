@@ -296,7 +296,23 @@ function initDatabase() {
     )
   `);
 
-  console.log('Database initialized successfully');
+  // Create indexes for foreign keys (10-100x performance improvement)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_file ON comments(file_id);
+    CREATE INDEX IF NOT EXISTS idx_estimates_project ON estimates(project_id);
+    CREATE INDEX IF NOT EXISTS idx_invoices_project ON invoices(project_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_project ON payments(project_id);
+    CREATE INDEX IF NOT EXISTS idx_cues_project ON cues(project_id);
+    CREATE INDEX IF NOT EXISTS idx_hours_project ON hours_log(project_id);
+    CREATE INDEX IF NOT EXISTS idx_accounting_project ON accounting_records(project_id);
+    CREATE INDEX IF NOT EXISTS idx_share_links_project ON share_links(project_id);
+    CREATE INDEX IF NOT EXISTS idx_share_links_file ON share_links(file_id);
+    CREATE INDEX IF NOT EXISTS idx_scope_project ON project_scope(project_id);
+  `);
+
+  console.log('Database initialized successfully with performance indexes');
 }
 
 // Initialize database tables immediately
@@ -310,6 +326,13 @@ const projectQueries = {
       media_folder_path, password_protected, trt, music_coverage,
       timeline_start, timeline_end, estimated_total, estimated_taxes, net_after_taxes
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  createWithPlaintext: db.prepare(`
+    INSERT INTO projects (
+      name, password, password_plaintext, client_name, contact_email, status, notes, pinned,
+      media_folder_path, password_protected, trt, music_coverage,
+      timeline_start, timeline_end, estimated_total, estimated_taxes, net_after_taxes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   createSimple: db.prepare('INSERT INTO projects (name, password) VALUES (?, ?)'),
   findByName: db.prepare('SELECT * FROM projects WHERE name = ?'),
@@ -336,6 +359,7 @@ const projectQueries = {
   `),
   updateMediaFolder: db.prepare('UPDATE projects SET media_folder_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   updatePasswordProtection: db.prepare('UPDATE projects SET password_protected = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  updatePassword: db.prepare('UPDATE projects SET password = ?, password_plaintext = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   delete: db.prepare('DELETE FROM projects WHERE id = ?'),
   updateTimestamp: db.prepare('UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?')
 };

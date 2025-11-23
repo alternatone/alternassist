@@ -60,6 +60,9 @@ function startServer() {
     next();
   });
 
+  // Response helpers (Phase 1 optimization)
+  app.use(require('./server/utils/response-helpers'));
+
   // Disable caching for HTML files
   app.use('/media', (req, res, next) => {
     if (req.path.endsWith('.html')) {

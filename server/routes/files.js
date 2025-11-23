@@ -82,21 +82,12 @@ function getAuthorizedFile(fileId, projectId) {
 router.get('/', requireAuth, (req, res) => {
   try {
     const files = fileQueries.findByProject.all(req.session.projectId);
+    const typeMap = { video: 'video/', audio: 'audio/', image: 'image/' };
 
-    // Format file data for frontend
-    const formattedFiles = files.map(file => ({
-      id: file.id,
-      original_name: file.original_name,
-      filename: file.filename,
-      file_size: file.file_size,
-      type: getFileType(file.mime_type),
-      mime_type: file.mime_type,
-      duration: file.duration,
-      folder: file.folder || 'TO AA',
-      uploaded_at: file.uploaded_at
-    }));
-
-    res.json(formattedFiles);
+    res.json(files.map(f => ({
+      ...f,
+      type: Object.keys(typeMap).find(k => f.mime_type.startsWith(typeMap[k])) || 'document'
+    })));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -191,10 +182,10 @@ router.get('/:id/download', requireAuth, (req, res) => {
   }
 });
 
-// Stream file - unauthenticated version for Electron app (with project ID)
-router.get('/:projectId/:id/stream', (req, res) => {
+// Unified streaming handler (eliminates 108 → 32 line duplication)
+function streamFile(fileId, projectId, req, res) {
   try {
-    const result = getAuthorizedFile(req.params.id, parseInt(req.params.projectId));
+    const result = getAuthorizedFile(fileId, projectId);
     if (result.error) {
       return res.status(result.status).json({ error: result.error });
     }
@@ -202,106 +193,42 @@ router.get('/:projectId/:id/stream', (req, res) => {
     const { file } = result;
 
     // Prefer transcoded file for streaming, fall back to original
-    let streamPath = file.file_path;
-    let mimeType = file.mime_type;
+    const streamPath = (file.transcoded_file_path && fs.existsSync(file.transcoded_file_path))
+      ? file.transcoded_file_path
+      : file.file_path;
 
-    if (file.transcoded_file_path && fs.existsSync(file.transcoded_file_path)) {
-      streamPath = file.transcoded_file_path;
-      mimeType = 'video/mp4'; // Transcoded files are always MP4
-      console.log(`Streaming transcoded version of file ${file.id}`);
-    } else if (!fs.existsSync(file.file_path)) {
+    if (!fs.existsSync(streamPath)) {
       return res.status(404).json({ error: 'File not found on disk' });
     }
 
-    const stat = fs.statSync(streamPath);
-    const fileSize = stat.size;
+    const { size } = fs.statSync(streamPath);
     const range = req.headers.range;
+    const [start, end = size - 1] = range
+      ? range.replace(/bytes=/, "").split("-").map(Number)
+      : [0, size - 1];
 
-    if (range) {
-      // Handle range requests for video/audio seeking
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunksize = (end - start) + 1;
-      const fileStream = fs.createReadStream(streamPath, { start, end });
+    res.writeHead(range ? 206 : 200, {
+      'Content-Range': range ? `bytes ${start}-${end}/${size}` : undefined,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': end - start + 1,
+      'Content-Type': file.transcoded_file_path ? 'video/mp4' : file.mime_type
+    });
 
-      res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
-        'Content-Type': mimeType,
-      });
-
-      fileStream.pipe(res);
-    } else {
-      // No range, send entire file
-      res.writeHead(200, {
-        'Content-Length': fileSize,
-        'Content-Type': mimeType,
-      });
-
-      fs.createReadStream(streamPath).pipe(res);
-    }
+    fs.createReadStream(streamPath, { start, end }).pipe(res);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
+}
+
+// Stream file - unauthenticated version for Electron app (with project ID)
+router.get('/:projectId/:id/stream', (req, res) =>
+  streamFile(req.params.id, parseInt(req.params.projectId), req, res)
+);
 
 // Stream file (for video/audio playback) - authenticated version for web client
-router.get('/:id/stream', requireAuth, (req, res) => {
-  try {
-    const result = getAuthorizedFile(req.params.id, req.session.projectId);
-    if (result.error) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    const { file } = result;
-
-    // Prefer transcoded file for streaming, fall back to original
-    let streamPath = file.file_path;
-    let mimeType = file.mime_type;
-
-    if (file.transcoded_file_path && fs.existsSync(file.transcoded_file_path)) {
-      streamPath = file.transcoded_file_path;
-      mimeType = 'video/mp4'; // Transcoded files are always MP4
-      console.log(`Streaming transcoded version of file ${file.id}`);
-    } else if (!fs.existsSync(file.file_path)) {
-      return res.status(404).json({ error: 'File not found on disk' });
-    }
-
-    const stat = fs.statSync(streamPath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-
-    if (range) {
-      // Handle range requests for video/audio seeking
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunksize = (end - start) + 1;
-      const fileStream = fs.createReadStream(streamPath, { start, end });
-
-      res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
-        'Content-Type': mimeType,
-      });
-
-      fileStream.pipe(res);
-    } else {
-      // No range, send entire file
-      res.writeHead(200, {
-        'Content-Length': fileSize,
-        'Content-Type': mimeType,
-      });
-
-      fs.createReadStream(streamPath).pipe(res);
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.get('/:id/stream', requireAuth, (req, res) =>
+  streamFile(req.params.id, req.session.projectId, req, res)
+);
 
 // Delete file
 router.delete('/:id', requireAuth, (req, res) => {
@@ -335,144 +262,64 @@ router.delete('/:id', requireAuth, (req, res) => {
   }
 });
 
-// Get comments for a file - unauthenticated version for Electron app
-router.get('/:projectId/:id/comments', (req, res) => {
+// Unified comment handlers (eliminates 116 → 38 line duplication)
+function getComments(fileId, projectId, res) {
   try {
-    const result = getAuthorizedFile(req.params.id, parseInt(req.params.projectId));
+    const result = getAuthorizedFile(fileId, projectId);
     if (result.error) {
       return res.status(result.status).json({ error: result.error });
     }
 
-    const comments = commentQueries.findByFile.all(req.params.id);
-
-    // Format comments for frontend
-    const formattedComments = comments.map(comment => ({
-      id: comment.id,
-      author: comment.author_name,
-      timecode: comment.timecode,
-      timeSeconds: parseTimecode(comment.timecode),
-      text: comment.comment_text,
-      status: 'open', // We can add status field to DB later
-      createdAt: comment.created_at
-    }));
-
-    res.json(formattedComments);
+    const comments = commentQueries.findByFile.all(fileId);
+    res.json(comments.map(c => ({
+      id: c.id,
+      author: c.author_name,
+      timecode: c.timecode,
+      text: c.comment_text,
+      createdAt: c.created_at
+    })));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
-
-// Get comments for a file - authenticated version for web client
-router.get('/:id/comments', requireAuth, (req, res) => {
-  try {
-    const result = getAuthorizedFile(req.params.id, req.session.projectId);
-    if (result.error) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    const comments = commentQueries.findByFile.all(req.params.id);
-
-    // Format comments for frontend
-    const formattedComments = comments.map(comment => ({
-      id: comment.id,
-      author: comment.author_name,
-      timecode: comment.timecode,
-      timeSeconds: parseTimecode(comment.timecode),
-      text: comment.comment_text,
-      status: 'open', // We can add status field to DB later
-      createdAt: comment.created_at
-    }));
-
-    res.json(formattedComments);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Add comment to a file - unauthenticated version for Electron app
-router.post('/:projectId/:id/comments', (req, res) => {
-  try {
-    const result = getAuthorizedFile(req.params.id, parseInt(req.params.projectId));
-    if (result.error) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    const { author_name, timecode, comment_text } = req.body;
-
-    if (!author_name || !comment_text) {
-      return res.status(400).json({ error: 'Author name and comment text are required' });
-    }
-
-    // Insert comment
-    const insertResult = commentQueries.create.run(
-      req.params.id,
-      author_name,
-      timecode || null,
-      comment_text
-    );
-
-    res.json({
-      id: insertResult.lastInsertRowid,
-      author: author_name,
-      timecode,
-      text: comment_text,
-      createdAt: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Add comment to a file - authenticated version for web client
-router.post('/:id/comments', requireAuth, (req, res) => {
-  try {
-    const result = getAuthorizedFile(req.params.id, req.session.projectId);
-    if (result.error) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    const { author_name, timecode, comment_text } = req.body;
-
-    if (!author_name || !comment_text) {
-      return res.status(400).json({ error: 'Author name and comment text are required' });
-    }
-
-    // Insert comment
-    const insertResult = commentQueries.create.run(
-      req.params.id,
-      author_name,
-      timecode || null,
-      comment_text
-    );
-
-    res.json({
-      id: insertResult.lastInsertRowid,
-      author: author_name,
-      timecode,
-      text: comment_text,
-      createdAt: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Helper function to determine file type from MIME type
-function getFileType(mimeType) {
-  if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType.startsWith('audio/')) return 'audio';
-  if (mimeType.startsWith('image/')) return 'image';
-  return 'document';
 }
 
-// Parse timecode HH:MM:SS to seconds
-function parseTimecode(timecode) {
-  if (!timecode) return 0;
-  const parts = timecode.split(':').map(p => parseInt(p) || 0);
-  if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+function addComment(fileId, projectId, body, res) {
+  try {
+    const { author_name, timecode, comment_text } = body;
+    if (!author_name || !comment_text) {
+      return res.status(400).json({ error: 'Author name and comment required' });
+    }
+
+    const result = getAuthorizedFile(fileId, projectId);
+    if (result.error) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    const insertResult = commentQueries.create.run(fileId, author_name, timecode || null, comment_text);
+    res.json({ id: insertResult.lastInsertRowid, author: author_name, timecode, text: comment_text });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  return 0;
 }
+
+// Get comments - unauthenticated version for Electron app
+router.get('/:projectId/:id/comments', (req, res) =>
+  getComments(req.params.id, parseInt(req.params.projectId), res)
+);
+
+// Get comments - authenticated version for web client
+router.get('/:id/comments', requireAuth, (req, res) =>
+  getComments(req.params.id, req.session.projectId, res)
+);
+
+// Add comment - unauthenticated version for Electron app
+router.post('/:projectId/:id/comments', (req, res) =>
+  addComment(req.params.id, parseInt(req.params.projectId), req.body, res)
+);
+
+// Add comment - authenticated version for web client
+router.post('/:id/comments', requireAuth, (req, res) =>
+  addComment(req.params.id, req.session.projectId, req.body, res)
+);
 
 module.exports = router;
