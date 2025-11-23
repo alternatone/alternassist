@@ -3,25 +3,44 @@ node_modules/
 
 # Build output
 dist/
+build/
+out/
 
 # Environment variables
 .env
 .env.local
+.env.*.local
 
 # OS files
 .DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Custom user configuration
 alternaview-custom-config.json
 
 # User data
 alternaview.db
+alternaview.db-shm
+alternaview.db-wal
 alternaview-storage/
 
 # FTP storage (keep README, ignore contents)
 ftp-storage/*
 !ftp-storage/README.md
+
+# Test coverage
+coverage/
+.nyc_output/

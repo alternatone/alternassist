@@ -73,14 +73,15 @@
         </div>
 
         <!-- File Browser (shown when project is selected) -->
-        <div id="fileBrowser" class="browser-container" style="display: none;">
+        <div id="fileBrowser" class="browser-container" style="display: block;">
             <div class="browser-header">
                 <div class="header-top">
-                    <button id="backToProjectsBtn" class="btn-action" style="display: none; margin-right: 1rem;" title="Back to projects">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button id="backToFtpAdminBtn" class="btn-primary" style="display: none; margin-right: 1rem; padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="goBackToFtpAdmin()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
                             <line x1="19" y1="12" x2="5" y2="12"></line>
                             <polyline points="12 19 5 12 12 5"></polyline>
                         </svg>
+                        back to ftp admin
                     </button>
                     <h1 id="projectTitle">Media Files</h1>
                 </div>
@@ -244,5 +245,26 @@
     </div>
 
     <script src="media-app.js"></script>
+    <script>
+        // Listen for messages from parent (FTP admin navigation)
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'open-project-media') {
+                // Show back button when navigated from FTP admin
+                const backButton = document.getElementById('backToFtpAdminBtn');
+                if (backButton) {
+                    backButton.style.display = 'inline-flex';
+                }
+            }
+        });
+
+        // Function to go back to FTP admin
+        function goBackToFtpAdmin() {
+            if (window.parent) {
+                window.parent.postMessage({
+                    type: 'navigate-to-ftp-admin'
+                }, '*');
+            }
+        }
+    </script>
 </body>
 </html>

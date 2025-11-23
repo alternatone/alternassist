@@ -426,13 +426,29 @@
             generateInvoice();
         }
 
-        function populateFromEstimate() {
+        async function populateFromEstimate() {
             if (!estimateData) return;
 
-            // Set today's date and get current invoice number (don't increment yet)
+            // Set today's date and get current invoice number from API
             document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
-            const invoiceCount = parseInt(localStorage.getItem('invoice-count') || '22'); // Default starts at 2523
-            document.getElementById('invoiceNumber').value = '25' + String(invoiceCount + 1).padStart(2, '0');
+
+            // Get next invoice number from database
+            try {
+                const invoices = await InvoicesAPI.getAll();
+                let maxNumber = 2522; // Starting number
+
+                invoices.forEach(inv => {
+                    if (inv.invoice_number && inv.invoice_number.startsWith('25')) {
+                        const num = parseInt(inv.invoice_number.substring(2));
+                        if (num > maxNumber) maxNumber = num;
+                    }
+                });
+
+                document.getElementById('invoiceNumber').value = '25' + String(maxNumber + 1).padStart(2, '0');
+            } catch (e) {
+                console.error('Failed to get invoice number:', e);
+                document.getElementById('invoiceNumber').value = '2523';
+            }
 
             // Set project and client info
             document.getElementById('projectName').value = estimateData.projectName || '';
@@ -818,11 +834,27 @@
         }
 
         // Event listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set default date and invoice number FIRST
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Set default date and invoice number FIRST from API
             document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
-            const invoiceCount = parseInt(localStorage.getItem('invoice-count') || '22');
-            document.getElementById('invoiceNumber').value = '25' + String(invoiceCount + 1).padStart(2, '0');
+
+            // Get next invoice number from database
+            try {
+                const invoices = await InvoicesAPI.getAll();
+                let maxNumber = 2522; // Starting number
+
+                invoices.forEach(inv => {
+                    if (inv.invoice_number && inv.invoice_number.startsWith('25')) {
+                        const num = parseInt(inv.invoice_number.substring(2));
+                        if (num > maxNumber) maxNumber = num;
+                    }
+                });
+
+                document.getElementById('invoiceNumber').value = '25' + String(maxNumber + 1).padStart(2, '0');
+            } catch (e) {
+                console.error('Failed to get invoice number:', e);
+                document.getElementById('invoiceNumber').value = '2523';
+            }
 
             // Update invoice when form fields change
             const formInputs = ['invoiceNumber', 'invoiceDate', 'projectName', 'clientName', 'category', 'musicMinutes', 'postDays'];

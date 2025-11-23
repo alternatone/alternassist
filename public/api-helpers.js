@@ -259,6 +259,18 @@ async function getProjectsWithMusic() {
   const projectsWithMusic = [];
 
   for (const project of projects) {
+    // Check if project has music coverage in the main projects table first
+    if (project.music_coverage && project.music_coverage > 0) {
+      projectsWithMusic.push({
+        id: project.id,
+        name: project.name,
+        client: project.client_name || '',
+        musicMinutes: project.music_coverage
+      });
+      continue;
+    }
+
+    // Fallback: Check old project_scope table for legacy projects
     try {
       const scope = await ScopeAPI.get(project.id);
       if (scope && scope.music_minutes > 0) {

@@ -194,6 +194,7 @@
             border-radius: var(--radius-lg);
             background: white;
             overflow: visible;
+            min-height: calc(100vh - 140px);
         }
 
         /* Dashboard Overview */
@@ -254,9 +255,7 @@
                             <a href="#" class="nav-dropdown-item" data-module="projects">project board</a>
                             <a href="#" class="nav-dropdown-item" data-module="cues">cues</a>
                             <a href="#" class="nav-dropdown-item" data-module="notes" id="notes-dropdown-item" style="display: none;">notes</a>
-                            <a href="#" class="nav-dropdown-item" data-module="media-transfer">media</a>
-                            <a href="#" class="nav-dropdown-item" data-module="media-admin">media admin</a>
-                            <a href="#" class="nav-dropdown-item" data-module="media-review">media review</a>
+                            <a href="#" class="nav-dropdown-item" data-module="media">media</a>
                         </div>
                     </li>
 
@@ -289,90 +288,324 @@
 
             <!-- Project Pipeline Module -->
             <div class="module-container" id="projects-module">
-                <iframe class="module-frame" src="HTML Sketches/kanban_board.html"></iframe>
+                <iframe class="module-frame" src="public/kanban_board.html"></iframe>
             </div>
 
             <!-- Cue Tracker Module -->
             <div class="module-container" id="cues-module">
-                <iframe class="module-frame" src="HTML Sketches/cue_tracker_demo.html?v=2"></iframe>
+                <iframe class="module-frame" src="public/cue_tracker_demo.html"></iframe>
             </div>
 
             <!-- Estimate Calculator Module -->
             <div class="module-container" id="estimates-module">
-                <iframe class="module-frame" src="HTML Sketches/estimate_calculator.html"></iframe>
+                <iframe class="module-frame" src="public/estimate_calculator.html"></iframe>
             </div>
 
             <!-- Invoice Generator Module -->
             <div class="module-container" id="invoices-module">
-                <iframe class="module-frame" src="HTML Sketches/invoice_generator_standalone.html"></iframe>
+                <iframe class="module-frame" src="public/invoice_generator_standalone.html"></iframe>
             </div>
 
             <!-- Payment Dashboard Module -->
             <div class="module-container" id="payments-module">
-                <iframe class="module-frame" src="HTML Sketches/payment_dashboard.html"></iframe>
+                <iframe class="module-frame" src="public/payment_dashboard.html"></iframe>
             </div>
 
             <!-- Accounting Module -->
             <div class="module-container" id="accounting-module">
-                <iframe class="module-frame" src="HTML Sketches/accounting.html"></iframe>
+                <iframe class="module-frame" src="public/accounting.html"></iframe>
             </div>
 
             <!-- Notes Module (NoteMarker - Electron only) -->
             <div class="module-container" id="notes-module" style="display: none;">
-                <iframe class="module-frame" src="HTML Sketches/notes.html"></iframe>
+                <iframe class="module-frame" src="public/notes.html"></iframe>
+            </div>
+
+            <!-- Media Module (Unified FTP/Upload Management) -->
+            <div class="module-container" id="media-module">
+                <iframe class="module-frame" src="public/media.html"></iframe>
             </div>
 
             <!-- Media Transfer Module (from Alternaview) -->
             <div class="module-container" id="media-transfer-module">
-                <iframe class="module-frame" src="HTML Sketches/media_transfer.html"></iframe>
-            </div>
-
-            <!-- Media Admin Module (from Alternaview) -->
-            <div class="module-container" id="media-admin-module">
-                <iframe class="module-frame" src="HTML Sketches/media_admin.html"></iframe>
-            </div>
-
-            <!-- Media Review Module (from Alternaview) -->
-            <div class="module-container" id="media-review-module">
-                <iframe class="module-frame" src="HTML Sketches/media_review.html"></iframe>
+                <iframe class="module-frame" src="public/media_transfer.html"></iframe>
             </div>
         </main>
     </div>
 
+    <!-- FTP Setup Modal (for media module iframe) -->
+    <div id="ftpSetupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>FTP Setup</h2>
+                <button class="modal-close" onclick="closeFtpSetup()">&times;</button>
+            </div>
+            <div class="modal-body" id="ftpModalBody">
+                <!-- Content will be injected from iframe -->
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #888;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #1a1a1a;
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'DM Sans', system-ui, sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: none;
+        }
+
+        .btn-primary {
+            background: #469FE0;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #007acc;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #666;
+            border: 1px solid #e8e8e8;
+        }
+
+        .btn-secondary:hover {
+            background: #FDF8F0;
+        }
+    </style>
+
     <script>
+        // FTP Setup Modal functions
+        let currentModalProject = null;
+
+        function closeFtpSetup() {
+            const modal = document.getElementById('ftpSetupModal');
+            modal.classList.remove('show');
+            currentModalProject = null;
+        }
+
+        function copyClientPortalLink() {
+            const link = `http://localhost:3000/client/login.html`;
+            navigator.clipboard.writeText(link).then(() => {
+                alert(`Client portal link copied!\n\n${link}`);
+            }).catch(err => {
+                alert(`Failed to copy link: ${err}`);
+            });
+        }
+
+        async function toggleModalPassword() {
+            if (!currentModalProject) return;
+
+            const input = document.getElementById('modalPasswordInput');
+            const btn = document.getElementById('modalPasswordToggle');
+
+            if (input.type === 'password') {
+                // Fetch real password
+                try {
+                    const response = await fetch(`http://localhost:3000/api/projects/${currentModalProject.id}/password`);
+                    const data = await response.json();
+                    input.value = data.password;
+                    input.type = 'text';
+                    btn.textContent = 'Hide';
+                } catch (error) {
+                    console.error('Error fetching password:', error);
+                    alert('Failed to fetch password');
+                }
+            } else {
+                input.type = 'password';
+                input.value = '••••••••';
+                btn.textContent = 'Show';
+            }
+        }
+
+        async function regeneratePassword() {
+            if (!currentModalProject) return;
+
+            if (!confirm('Generate a new password for this project? The old password will no longer work.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/projects/${currentModalProject.id}/regenerate-password`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(`New password generated: ${data.password}`);
+                    closeFtpSetup();
+                } else {
+                    alert('Failed to regenerate password');
+                }
+            } catch (error) {
+                console.error('Error regenerating password:', error);
+                alert('Failed to regenerate password');
+            }
+        }
+
+        // Listen for modal requests from iframes
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'show-ftp-modal') {
+                const modal = document.getElementById('ftpSetupModal');
+                const modalBody = document.getElementById('ftpModalBody');
+                modalBody.innerHTML = event.data.content;
+                currentModalProject = event.data.project;
+                modal.classList.add('show');
+            } else if (event.data.type === 'hide-ftp-modal') {
+                closeFtpSetup();
+            }
+        });
+
+        // Click outside modal to close
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('ftpSetupModal');
+            if (e.target === modal) {
+                closeFtpSetup();
+            }
+        });
+
         // Update navigation underline position
         function updateNavUnderline(activeLink) {
-            const navLinks = document.querySelector('.nav-links');
-            
-            // Get the actual position and width of the active link
-            const linkRect = activeLink.getBoundingClientRect();
-            const navRect = navLinks.getBoundingClientRect();
-            
-            // Calculate the left offset relative to the nav-links container
-            const leftOffset = linkRect.left - navRect.left;
-            const linkWidth = linkRect.width;
-            
-            // Set CSS custom properties to position the underline
-            navLinks.style.setProperty('--underline-left', leftOffset + 'px');
-            navLinks.style.setProperty('--underline-width', linkWidth + 'px');
+            // Use requestAnimationFrame to ensure layout is complete
+            requestAnimationFrame(() => {
+                const navLinks = document.querySelector('.nav-links');
+
+                if (!activeLink || !navLinks) return;
+
+                // Get the actual position and width of the active link
+                const linkRect = activeLink.getBoundingClientRect();
+                const navRect = navLinks.getBoundingClientRect();
+
+                // Calculate the left offset relative to the nav-links container
+                const leftOffset = linkRect.left - navRect.left;
+                const linkWidth = linkRect.width;
+
+                // Set CSS custom properties to position the underline
+                navLinks.style.setProperty('--underline-left', leftOffset + 'px');
+                navLinks.style.setProperty('--underline-width', linkWidth + 'px');
+            });
         }
 
         // Track resize observers to prevent duplicates
         const iframeObservers = new Map();
+        const resizeTimeouts = new Map();
+        const lastResizeHeights = new Map();
 
         // Auto-resize iframes to fit content
         function resizeIframe(iframe) {
             try {
-                const body = iframe.contentWindow.document.body;
-                const html = iframe.contentWindow.document.documentElement;
-                const height = Math.max(
-                    body.scrollHeight,
-                    body.offsetHeight,
-                    html.clientHeight,
-                    html.scrollHeight,
-                    html.offsetHeight
-                );
-                iframe.style.height = height + 'px';
+                // Wait for browser to complete current layout cycle
+                iframe.contentWindow.requestAnimationFrame(() => {
+                    const body = iframe.contentWindow.document.body;
+                    const html = iframe.contentWindow.document.documentElement;
+
+                    // Calculate content height
+                    const contentHeight = Math.max(
+                        body.scrollHeight,
+                        body.offsetHeight,
+                        html.clientHeight,
+                        html.scrollHeight,
+                        html.offsetHeight
+                    );
+
+                    // Get the CSS min-height value (calc(100vh - 140px))
+                    const minHeight = window.innerHeight - 140;
+
+                    // Use the larger of content height or min-height
+                    const finalHeight = Math.max(contentHeight, minHeight);
+
+                    // Only update if height changed by more than 10px to prevent resize loops
+                    const lastHeight = lastResizeHeights.get(iframe) || 0;
+                    if (Math.abs(finalHeight - lastHeight) > 10) {
+                        iframe.style.height = finalHeight + 'px';
+                        lastResizeHeights.set(iframe, finalHeight);
+                    }
+                });
             } catch (e) {
                 // Silently fail - iframe not ready yet
             }
@@ -381,14 +614,40 @@
         function setupIframeResize(iframe) {
             if (!iframe || iframeObservers.has(iframe)) return;
 
-            const resizeHandler = () => resizeIframe(iframe);
+            // Check if this is the media module
+            const isMediaModule = iframe.closest('#media-module');
+
+            if (isMediaModule) {
+                // For media module, set height on every load (for navigation between pages)
+                iframe.addEventListener('load', function onLoad() {
+                    const minHeight = window.innerHeight - 140;
+                    iframe.style.height = minHeight + 'px';
+                    lastResizeHeights.set(iframe, minHeight);
+                });
+
+                iframeObservers.set(iframe, 'fixed');
+                return;
+            }
+
+            // Debounced resize handler for other modules
+            const debouncedResize = () => {
+                if (resizeTimeouts.has(iframe)) {
+                    clearTimeout(resizeTimeouts.get(iframe));
+                }
+                const timeout = setTimeout(() => {
+                    resizeIframe(iframe);
+                    resizeTimeouts.delete(iframe);
+                }, 150);
+                resizeTimeouts.set(iframe, timeout);
+            };
 
             iframe.addEventListener('load', function onLoad() {
-                resizeIframe(iframe);
+                // Initial resize
+                setTimeout(() => resizeIframe(iframe), 100);
 
-                // Set up resize observer once
+                // Set up resize observer with debouncing
                 try {
-                    const observer = new ResizeObserver(resizeHandler);
+                    const observer = new ResizeObserver(debouncedResize);
                     observer.observe(iframe.contentWindow.document.body);
                     iframeObservers.set(iframe, observer);
                 } catch (e) {
@@ -398,7 +657,7 @@
 
             // Trigger initial resize if already loaded
             if (iframe.contentWindow.document.readyState === 'complete') {
-                resizeIframe(iframe);
+                setTimeout(() => resizeIframe(iframe), 100);
             }
         }
 
@@ -496,12 +755,13 @@
                 if (response.ok) {
                     const apiProjects = await response.json();
 
-                    // Fetch scope data for all projects
+                    // Fetch scope data for all projects from project_scope table
                     const scopePromises = apiProjects.map(async (p) => {
                         try {
                             const scopeResponse = await fetch(`http://localhost:3000/api/estimates/scope/${p.id}`);
                             if (scopeResponse.ok) {
-                                return { projectId: p.id, scope: await scopeResponse.json() };
+                                const scopeData = await scopeResponse.json();
+                                return { projectId: p.id, scope: scopeData };
                             }
                         } catch (e) {
                             console.error(`Failed to fetch scope for project ${p.id}:`, e);
@@ -517,7 +777,15 @@
 
                     // Transform to dashboard format
                     projects = apiProjects.map(p => {
-                        const scope = scopeMap[p.id] || {};
+                        const scopeData = scopeMap[p.id] || {};
+                        // Use music_coverage from project table, other scope from project_scope table
+                        const scope = {
+                            music_minutes: p.music_coverage || scopeData.music_minutes || 0,
+                            dialogue_hours: scopeData.dialogue_hours || 0,
+                            sound_design_hours: scopeData.sound_design_hours || 0,
+                            mix_hours: scopeData.mix_hours || 0,
+                            revision_hours: scopeData.revision_hours || 0
+                        };
 
                         // Check if notes contains JSON scope data - if so, don't use it as display notes
                         let displayNotes = '';
@@ -580,6 +848,28 @@
                 console.error('Error loading cues:', error);
             }
 
+            // Fetch hours log for all projects
+            let hoursLogByProject = {};
+            try {
+                const hoursResponse = await fetch('http://localhost:3000/api/hours-log');
+                if (hoursResponse.ok) {
+                    const allHours = await hoursResponse.json();
+                    // Group by project_id and category
+                    allHours.forEach(log => {
+                        if (!hoursLogByProject[log.project_id]) {
+                            hoursLogByProject[log.project_id] = {};
+                        }
+                        const category = log.category || 'uncategorized';
+                        if (!hoursLogByProject[log.project_id][category]) {
+                            hoursLogByProject[log.project_id][category] = 0;
+                        }
+                        hoursLogByProject[log.project_id][category] += parseFloat(log.hours) || 0;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading hours log:', error);
+            }
+
             container.innerHTML = pinnedProjects.map(project => {
                 const projectCues = cuesByProject[project.id] || [];
 
@@ -590,6 +880,28 @@
                 const approved = projectCues.filter(c => c.status === 'approved').length;
                 const totalCues = projectCues.length;
 
+                // Helper function to convert time string to seconds
+                const timeToSeconds = (timeStr) => {
+                    if (!timeStr) return 0;
+                    const parts = timeStr.split(':').map(p => parseInt(p) || 0);
+                    if (parts.length === 3) {
+                        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+                    } else if (parts.length === 2) {
+                        return parts[0] * 60 + parts[1];
+                    }
+                    return 0;
+                };
+
+                // Calculate approved minutes from cues
+                const approvedCues = projectCues.filter(c => c.status === 'approved' || c.status === 'complete');
+                const approvedMinutes = approvedCues.reduce((total, cue) => {
+                    const start = timeToSeconds(cue.start_time);
+                    const end = timeToSeconds(cue.end_time);
+                    const durationSeconds = end - start;
+                    return total + (durationSeconds / 60);
+                }, 0);
+                const musicMins = Math.floor(approvedMinutes);
+
                 // Format scope data for display
                 const scope = project.scopeData || {};
                 const scopeItems = [];
@@ -598,6 +910,14 @@
                 if (scope.sound_design_hours > 0) scopeItems.push(`${scope.sound_design_hours}h sound design`);
                 if (scope.mix_hours > 0) scopeItems.push(`${scope.mix_hours}h mix`);
                 if (scope.revision_hours > 0) scopeItems.push(`${scope.revision_hours}h revisions`);
+
+                // Get logged hours for this project
+                const loggedHours = hoursLogByProject[project.id] || {};
+                const musicLoggedMins = loggedHours['music'] ? Math.floor(loggedHours['music'] * 60) : 0;
+                const dialogueLoggedHours = loggedHours['dialogue'] || 0;
+                const soundDesignLoggedHours = loggedHours['sound-design'] || 0;
+                const mixLoggedHours = loggedHours['mix'] || 0;
+                const revisionLoggedHours = loggedHours['revisions'] || 0;
 
                 return `
                     <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer;">
@@ -617,28 +937,29 @@
                             </div>
                         ` : ''}
 
+                        ${totalCues > 0 ? `
+                            <div style="margin-bottom: 0.75rem;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Music Cue Status</div>
+                                <div style="height: 20px; background: #f0f0f0; border-radius: 6px; overflow: hidden; display: flex;">
+                                    ${toWrite > 0 ? `<div style="background: #ff6b6b; width: ${(toWrite / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${toWrite}</div>` : ''}
+                                    ${written > 0 ? `<div style="background: #ff922b; width: ${(written / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${written}</div>` : ''}
+                                    ${revisions > 0 ? `<div style="background: #ffd93d; width: ${(revisions / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: #1a1a1a; font-size: 0.7rem; font-weight: 600;">${revisions}</div>` : ''}
+                                    ${approved > 0 ? `<div style="background: #51cf66; width: ${(approved / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${approved}</div>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+
                         ${scopeItems.length > 0 ? `
                             <div style="margin-bottom: 0.75rem;">
                                 <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Hour Tracking</div>
-                                ${scope.music_minutes > 0 ? `
-                                    <div style="margin-bottom: 0.35rem;">
-                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
-                                            <span>Music</span>
-                                            <span>0 / ${scope.music_minutes} mins</span>
-                                        </div>
-                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-                                            <div style="height: 100%; width: 0%; background: #469FE0;"></div>
-                                        </div>
-                                    </div>
-                                ` : ''}
                                 ${scope.dialogue_hours > 0 ? `
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Dialogue</span>
-                                            <span>0 / ${scope.dialogue_hours}h</span>
+                                            <span>${dialogueLoggedHours.toFixed(1)} / ${scope.dialogue_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-                                            <div style="height: 100%; width: 0%; background: #845ec2;"></div>
+                                            <div style="height: 100%; width: ${Math.min(100, (dialogueLoggedHours / scope.dialogue_hours) * 100)}%; background: #469FE0;"></div>
                                         </div>
                                     </div>
                                 ` : ''}
@@ -646,10 +967,10 @@
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Sound Design</span>
-                                            <span>0 / ${scope.sound_design_hours}h</span>
+                                            <span>${soundDesignLoggedHours.toFixed(1)} / ${scope.sound_design_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-                                            <div style="height: 100%; width: 0%; background: #ff922b;"></div>
+                                            <div style="height: 100%; width: ${Math.min(100, (soundDesignLoggedHours / scope.sound_design_hours) * 100)}%; background: #469FE0;"></div>
                                         </div>
                                     </div>
                                 ` : ''}
@@ -657,10 +978,10 @@
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Mix</span>
-                                            <span>0 / ${scope.mix_hours}h</span>
+                                            <span>${mixLoggedHours.toFixed(1)} / ${scope.mix_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-                                            <div style="height: 100%; width: 0%; background: #51cf66;"></div>
+                                            <div style="height: 100%; width: ${Math.min(100, (mixLoggedHours / scope.mix_hours) * 100)}%; background: #469FE0;"></div>
                                         </div>
                                     </div>
                                 ` : ''}
@@ -668,10 +989,10 @@
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Revisions</span>
-                                            <span>0 / ${scope.revision_hours}h</span>
+                                            <span>${revisionLoggedHours.toFixed(1)} / ${scope.revision_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-                                            <div style="height: 100%; width: 0%; background: #ffd43b;"></div>
+                                            <div style="height: 100%; width: ${Math.min(100, (revisionLoggedHours / scope.revision_hours) * 100)}%; background: #469FE0;"></div>
                                         </div>
                                     </div>
                                 ` : ''}
@@ -725,6 +1046,19 @@
             if (event.data.type === 'projectAdded') {
                 // Auto-switch to projects tab when a project is added
                 loadModule('projects');
+            } else if (event.data.type === 'open-project-media') {
+                // Switch to media browser when project is clicked in FTP admin
+                loadModule('media-transfer');
+                // Forward message to media browser iframe after a short delay to ensure it's loaded
+                setTimeout(() => {
+                    const mediaFrame = document.querySelector('#media-transfer-module iframe');
+                    if (mediaFrame && mediaFrame.contentWindow) {
+                        mediaFrame.contentWindow.postMessage(event.data, '*');
+                    }
+                }, 100);
+            } else if (event.data.type === 'navigate-to-ftp-admin') {
+                // Go back to FTP admin from media browser
+                loadModule('ftp-admin');
             }
         });
 

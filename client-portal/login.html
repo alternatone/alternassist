@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Portal - Alternassist</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="media-styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <h1>alternassist</h1>
+            <p class="login-subtitle">client portal</p>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="projectName">project name</label>
+                    <input type="text" id="projectName" name="projectName" required autocomplete="off" autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+
+                <button type="submit" class="btn-primary" id="loginBtn">access files</button>
+            </form>
+
+            <p class="help-text">contact your project manager if you need assistance</p>
+        </div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const errorMessage = document.getElementById('errorMessage');
+        const loginBtn = document.getElementById('loginBtn');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const projectName = document.getElementById('projectName').value.trim();
+            const password = document.getElementById('password').value;
+
+            errorMessage.classList.remove('show');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'authenticating...';
+
+            try {
+                const response = await fetch('/api/projects/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        name: projectName,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    window.location.href = 'index.html';
+                } else {
+                    showError(data.error || 'invalid credentials');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('connection error. please try again.');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'access files';
+            }
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        async function checkExistingSession() {
+            try {
+                const response = await fetch('/api/projects/current', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                // Not logged in, stay on login page
+            }
+        }
+
+        checkExistingSession();
+    </script>
+</body>
+</html>

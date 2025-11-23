@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review - Alternassist</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="media-styles.css">
+    <style>
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            min-height: 100vh;
+            height: 100vh;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        /* Video Panel */
+        .video-panel {
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-header {
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .video-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .video-controls {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 1rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .play-btn {
+            background: #469FE0;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .play-btn:hover {
+            background: #3a8bc7;
+        }
+
+        .timecode {
+            font-family: monospace;
+            color: white;
+            font-size: 0.9rem;
+            min-width: 140px;
+        }
+
+        .progress-container {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b 0%, #007acc 100%);
+            border-radius: 3px;
+            width: 0%;
+            position: relative;
+        }
+
+        .progress-handle {
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            cursor: grab;
+        }
+
+        .comment-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .comment-marker {
+            position: absolute;
+            width: 3px;
+            height: 100%;
+            background: #ff922b;
+            cursor: pointer;
+            pointer-events: all;
+        }
+
+        .comment-marker:hover {
+            background: #ff6b6b;
+            width: 4px;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .volume-slider {
+            width: 80px;
+        }
+
+        /* Comments Panel */
+        .comments-panel {
+            background: #FEFDFA;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #e8e8e8;
+        }
+
+        .comments-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .comments-header h2 {
+            font-family: 'Bricolage Grotesque', system-ui;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .comments-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stat-badge {
+            background: #469FE0;
+            color: white;
+            padding: 0.1rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .comments-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .comment-card {
+            background: #FDF8F0;
+            border: 1px solid #f0f0f0;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .comment-card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            transform: translateY(-2px);
+        }
+
+        .comment-card.active {
+            border-color: #469FE0;
+            box-shadow: 0 0 0 2px rgba(70, 159, 224, 0.1);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .comment-timecode {
+            font-family: monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #469FE0;
+        }
+
+        .comment-author {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .comment-text {
+            font-size: 0.9rem;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .add-comment-section {
+            padding: 1rem;
+            border-top: 1px solid #e8e8e8;
+            background: #FEFDFA;
+        }
+
+        .add-comment-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .comment-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .comment-input:focus {
+            outline: none;
+            border-color: #469FE0;
+        }
+
+        input.comment-input {
+            min-height: auto;
+        }
+
+        .btn-primary {
+            background: #469FE0;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #3a8bc7;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #888;
+        }
+
+        @media (max-width: 1200px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 400px;
+            }
+
+            .comments-panel {
+                border-left: none;
+                border-top: 1px solid #e8e8e8;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Video Panel -->
+        <div class="video-panel">
+            <div class="video-header">
+                <button class="back-btn" onclick="window.location.href='index.html'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    back to files
+                </button>
+                <span style="color: white; flex: 1;" id="videoFilename"></span>
+            </div>
+
+            <div class="video-container">
+                <video id="videoPlayer" controls>
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="video-controls">
+                <div class="controls-row">
+                    <button class="control-btn" id="startOverBtn" title="Start over">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                            <rect x="4" y="4" width="2" height="16"/>
+                            <path d="M18 6l-8 6 8 6z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="rewind10Btn" title="Rewind 10 seconds">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M2.5 2v6h6M2.66 15.57a10 10 0 1 0 .57-8.38"></path>
+                            <text x="12" y="16" font-size="8" fill="white" text-anchor="middle" font-weight="bold">10</text>
+                        </svg>
+                    </button>
+                    <button class="play-btn" id="playBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                            <path id="playIcon" d="M8 5v14l11-7z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="forward10Btn" title="Forward 10 seconds">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"></path>
+                            <text x="12" y="16" font-size="8" fill="white" text-anchor="middle" font-weight="bold">10</text>
+                        </svg>
+                    </button>
+                    <span class="timecode" id="timecode">00:00:00 / 00:00:00</span>
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-handle"></div>
+                        </div>
+                        <div class="comment-markers" id="commentMarkers"></div>
+                    </div>
+                    <div class="volume-control">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                            <path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments Panel -->
+        <div class="comments-panel">
+            <div class="comments-header">
+                <h2>Comments</h2>
+                <div class="comments-stats">
+                    <div class="stat-item">
+                        <span class="stat-badge" id="totalComments">0</span>
+                        <span>total</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comments-list" id="commentsList">
+                <div class="empty-state">
+                    <p>No comments yet. Add a comment at the current timecode.</p>
+                </div>
+            </div>
+
+            <div class="add-comment-section">
+                <div class="add-comment-form">
+                    <input type="text" class="comment-input" id="authorInput" placeholder="your name">
+                    <textarea class="comment-input" id="commentInput" placeholder="add a comment..."></textarea>
+                    <button class="btn-primary" id="addCommentBtn">add comment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+    <script src="review.js"></script>
+</body>
+</html>

@@ -40,10 +40,18 @@ function initDatabase() {
       file_size INTEGER NOT NULL,
       mime_type TEXT NOT NULL,
       duration TEXT,
+      folder TEXT DEFAULT 'TO AA',
       uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
+
+  // Migration: Add folder column if it doesn't exist
+  const tableInfo = db.prepare("PRAGMA table_info(files)").all();
+  const hasFolderColumn = tableInfo.some(col => col.name === 'folder');
+  if (!hasFolderColumn) {
+    db.exec(`ALTER TABLE files ADD COLUMN folder TEXT DEFAULT 'TO AA'`);
+  }
 
   // Share Links table
   db.exec(`
@@ -88,10 +96,37 @@ function initDatabase() {
     }
   });
 
+  // Migration: Add new project fields for comprehensive data flow
+  const newProjectFields = [
+    { name: 'contact_email', type: 'TEXT', default: '' },
+    { name: 'trt', type: 'TEXT', default: '' },
+    { name: 'music_coverage', type: 'INTEGER', default: ' DEFAULT 0' },
+    { name: 'timeline_start', type: 'DATE', default: '' },
+    { name: 'timeline_end', type: 'DATE', default: '' },
+    { name: 'estimated_total', type: 'REAL', default: ' DEFAULT 0' },
+    { name: 'estimated_taxes', type: 'REAL', default: ' DEFAULT 0' },
+    { name: 'net_after_taxes', type: 'REAL', default: ' DEFAULT 0' }
+  ];
+
+  newProjectFields.forEach(field => {
+    const hasField = projectColumns.some(col => col.name === field.name);
+    if (!hasField) {
+      db.exec(`ALTER TABLE projects ADD COLUMN ${field.name} ${field.type}${field.default}`);
+      console.log(`Added ${field.name} column to projects table`);
+    }
+  });
+
   // Migration: Make password nullable in projects table (existing constraint can't be changed, so we note it)
   const passwordColumn = projectColumns.find(col => col.name === 'password');
   if (passwordColumn && passwordColumn.notnull === 1) {
     console.log('Note: password column is still NOT NULL in existing databases. New projects can have NULL passwords.');
+  }
+
+  // Migration: Add password_plaintext column for admin viewing
+  const hasPasswordPlaintext = projectColumns.some(col => col.name === 'password_plaintext');
+  if (!hasPasswordPlaintext) {
+    db.exec('ALTER TABLE projects ADD COLUMN password_plaintext TEXT');
+    console.log('Added password_plaintext column to projects table');
   }
 
   // Comments table (for future use)
@@ -246,6 +281,21 @@ function initDatabase() {
     )
   `);
 
+  // Hours log table (time tracking for projects)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS hours_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      date DATE NOT NULL,
+      hours REAL NOT NULL,
+      category TEXT,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
   console.log('Database initialized successfully');
 }
 
@@ -254,7 +304,13 @@ initDatabase();
 
 // Project queries
 const projectQueries = {
-  create: db.prepare('INSERT INTO projects (name, password, client_name, status, notes, pinned, media_folder_path, password_protected) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+  create: db.prepare(`
+    INSERT INTO projects (
+      name, password, client_name, contact_email, status, notes, pinned,
+      media_folder_path, password_protected, trt, music_coverage,
+      timeline_start, timeline_end, estimated_total, estimated_taxes, net_after_taxes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
   createSimple: db.prepare('INSERT INTO projects (name, password) VALUES (?, ?)'),
   findByName: db.prepare('SELECT * FROM projects WHERE name = ?'),
   findById: db.prepare('SELECT * FROM projects WHERE id = ?'),
@@ -271,8 +327,11 @@ const projectQueries = {
   `),
   update: db.prepare(`
     UPDATE projects
-    SET name = ?, client_name = ?, status = ?, notes = ?, pinned = ?,
-        media_folder_path = ?, password_protected = ?, password = ?, updated_at = CURRENT_TIMESTAMP
+    SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, pinned = ?,
+        media_folder_path = ?, password_protected = ?, password = ?, trt = ?,
+        music_coverage = ?, timeline_start = ?, timeline_end = ?,
+        estimated_total = ?, estimated_taxes = ?, net_after_taxes = ?,
+        updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `),
   updateMediaFolder: db.prepare('UPDATE projects SET media_folder_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
@@ -284,11 +343,12 @@ const projectQueries = {
 // File queries
 const fileQueries = {
   create: db.prepare(`
-    INSERT INTO files (project_id, filename, original_name, file_path, file_size, mime_type, duration, transcoded_file_path)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO files (project_id, filename, original_name, file_path, file_size, mime_type, duration, transcoded_file_path, folder)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   findById: db.prepare('SELECT * FROM files WHERE id = ?'),
-  findByProject: db.prepare('SELECT * FROM files WHERE project_id = ? ORDER BY uploaded_at DESC'),
+  findByProject: db.prepare('SELECT * FROM files WHERE project_id = ? ORDER BY folder, uploaded_at DESC'),
+  findByProjectAndFolder: db.prepare('SELECT * FROM files WHERE project_id = ? AND folder = ? ORDER BY uploaded_at DESC'),
   delete: db.prepare('DELETE FROM files WHERE id = ?'),
   updateTranscodedPath: db.prepare('UPDATE files SET transcoded_file_path = ? WHERE id = ?'),
   getStats: db.prepare(`
@@ -409,6 +469,29 @@ const accountingQueries = {
   delete: db.prepare('DELETE FROM accounting_records WHERE id = ?')
 };
 
+// Hours log queries
+const hoursLogQueries = {
+  create: db.prepare('INSERT INTO hours_log (project_id, date, hours, category, description) VALUES (?, ?, ?, ?, ?)'),
+  findById: db.prepare('SELECT * FROM hours_log WHERE id = ?'),
+  findByProject: db.prepare('SELECT * FROM hours_log WHERE project_id = ? ORDER BY date DESC'),
+  getAll: db.prepare('SELECT * FROM hours_log ORDER BY date DESC'),
+  update: db.prepare('UPDATE hours_log SET date = ?, hours = ?, category = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  delete: db.prepare('DELETE FROM hours_log WHERE id = ?'),
+  getTotalByProject: db.prepare(`
+    SELECT
+      category,
+      SUM(hours) as total_hours
+    FROM hours_log
+    WHERE project_id = ?
+    GROUP BY category
+  `),
+  getProjectTotal: db.prepare(`
+    SELECT SUM(hours) as total_hours
+    FROM hours_log
+    WHERE project_id = ?
+  `)
+};
+
 module.exports = {
   db,
   initDatabase,
@@ -422,5 +505,6 @@ module.exports = {
   cueQueries,
   invoiceQueries,
   paymentQueries,
-  accountingQueries
+  accountingQueries,
+  hoursLogQueries
 };

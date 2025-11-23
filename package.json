@@ -21,6 +21,9 @@
   "license": "MIT",
   "dependencies": {
     "@grpc/grpc-js": "^1.13.4",
+    "@tus/file-store": "^2.0.0",
+    "@tus/server": "^2.3.0",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.1",
     "chokidar": "^4.0.3",
     "cors": "^2.8.5",

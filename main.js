@@ -21,13 +21,17 @@ function createWindow() {
             contextIsolation: true,
             enableWebSQL: false,
             spellcheck: false,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            cache: false
         },
         titleBarStyle: 'hiddenInset',
         backgroundColor: '#FDF8F0',
         show: false,
         useContentSize: true
     });
+
+    // Disable HTTP cache
+    mainWindow.webContents.session.clearCache();
 
     mainWindow.loadFile('index.html');
 

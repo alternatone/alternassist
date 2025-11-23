@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Portal - Alternassist</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="media-styles.css">
+</head>
+<body>
+    <!-- Files view (shown when authenticated) -->
+    <div id="filesView" style="display: none;">
+        <div class="app-container">
+            <div class="browser-container">
+                <div class="browser-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1 id="projectName">My Files</h1>
+                    </div>
+                    <button class="btn-action" onclick="logout()" style="padding: 0.5rem 1rem;">logout</button>
+                </div>
+
+                <div class="upload-zone" id="uploadZone" style="margin: 2rem 0; padding: 3rem; border: 2px dashed #ddd; border-radius: 12px; text-align: center; cursor: pointer;" onclick="triggerUpload()">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⬆</div>
+                    <p>Drop files here or click to upload</p>
+                    <p style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">Supports files up to 64GB</p>
+                </div>
+
+                <input type="file" id="fileInput" multiple style="display: none;">
+
+                <div id="uploadProgress" style="margin-bottom: 2rem;"></div>
+
+                <div class="file-table-container">
+                    <table class="file-table" id="filesTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Size</th>
+                                <th>Uploaded</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="filesTableBody">
+                            <tr><td colspan="4" class="empty-state">Loading files...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+    <script src="files.js"></script>
+</body>
+</html>

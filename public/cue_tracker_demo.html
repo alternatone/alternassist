@@ -77,6 +77,11 @@
         .cue-timing { font-family: var(--font-mono); font-size: 0.85rem; }
         
         .status-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; }
+        .status-to-write { background: rgba(255, 107, 107, 0.1); color: var(--accent-red); }
+        .status-written { background: rgba(255, 146, 43, 0.1); color: var(--accent-orange); }
+        .status-revisions { background: rgba(255, 217, 61, 0.1); color: #ffd93d; }
+        .status-approved { background: rgba(81, 207, 102, 0.1); color: var(--accent-green); }
+        /* Legacy status classes for backwards compatibility */
         .status-sketch { background: rgba(255, 146, 43, 0.1); color: var(--accent-orange); }
         .status-recording { background: rgba(133, 94, 194, 0.1); color: var(--accent-purple); }
         .status-mixing { background: rgba(70, 159, 224, 0.1); color: var(--accent-teal); }
@@ -108,11 +113,18 @@
         .inline-theme-input:not(select) { color: var(--subtle-text); }
         .inline-theme-input:hover { background: var(--bg-primary); border-color: var(--border-light); }
         .inline-theme-input:focus { outline: none; border-color: var(--accent-teal); background: white; }
-        select.inline-theme-input { cursor: pointer; }
-        select.inline-theme-input.status-to-write { color: var(--accent-red); font-weight: 600; }
-        select.inline-theme-input.status-written { color: var(--accent-orange); font-weight: 600; }
-        select.inline-theme-input.status-revisions { color: #ffd93d; font-weight: 600; }
-        select.inline-theme-input.status-approved { color: var(--accent-green); font-weight: 600; }
+        select.inline-theme-input { cursor: pointer; font-weight: 600; }
+        select.inline-theme-input.status-to-write { color: var(--accent-red); }
+        select.inline-theme-input.status-written { color: var(--accent-orange); }
+        select.inline-theme-input.status-revisions { color: #ffd93d; }
+        select.inline-theme-input.status-approved { color: var(--accent-green); }
+        input[list].inline-theme-input { font-weight: 600; color: var(--accent-teal); cursor: pointer; }
+
+        /* Color-code dropdown options */
+        select.inline-theme-input option[value="to-write"] { color: var(--accent-red); font-weight: 600; }
+        select.inline-theme-input option[value="written"] { color: var(--accent-orange); font-weight: 600; }
+        select.inline-theme-input option[value="revisions"] { color: #ffd93d; font-weight: 600; }
+        select.inline-theme-input option[value="approved"] { color: var(--accent-green); font-weight: 600; }
 
         .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
         
@@ -129,10 +141,10 @@
         <div class="header">
             <div class="header-left">
                 <h1>Cue Tracker</h1>
-                <select class="project-select" id="projectSelect" onchange="loadProjectCues()">
-                    <option value="">select project...</option>
-                </select>
             </div>
+            <select class="project-select" id="projectSelect" onchange="loadProjectCues()">
+                <option value="">select project...</option>
+            </select>
         </div>
 
         <div class="stats-bar">
@@ -209,17 +221,19 @@
                     <input type="text" id="cueTitle" placeholder="Main Theme">
                 </div>
                 <div class="form-group">
-                    <label for="startTime">Start Time (MM:SS)</label>
-                    <input type="text" id="startTime" placeholder="00:00">
+                    <label for="startTime">Start Time (HH:MM:SS)</label>
+                    <input type="text" id="startTime" placeholder="00:00:00">
                 </div>
                 <div class="form-group">
-                    <label for="endTime">End Time (MM:SS)</label>
-                    <input type="text" id="endTime" placeholder="00:00">
+                    <label for="endTime">End Time (HH:MM:SS)</label>
+                    <input type="text" id="endTime" placeholder="00:00:00">
                 </div>
                 <div class="form-group">
                     <label for="cueTheme">Theme</label>
-                    <input type="text" id="cueTheme" list="themeList" placeholder="Enter or select theme">
-                    <datalist id="themeList"></datalist>
+                    <select id="cueTheme" onchange="handleModalThemeChange(this)">
+                        <option value="">select theme...</option>
+                        <option value="__ADD_NEW__">+ add new theme...</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="cueStatus">Status</label>
@@ -240,8 +254,24 @@
                 </div>
             </div>
             <div class="form-actions">
-                <button class="btn btn-secondary" onclick="hideCueModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveCue()">Save Cue</button>
+                <button class="btn btn-secondary" onclick="hideCueModal()">cancel</button>
+                <button class="btn btn-primary" onclick="saveCue()">save cue</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="themeModal" onclick="if(event.target === this) hideThemeModal()">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">add new theme</h3>
+            </div>
+            <div class="form-group">
+                <label for="newThemeName">theme name</label>
+                <input type="text" id="newThemeName" placeholder="Enter theme name">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="hideThemeModal()">cancel</button>
+                <button class="btn btn-primary" onclick="saveNewTheme()">add theme</button>
             </div>
         </div>
     </div>
@@ -250,6 +280,7 @@
     <script>
         let currentProject = null;
         let currentCueId = null;
+        let pendingThemeCueId = null;
         let cues = {}; // Stores cues by project_id
 
         async function initializeSampleData() {
@@ -383,13 +414,10 @@
         }
 
         function formatDuration(seconds) {
-            const hours = Math.floor(seconds / 3600);
-            const mins = Math.floor((seconds % 3600) / 60);
+            // Always return MM:SS format
+            const totalMins = Math.floor(seconds / 60);
             const secs = seconds % 60;
-            if (hours > 0) {
-                return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            }
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
+            return `${totalMins}:${secs.toString().padStart(2, '0')}`;
         }
 
         function loadProjectCues() {
@@ -435,14 +463,15 @@
 
                 return `
                     <tr>
-                        <td><input type="text" class="inline-theme-input cue-number" value="${cue.number || ''}" onchange="updateCueField('${cue.id}', 'number', this.value)" placeholder="1m1"></td>
-                        <td><input type="text" class="inline-theme-input" value="${cue.title || ''}" onchange="updateCueField('${cue.id}', 'title', this.value)" placeholder="Cue title"></td>
-                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.startTime || ''}" onchange="updateCueField('${cue.id}', 'startTime', this.value)" placeholder="00:00:00"></td>
-                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.endTime || ''}" onchange="updateCueField('${cue.id}', 'endTime', this.value)" placeholder="00:00:00"></td>
-                        <td><span class="cue-timing">${formatDuration(duration)}</span></td>
-                        <td><input type="text" list="themeList-${cue.id}" class="inline-theme-input" value="${cue.theme || cue.usage || ''}" onchange="updateCueField('${cue.id}', 'theme', this.value)" placeholder="Enter theme">
-                            <datalist id="themeList-${cue.id}"></datalist>
-                        </td>
+                        <td><input type="text" class="inline-theme-input cue-number" value="${cue.number || ''}" data-cue-id="${cue.id}" data-field="number" placeholder="1m1"></td>
+                        <td><input type="text" class="inline-theme-input" value="${cue.title || ''}" data-cue-id="${cue.id}" data-field="title" placeholder="Cue title"></td>
+                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.startTime || ''}" data-cue-id="${cue.id}" data-field="startTime" placeholder="00:00:00"></td>
+                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.endTime || ''}" data-cue-id="${cue.id}" data-field="endTime" placeholder="00:00:00"></td>
+                        <td><span class="cue-timing" id="duration-${cue.id}" data-cue-id="${cue.id}">${formatDuration(duration)}</span></td>
+                        <td><select class="inline-theme-input" id="theme-${cue.id}" onchange="handleThemeChange(${cue.id}, this)">
+                            <option value="">select theme...</option>
+                            <option value="__ADD_NEW__">+ add new theme...</option>
+                        </select></td>
                         <td><select class="inline-theme-input status-${displayStatus}" onchange="updateCueField('${cue.id}', 'status', this.value)">
                             <option value="to-write" ${displayStatus === 'to-write' ? 'selected' : ''}>To Write</option>
                             <option value="written" ${displayStatus === 'written' ? 'selected' : ''}>Written</option>
@@ -453,7 +482,13 @@
                         <td><input type="text" class="inline-theme-input" value="${cue.notes || ''}" onchange="updateCueField('${cue.id}', 'notes', this.value)" placeholder="Notes"></td>
                         <td>
                             <div class="action-cell">
-                                <button class="icon-btn delete" onclick="deleteCue('${cue.id}')" title="Delete">
+                                <button class="icon-btn" onclick="editCue(${cue.id})" title="Edit">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                                <button class="icon-btn delete" onclick="deleteCue(${cue.id})" title="Delete">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -467,77 +502,174 @@
                 `;
             }).join('');
 
-            // Populate datalists for inline theme editing
+            // Populate theme dropdowns
             const existingThemes = [...new Set(projectCues.map(c => c.theme || c.usage).filter(t => t))];
             projectCues.forEach(cue => {
-                const datalist = document.getElementById(`themeList-${cue.id}`);
-                if (datalist) {
-                    datalist.innerHTML = existingThemes.map(theme => `<option value="${theme}">`).join('');
+                const themeSelect = document.getElementById(`theme-${cue.id}`);
+                if (themeSelect) {
+                    // Add existing themes as options
+                    existingThemes.forEach(theme => {
+                        const option = document.createElement('option');
+                        option.value = theme;
+                        option.textContent = theme;
+                        if (theme === (cue.theme || cue.usage)) {
+                            option.selected = true;
+                        }
+                        themeSelect.insertBefore(option, themeSelect.querySelector('option[value="__ADD_NEW__"]'));
+                    });
                 }
+            });
+
+            // Add event listeners to inputs with data attributes
+            document.querySelectorAll('.inline-theme-input[data-cue-id][data-field]').forEach(input => {
+                input.addEventListener('blur', function() {
+                    const cueId = this.getAttribute('data-cue-id');
+                    const field = this.getAttribute('data-field');
+                    updateCueField(cueId, field, this.value);
+                });
             });
 
             updateStats();
         }
 
+        function handleThemeChange(cueId, selectElement) {
+            const value = selectElement.value;
+
+            if (value === '__ADD_NEW__') {
+                // Show modal to create new theme
+                pendingThemeCueId = cueId;
+                showThemeModal();
+                // Reset dropdown while modal is open
+                selectElement.selectedIndex = 0;
+            } else {
+                // Regular theme selection
+                updateCueField(cueId, 'theme', value);
+            }
+        }
+
+        function showThemeModal() {
+            document.getElementById('newThemeName').value = '';
+            document.getElementById('themeModal').classList.add('active');
+            // Focus the input
+            setTimeout(() => document.getElementById('newThemeName').focus(), 100);
+        }
+
+        function hideThemeModal() {
+            document.getElementById('themeModal').classList.remove('active');
+            pendingThemeCueId = null;
+        }
+
+        async function saveNewTheme() {
+            const themeName = document.getElementById('newThemeName').value.trim();
+            if (!themeName) {
+                return;
+            }
+
+            if (pendingThemeCueId) {
+                // Update the cue with the new theme
+                await updateCueField(pendingThemeCueId, 'theme', themeName);
+                // Re-render to add new theme to all dropdowns
+                renderCues();
+            } else {
+                // Coming from modal - just set the value
+                document.getElementById('cueTheme').value = themeName;
+                populateModalThemeDropdown(themeName);
+            }
+
+            hideThemeModal();
+        }
+
+        function handleModalThemeChange(selectElement) {
+            const value = selectElement.value;
+
+            if (value === '__ADD_NEW__') {
+                // Show modal to create new theme
+                pendingThemeCueId = null; // Signal this is from the modal
+                showThemeModal();
+                // Reset dropdown while modal is open
+                selectElement.selectedIndex = 0;
+            }
+        }
+
+        function populateModalThemeDropdown(selectedTheme = '') {
+            const projectCues = cues[currentProject] || [];
+            const existingThemes = [...new Set(projectCues.map(c => c.theme || c.usage).filter(t => t))];
+            const themeSelect = document.getElementById('cueTheme');
+
+            // Clear existing options except the first two
+            themeSelect.innerHTML = `
+                <option value="">select theme...</option>
+                <option value="__ADD_NEW__">+ add new theme...</option>
+            `;
+
+            // Add existing themes
+            existingThemes.forEach(theme => {
+                const option = document.createElement('option');
+                option.value = theme;
+                option.textContent = theme;
+                if (theme === selectedTheme) {
+                    option.selected = true;
+                }
+                themeSelect.insertBefore(option, themeSelect.querySelector('option[value="__ADD_NEW__"]'));
+            });
+
+            // If selectedTheme is provided but not in list, add it
+            if (selectedTheme && !existingThemes.includes(selectedTheme)) {
+                const option = document.createElement('option');
+                option.value = selectedTheme;
+                option.textContent = selectedTheme;
+                option.selected = true;
+                themeSelect.insertBefore(option, themeSelect.querySelector('option[value="__ADD_NEW__"]'));
+            }
+        }
+
         async function updateCueField(cueId, fieldName, newValue) {
-            const cue = cues[currentProject].find(c => c.id === cueId);
-            if (cue) {
-                // Update local copy immediately for UI responsiveness
-                cue[fieldName] = newValue;
+            const cue = cues[currentProject].find(c => c.id == cueId);
+            if (!cue) return;
 
-                // If start or end time changed, recalculate duration and update the display
-                if (fieldName === 'startTime' || fieldName === 'endTime') {
-                    const durationSeconds = calculateDuration(cue.startTime, cue.endTime);
-                    cue.duration = formatDuration(durationSeconds);
+            // Update local copy immediately for UI responsiveness
+            cue[fieldName] = newValue;
 
-                    // Update duration display without re-rendering entire table
-                    const row = document.querySelector(`input[onchange*="'${cueId}'"]`)?.closest('tr');
-                    if (row) {
-                        const durationCell = row.querySelector('td:nth-child(5) span');
-                        if (durationCell) {
-                            durationCell.textContent = cue.duration;
-                        }
-                    }
+            // If start or end time changed, recalculate and update duration
+            if (fieldName === 'startTime' || fieldName === 'endTime') {
+                const durationSeconds = calculateDuration(cue.startTime, cue.endTime);
+                cue.duration = formatDuration(durationSeconds);
+
+                // Update the duration display in the DOM without re-rendering entire table
+                const durationSpan = document.getElementById(`duration-${cueId}`);
+                if (durationSpan) {
+                    durationSpan.textContent = cue.duration;
                 }
+            }
 
-                // If status changed, update the select element's color class
-                if (fieldName === 'status') {
-                    const row = document.querySelector(`select[onchange*="'${cueId}'"]`)?.closest('tr');
-                    if (row) {
-                        const selectEl = row.querySelector('select');
-                        if (selectEl) {
-                            selectEl.className = `inline-theme-input status-${newValue}`;
-                        }
-                    }
+            // If status changed, re-render to update color class
+            if (fieldName === 'status') {
+                renderCues();  // Re-render to show updated status color
+            }
+
+            // Map field names to API fields - always send complete cue data
+            const apiData = {
+                cue_number: cue.number,
+                title: cue.title,
+                status: cue.status,
+                duration: cue.duration,
+                notes: cue.notes,
+                start_time: cue.startTime,
+                end_time: cue.endTime,
+                theme: cue.theme,
+                version: cue.version
+            };
+
+            try {
+                await CuesAPI.update(cueId, apiData);
+
+                // Update stats if status or timing changed
+                if (fieldName === 'status' || fieldName === 'startTime' || fieldName === 'endTime') {
+                    updateStats();
                 }
-
-                // Map field names to API fields
-                const apiData = {
-                    cue_number: cue.number,
-                    title: cue.title,
-                    status: cue.status,
-                    duration: cue.duration,
-                    notes: cue.notes,
-                    start_time: cue.startTime,
-                    end_time: cue.endTime,
-                    theme: cue.theme,
-                    version: cue.version
-                };
-
-                console.log('Updating cue', cueId, 'field', fieldName, 'with data:', apiData);
-
-                try {
-                    await CuesAPI.update(cueId, apiData);
-                    console.log('Update successful');
-
-                    // Update stats if status changed
-                    if (fieldName === 'status') {
-                        updateStats();
-                    }
-                } catch (error) {
-                    console.error('Error updating cue:', error);
-                    alert('Failed to update cue');
-                }
+            } catch (error) {
+                console.error('Error updating cue:', error);
+                alert('Failed to update cue. Please try again.');
             }
         }
 
@@ -552,11 +684,8 @@
             document.getElementById('cueModal').querySelectorAll('input, textarea').forEach(el => el.value = '');
             document.getElementById('cueStatus').value = 'to-write';
 
-            // Populate theme datalist with existing themes
-            const projectCues = cues[currentProject] || [];
-            const existingThemes = [...new Set(projectCues.map(c => c.theme || c.usage).filter(t => t))];
-            const themeList = document.getElementById('themeList');
-            themeList.innerHTML = existingThemes.map(theme => `<option value="${theme}">`).join('');
+            // Populate theme dropdown with existing themes
+            populateModalThemeDropdown();
 
             // Auto-generate next cue number in format "1m1, 1m2, 1m3..."
             let nextNumber = '1m1';
@@ -663,25 +792,33 @@
         }
 
         function editCue(cueId) {
+            if (!currentProject) {
+                alert('No project selected');
+                return;
+            }
+
             currentCueId = cueId;
-            const cue = cues[currentProject].find(c => c.id === cueId);
+            const cue = cues[currentProject].find(c => c.id == cueId);
 
-            // Populate theme datalist with existing themes
-            const projectCues = cues[currentProject] || [];
-            const existingThemes = [...new Set(projectCues.map(c => c.theme || c.usage).filter(t => t))];
-            const themeList = document.getElementById('themeList');
-            themeList.innerHTML = existingThemes.map(theme => `<option value="${theme}">`).join('');
+            if (!cue) {
+                alert('Cue not found');
+                return;
+            }
 
+            // Populate theme dropdown with existing themes
+            populateModalThemeDropdown(cue.theme || cue.usage);
+
+            // Update modal title and populate form fields
             document.getElementById('modalTitle').textContent = 'Edit Cue';
-            document.getElementById('cueNumber').value = cue.number;
-            document.getElementById('cueTitle').value = cue.title;
-            document.getElementById('startTime').value = cue.startTime;
-            document.getElementById('endTime').value = cue.endTime;
-            document.getElementById('cueTheme').value = cue.theme || cue.usage || '';
-            document.getElementById('cueStatus').value = cue.status;
+            document.getElementById('cueNumber').value = cue.number || '';
+            document.getElementById('cueTitle').value = cue.title || '';
+            document.getElementById('startTime').value = cue.startTime || '';
+            document.getElementById('endTime').value = cue.endTime || '';
+            document.getElementById('cueStatus').value = cue.status || 'to-write';
             document.getElementById('cueVersion').value = cue.version || '';
             document.getElementById('cueNotes').value = cue.notes || '';
 
+            // Show the modal
             document.getElementById('cueModal').classList.add('active');
         }
 
@@ -692,6 +829,7 @@
                 await CuesAPI.delete(cueId);
                 cues[currentProject] = cues[currentProject].filter(c => c.id !== cueId);
                 renderCues();
+                updateStats();
             } catch (error) {
                 console.error('Error deleting cue:', error);
                 alert('Failed to delete cue');

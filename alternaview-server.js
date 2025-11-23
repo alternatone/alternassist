@@ -40,21 +40,52 @@ function startServer() {
     cookie: {
       maxAge: config.sessionMaxAge,
       httpOnly: true,
-      secure: false
+      secure: false,
+      sameSite: 'lax',
+      path: '/'
     }
   }));
 
-  // Serve static files from HTML Sketches directory
-  app.use('/media', express.static(path.join(__dirname, 'HTML Sketches')));
+  // CORS headers for tus uploads
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, Upload-Length, Upload-Offset, Tus-Resumable, Upload-Metadata, Upload-Concat, Location, Cookie');
+    res.header('Access-Control-Expose-Headers', 'Upload-Offset, Location, Upload-Length, Tus-Version, Tus-Resumable, Tus-Max-Size, Tus-Extension, Upload-Metadata, Upload-Defer-Length, Upload-Concat');
+    res.header('Access-Control-Allow-Credentials', 'true');
+
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
+  // Disable caching for HTML files
+  app.use('/media', (req, res, next) => {
+    if (req.path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    next();
+  });
+
+  // Serve static files from public directory
+  app.use('/media', express.static(path.join(__dirname, 'public')));
+
+  // Serve client portal at /client
+  app.use('/client', express.static(path.join(__dirname, 'client-portal')));
 
   // API Routes
   app.use('/api/projects', require('./server/routes/projects'));
   app.use('/api/files', require('./server/routes/files'));
+  app.use('/api/upload', require('./server/routes/upload'));
   app.use('/api/estimates', require('./server/routes/estimates'));
   app.use('/api/cues', require('./server/routes/cues'));
   app.use('/api/invoices', require('./server/routes/invoices'));
   app.use('/api/payments', require('./server/routes/payments'));
   app.use('/api/accounting', require('./server/routes/accounting'));
+  app.use('/api/hours-log', require('./server/routes/hours-log'));
 
   // Error handling middleware
   app.use((err, req, res, next) => {

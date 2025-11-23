@@ -354,8 +354,8 @@
                             <span>Amount</span>
                         </div>
                         <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
-                            <button class="btn btn-danger" onclick="cancelImport()">Cancel</button>
-                            <button class="btn btn-success" onclick="processCSVImport()">Import Transactions</button>
+                            <button class="btn btn-danger" onclick="cancelImport()">cancel</button>
+                            <button class="btn btn-success" onclick="processCSVImport()">import transactions</button>
                         </div>
                     </div>
 
@@ -427,8 +427,8 @@
                     <textarea id="editNotes"></textarea>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success">Save Changes</button>
+                    <button type="button" class="btn btn-danger" onclick="closeEditModal()">cancel</button>
+                    <button type="submit" class="btn btn-success">save changes</button>
                 </div>
             </form>
         </div>
@@ -479,8 +479,8 @@
                     </select>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-danger" onclick="closeBulkEditModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success">Apply Changes</button>
+                    <button type="button" class="btn btn-danger" onclick="closeBulkEditModal()">cancel</button>
+                    <button type="submit" class="btn btn-success">apply changes</button>
                 </div>
             </form>
         </div>
@@ -490,7 +490,7 @@
     <div id="expenseModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">Add Expense</h3>
+                <h3 class="modal-title">add expense</h3>
             </div>
             <form id="expenseForm" onsubmit="addExpense(event)">
                 <div class="form-group">
@@ -546,8 +546,8 @@
                     <textarea id="expenseNotes" placeholder="Additional details..."></textarea>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-danger" onclick="closeExpenseModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Expense</button>
+                    <button type="button" class="btn btn-danger" onclick="closeExpenseModal()">cancel</button>
+                    <button type="submit" class="btn btn-success">add expense</button>
                 </div>
             </form>
         </div>

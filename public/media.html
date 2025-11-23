@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media - Alternassist</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="media-styles.css">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #FDF8F0;
+        }
+
+        .ftp-setup-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .ftp-setup-btn:hover {
+            background: #f5f5f5;
+            border-color: #469FE0;
+            color: #469FE0;
+        }
+
+        .ftp-setup-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .project-row {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .project-row:hover {
+            background: #fafafa !important;
+        }
+
+        .folder-row {
+            background: #f9f9f9 !important;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .folder-row:hover {
+            background: #f0f0f0 !important;
+        }
+
+        .folder-row.drag-over {
+            background: #e3f2fd !important;
+            border-left: 3px solid #469FE0;
+        }
+
+        .folder-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .folder-icon {
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .folder-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .file-row {
+            display: none;
+        }
+
+        .file-row.visible {
+            display: table-row;
+        }
+
+        .file-row td:first-child {
+            padding-left: 3rem;
+        }
+
+        .folder-stats {
+            color: #888;
+            font-size: 0.85rem;
+            font-weight: normal;
+        }
+
+        /* Modal fixes */
+        .modal {
+            display: none !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .modal.show {
+            display: flex !important;
+        }
+
+        .modal-content {
+            max-width: 600px !important;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        /* Modal buttons - no uppercase */
+        .modal .btn-primary,
+        .modal .btn-secondary {
+            text-transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="browser-container">
+            <div class="browser-header">
+                <h1>Media</h1>
+            </div>
+
+            <!-- Projects and Files Browser -->
+            <div class="file-table-container">
+                <table class="file-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">Name</th>
+                            <th>Status</th>
+                            <th>Size</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectsTableBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">Loading projects...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="media.js"></script>
+</body>
+</html>

@@ -681,7 +681,6 @@
                     </div>
                 </div>
                 <video id="videoPlayer" style="display: none;">
-                    <source src="" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
                 <audio id="audioPlayer" style="display: none; width: 80%; max-width: 600px;">
@@ -816,15 +815,8 @@
 
         async function loadFileFromBackend() {
             try {
-                // Check authentication
-                const authResponse = await fetch('http://localhost:3000/api/projects/current');
-                if (!authResponse.ok) {
-                    window.location.href = '/';
-                    return;
-                }
-
-                // Load file metadata
-                const filesResponse = await fetch('http://localhost:3000/api/files');
+                // Load file metadata using project-scoped endpoint
+                const filesResponse = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
                 if (!filesResponse.ok) {
                     alert('Failed to load file');
                     return;
@@ -841,7 +833,8 @@
 
                 // Determine which player to use based on file type
                 const audioVisualizer = document.getElementById('audioVisualizer');
-                if (file.type === 'audio') {
+                const isAudio = file.mime_type && file.mime_type.startsWith('audio/');
+                if (isAudio) {
                     activePlayer = audioPlayer;
                     audioPlayer.style.display = 'block';
                     videoPlayer.style.display = 'none';
@@ -853,10 +846,10 @@
                     audioVisualizer.style.display = 'none';
                 }
 
-                // Set source to streaming endpoint
-                activePlayer.src = `/api/files/${currentFileId}/stream`;
-                videoFilename.textContent = file.name;
-                currentVideoFile = file.name;
+                // Set source to streaming endpoint with project ID
+                activePlayer.src = `/api/files/${projectId}/${currentFileId}/stream`;
+                videoFilename.textContent = file.original_name;
+                currentVideoFile = file.original_name;
 
                 // Hide placeholder
                 videoPlaceholder.style.display = 'none';
@@ -875,7 +868,7 @@
 
         async function loadCommentsFromBackend() {
             try {
-                const response = await fetch(`http://localhost:3000/api/files/${currentFileId}/comments`);
+                const response = await fetch(`http://localhost:3000/api/files/${projectId}/${currentFileId}/comments`);
                 if (response.ok) {
                     comments = await response.json();
                     renderComments();
@@ -893,7 +886,7 @@
 
         async function saveCommentToBackend(comment) {
             try {
-                const response = await fetch(`http://localhost:3000/api/files/${currentFileId}/comments`, {
+                const response = await fetch(`http://localhost:3000/api/files/${projectId}/${currentFileId}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

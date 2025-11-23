@@ -375,17 +375,38 @@
             const scopeNotes = scopeParts.join(', ');
 
             try {
-                // Step 1: Create project
+                // Calculate totals for project
+                const musicCost = musicMinutes * MUSIC_RATE;
+                const postDays = roundToHalfDay(totalPostHours);
+                const postCost = postDays * DAY_RATE;
+                let subtotal = musicCost + postCost;
+                const bundleDiscount = document.getElementById('bundleDiscount').checked;
+                const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
+                const total = subtotal - discount;
+
+                // Calculate taxes (assuming 30% for estimates)
+                const estimatedTaxes = total * 0.30;
+                const netAfterTaxes = total - estimatedTaxes;
+
+                // Step 1: Create project with all comprehensive data
                 const projectResponse = await fetch('http://localhost:3000/api/projects', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: projectName,
                         client_name: clientName,
+                        contact_email: contactEmail,
                         status: 'prospects',
-                        notes: '', // No longer using notes for scope data
+                        notes: '',
                         pinned: 0,
-                        password: 'default'
+                        password: 'default',
+                        trt: `${runtime} min`,
+                        music_coverage: Math.round(musicMinutes),
+                        timeline_start: null,
+                        timeline_end: null,
+                        estimated_total: total,
+                        estimated_taxes: estimatedTaxes,
+                        net_after_taxes: netAfterTaxes
                     })
                 });
 
@@ -414,14 +435,6 @@
                 });
 
                 // Step 3: Log the estimate
-                const musicCost = musicMinutes * MUSIC_RATE;
-                const postDays = roundToHalfDay(totalPostHours);
-                const postCost = postDays * DAY_RATE;
-                let subtotal = musicCost + postCost;
-                const bundleDiscount = document.getElementById('bundleDiscount').checked;
-                const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
-                const total = subtotal - discount;
-
                 await fetch('http://localhost:3000/api/estimates', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -596,12 +609,9 @@
                 date: new Date().toISOString()
             };
 
-            const loggedEstimates = JSON.parse(localStorage.getItem('logged-estimates') || '[]');
-            loggedEstimates.push(loggedEstimate);
-            localStorage.setItem('logged-estimates', JSON.stringify(loggedEstimates));
-
-            renderLoggedEstimates();
-            alert('Estimate logged successfully!');
+            // Note: The "Log Estimate" button is deprecated
+            // Users should use "Send to Projects" instead, which saves everything to the API
+            alert('Please use "Send to Projects" to save this estimate to the database.');
         }
 
         async function renderLoggedEstimates() {

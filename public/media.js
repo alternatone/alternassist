@@ -1,0 +1,483 @@
+let expandedProjects = new Set();
+let expandedFolders = new Set(); // Folders per project like "123-FROM AA"
+let projectFiles = {}; // Cache files by project ID
+
+// Load projects when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadProjects);
+} else {
+    loadProjects();
+}
+
+async function loadProjects() {
+    try {
+        const response = await fetch('http://localhost:3000/api/projects');
+        if (!response.ok) throw new Error('Failed to load projects');
+
+        const projects = await response.json();
+
+        const tbody = document.getElementById('projectsTableBody');
+
+        if (projects.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">No projects yet.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        for (const project of projects) {
+            html += await createProjectRow(project);
+        }
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading projects:', error);
+        document.getElementById('projectsTableBody').innerHTML = `
+            <tr><td colspan="5" class="empty-state">Error loading projects</td></tr>
+        `;
+    }
+}
+
+async function createProjectRow(project) {
+    const isExpanded = expandedProjects.has(project.id);
+
+    let html = `
+        <tr class="project-row" data-project="${project.id}" onclick="toggleProject(${project.id})">
+            <td>
+                <div class="file-name">
+                    <span class="folder-icon ${isExpanded ? 'expanded' : ''}">▶</span>
+                    ${escapeHtml(project.name)}
+                </div>
+            </td>
+            <td>${formatStatus(project.status)}</td>
+            <td>${project.file_count || 0} files</td>
+            <td class="file-size">${formatFileSize(project.total_size || 0)}</td>
+            <td onclick="event.stopPropagation()">
+                <div class="file-actions">
+                    <button class="btn-action" onclick="openFtpSetupForProject(${project.id}, '${escapeHtml(project.name)}', '${project.status || ''}')" title="FTP Setup">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                    <button class="btn-action" onclick="copyClientPortalLinkForProject(${project.id}, '${escapeHtml(project.name)}')" title="Copy share link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-action" onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')" title="Delete project">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+
+    // If expanded, add folders and files
+    if (isExpanded) {
+        const files = projectFiles[project.id] || [];
+        const fromAAFiles = files.filter(f => f.folder === 'FROM AA');
+        const toAAFiles = files.filter(f => f.folder === 'TO AA');
+
+        // FROM AA Folder
+        html += createFolderRow(project.id, 'FROM AA', fromAAFiles);
+        html += fromAAFiles.map(file => createFileRow(project.id, file, 'FROM AA')).join('');
+
+        // TO AA Folder
+        html += createFolderRow(project.id, 'TO AA', toAAFiles);
+        html += toAAFiles.map(file => createFileRow(project.id, file, 'TO AA')).join('');
+    }
+
+    return html;
+}
+
+async function toggleProject(projectId) {
+    if (expandedProjects.has(projectId)) {
+        expandedProjects.delete(projectId);
+    } else {
+        expandedProjects.add(projectId);
+        // Load files if not already loaded
+        if (!projectFiles[projectId]) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+                if (response.ok) {
+                    projectFiles[projectId] = await response.json();
+                }
+            } catch (error) {
+                console.error('Error loading files:', error);
+                projectFiles[projectId] = [];
+            }
+        }
+    }
+    await loadProjects();
+}
+
+function createFolderRow(projectId, folderName, files) {
+    const folderKey = `${projectId}-${folderName}`;
+    const isExpanded = expandedFolders.has(folderKey);
+    const fileCount = files.length;
+    const totalSize = files.reduce((sum, f) => sum + (f.file_size || 0), 0);
+
+    return `
+        <tr class="folder-row" data-project="${projectId}" data-folder="${folderName}" onclick="toggleFolder(${projectId}, '${folderName}')">
+            <td>
+                <div class="folder-name" style="padding-left: 2rem;">
+                    <span class="folder-icon ${isExpanded ? 'expanded' : ''}">▶</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>${folderName}</span>
+                </div>
+            </td>
+            <td colspan="2" class="file-date">${fileCount} file${fileCount !== 1 ? 's' : ''}</td>
+            <td class="file-size">${formatFileSize(totalSize)}</td>
+            <td></td>
+        </tr>
+    `;
+}
+
+function createFileRow(projectId, file, folder) {
+    const folderKey = `${projectId}-${folder}`;
+    const isVisible = expandedFolders.has(folderKey);
+
+    // Check if file is audio or video
+    const ext = file.original_name.split('.').pop().toLowerCase();
+    const isMediaFile = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg'].includes(ext);
+    const fileNameHtml = isMediaFile
+        ? `<a href="media_review.html?file=${file.id}&project=${projectId}" style="cursor: pointer; color: var(--accent-teal); text-decoration: none;">${escapeHtml(file.original_name)}</a>`
+        : escapeHtml(file.original_name);
+
+    return `
+        <tr class="file-row ${isVisible ? 'visible' : ''}" data-project="${projectId}" data-folder="${folder}">
+            <td><div class="file-name" style="padding-left: 4rem;">${fileNameHtml}</div></td>
+            <td class="file-size">${formatFileSize(file.file_size)}</td>
+            <td class="file-date">${formatDate(file.uploaded_at)}</td>
+            <td colspan="2">
+                <div class="file-actions">
+                    <button class="btn-action" onclick="copyFileLink(${file.id}, '${escapeHtml(file.original_name)}')" title="Copy Link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-action" onclick="downloadFile(${file.id}, '${escapeHtml(file.original_name)}')" title="Download">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                    <button class="btn-action" onclick="deleteFile(${projectId}, ${file.id}, '${escapeHtml(file.original_name)}')" title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+async function toggleFolder(projectId, folderName) {
+    const folderKey = `${projectId}-${folderName}`;
+    if (expandedFolders.has(folderKey)) {
+        expandedFolders.delete(folderKey);
+    } else {
+        expandedFolders.add(folderKey);
+    }
+    await loadProjects();
+}
+
+// Open FTP setup from project list
+async function openFtpSetupForProject(projectId, projectName, status) {
+    await openFtpSetup(projectId, projectName, status);
+}
+
+// Copy link from project list
+function copyClientPortalLinkForProject(projectId, projectName) {
+    const link = `http://localhost:3000/client/login.html`;
+    navigator.clipboard.writeText(link).then(() => {
+        alert(`Client portal link copied!\n\n${link}\n\nShare this link with "${projectName}" along with their password.`);
+    }).catch(err => {
+        alert(`Failed to copy link: ${err}`);
+    });
+}
+
+// Delete project
+async function deleteProject(projectId, projectName) {
+    if (!confirm(`Are you sure you want to delete the project "${projectName}"?\n\nThis will delete all files and cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/projects/${projectId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete project');
+        }
+
+        delete projectFiles[projectId];
+        expandedProjects.delete(projectId);
+        await loadProjects();
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project');
+    }
+}
+
+async function openFtpSetup(projectId, projectName, status) {
+    try {
+        // Get fresh project data
+        const response = await fetch(`http://localhost:3000/api/projects/${projectId}`);
+        const project = await response.json();
+
+        // Build modal content HTML
+        const modalContent = `
+            <div class="form-group">
+                <label>Project Name</label>
+                <input type="text" value="${escapeHtml(project.name)}" readonly>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <div style="padding: 0.5rem 0;">
+                    <span class="status-badge status-${project.status || 'unknown'}">${formatStatus(project.status)}</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input id="modalPasswordInput" type="password" value="••••••••" readonly style="flex: 1; font-family: monospace;">
+                    <button class="btn-secondary" id="modalPasswordToggle" onclick="parent.toggleModalPassword()">Show</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Files</label>
+                <input type="text" value="${project.file_count || 0} files" readonly>
+            </div>
+            <div class="form-group">
+                <label>Total Size</label>
+                <input type="text" value="${formatFileSize(project.total_size || 0)}" readonly>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                <button class="btn-primary" onclick="parent.copyClientPortalLink()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                    Copy Client Portal Link
+                </button>
+                <button class="btn-secondary" onclick="parent.regeneratePassword()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    Regenerate Password
+                </button>
+            </div>
+        `;
+
+        // Send message to parent to show modal
+        window.parent.postMessage({
+            type: 'show-ftp-modal',
+            content: modalContent,
+            project: { id: project.id, name: project.name }
+        }, '*');
+    } catch (error) {
+        console.error('Error loading project details:', error);
+        alert('Failed to load FTP setup');
+    }
+}
+
+function closeFtpSetup() {
+    window.parent.postMessage({ type: 'hide-ftp-modal' }, '*');
+}
+
+async function copyFileLink(fileId, fileName) {
+    const fileUrl = `http://localhost:3000/api/files/${fileId}/download`;
+    try {
+        await navigator.clipboard.writeText(fileUrl);
+        alert(`Link copied to clipboard!\n\n${fileName}\n${fileUrl}`);
+    } catch (error) {
+        console.error('Error copying link:', error);
+        alert('Failed to copy link');
+    }
+}
+
+async function downloadFile(fileId, fileName) {
+    try {
+        const response = await fetch(`http://localhost:3000/api/files/${fileId}/download`);
+        if (!response.ok) throw new Error('Download failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (error) {
+        console.error('Error downloading file:', error);
+        alert('Failed to download file');
+    }
+}
+
+async function deleteFile(projectId, fileId, fileName) {
+    if (!confirm(`Are you sure you want to delete "${fileName}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/files/${fileId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Delete failed');
+
+        // Refresh files for this project
+        const filesResponse = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+        if (filesResponse.ok) {
+            projectFiles[projectId] = await filesResponse.json();
+        }
+        await loadProjects();
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        alert('Failed to delete file');
+    }
+}
+
+// Drag and drop functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const tbody = document.getElementById('projectsTableBody');
+
+    // Prevent default drag behavior
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.body.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    // Delegate drag events to folder rows
+    tbody.addEventListener('dragenter', (e) => {
+        const folderRow = e.target.closest('.folder-row');
+        if (folderRow) {
+            folderRow.classList.add('drag-over');
+        }
+    });
+
+    tbody.addEventListener('dragleave', (e) => {
+        const folderRow = e.target.closest('.folder-row');
+        if (folderRow) {
+            folderRow.classList.remove('drag-over');
+        }
+    });
+
+    tbody.addEventListener('dragover', (e) => {
+        if (e.target.closest('.folder-row')) {
+            e.preventDefault();
+        }
+    });
+
+    tbody.addEventListener('drop', async (e) => {
+        const folderRow = e.target.closest('.folder-row');
+        if (folderRow) {
+            folderRow.classList.remove('drag-over');
+            const projectId = folderRow.dataset.project;
+            const folder = folderRow.dataset.folder;
+            const files = e.dataTransfer.files;
+
+            if (files.length > 0) {
+                for (const file of files) {
+                    await uploadFile(file, projectId, folder);
+                }
+            }
+        }
+    });
+});
+
+async function uploadFile(file, projectId, folder) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+    formData.append('projectId', projectId);
+
+    try {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentage = ((e.loaded / e.total) * 100).toFixed(2);
+                console.log(`Upload progress: ${percentage}%`);
+            }
+        });
+
+        xhr.addEventListener('load', async () => {
+            if (xhr.status === 200) {
+                // Refresh files for this project
+                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+                if (response.ok) {
+                    projectFiles[projectId] = await response.json();
+                }
+                await loadProjects();
+            } else {
+                alert(`Upload failed: ${file.name}`);
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            alert(`Upload failed: ${file.name} - Network error`);
+        });
+
+        xhr.open('POST', `http://localhost:3000/api/projects/${projectId}/upload`, true);
+        xhr.send(formData);
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        alert(`Failed to upload ${file.name}`);
+    }
+}
+
+// Helper functions
+function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatStatus(status) {
+    if (!status) return '<span class="status-badge status-unknown">Unknown</span>';
+    return status;
+}
+
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
