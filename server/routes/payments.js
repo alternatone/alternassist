@@ -37,52 +37,21 @@ router.get('/invoice/:invoiceId', (req, res) => {
 // Create new payment
 router.post('/', (req, res) => {
   try {
-    const {
-      invoice_id,
-      project_id,
-      amount,
-      payment_date,
-      payment_method,
-      payment_type,
-      notes
-    } = req.body;
+    const { invoice_id, project_id, amount, payment_date,
+            payment_method, payment_type, notes } = req.body;
 
-    if (!project_id) {
-      return res.status(400).json({ error: 'project_id is required' });
-    }
-
-    if (!amount) {
-      return res.status(400).json({ error: 'amount is required' });
-    }
-
-    // Verify project exists
-    const project = projectQueries.findById.get(project_id);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    // If invoice_id provided, verify it exists
-    if (invoice_id) {
-      const invoice = invoiceQueries.findById.get(invoice_id);
-      if (!invoice) {
-        return res.status(404).json({ error: 'Invoice not found' });
-      }
+    if (!project_id || !amount) {
+      return res.status(400).json({ error: 'project_id and amount required' });
     }
 
     const result = paymentQueries.create.run(
-      invoice_id || null,
-      project_id,
-      amount,
-      payment_date || null,
-      payment_method || null,
-      payment_type || null,
-      notes || null
+      invoice_id, project_id, amount, payment_date,
+      payment_method, payment_type, notes
     );
 
-    const payment = paymentQueries.findById.get(result.lastInsertRowid);
-    res.json(payment);
+    res.json({ id: result.lastInsertRowid, ...req.body });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 });
 

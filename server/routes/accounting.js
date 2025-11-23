@@ -29,20 +29,14 @@ router.post('/', (req, res) => {
     const { project_id, transaction_type, category, amount, transaction_date, description } = req.body;
 
     if (!transaction_type || !amount) {
-      return res.status(400).json({ error: 'transaction_type and amount are required' });
+      return res.status(400).json({ error: 'transaction_type and amount required' });
     }
 
     const result = accountingQueries.create.run(
-      project_id || null,
-      transaction_type,
-      category || null,
-      amount,
-      transaction_date || null,
-      description || null
+      project_id, transaction_type, category, amount, transaction_date, description
     );
 
-    const record = accountingQueries.findById.get(result.lastInsertRowid);
-    res.json(record);
+    res.json({ id: result.lastInsertRowid, ...req.body });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

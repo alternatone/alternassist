@@ -90,9 +90,32 @@ function startServer() {
   app.use('/api/accounting', require('./server/routes/accounting'));
   app.use('/api/hours-log', require('./server/routes/hours-log'));
 
-  // Error handling middleware
+  // Centralized error handling middleware (Phase 2 optimization)
   app.use((err, req, res, next) => {
-    console.error('Alternaview Error:', err);
+    console.error('Error:', err.message);
+
+    // Handle multer file upload errors
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File too large' });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ error: 'Too many files' });
+    }
+
+    // Handle SQLite constraint errors
+    if (err.code === 'SQLITE_CONSTRAINT' || err.message?.includes('UNIQUE constraint')) {
+      return res.status(400).json({ error: 'Duplicate or invalid data' });
+    }
+    if (err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+      return res.status(400).json({ error: 'Referenced project or resource not found' });
+    }
+
+    // Handle authentication errors
+    if (err.message === 'Not authenticated') {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Default error response
     res.status(err.status || 500).json({
       error: err.message || 'Internal server error'
     });

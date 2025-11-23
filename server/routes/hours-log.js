@@ -44,27 +44,16 @@ router.post('/', (req, res) => {
     const { project_id, date, hours, category, description } = req.body;
 
     if (!project_id || !date || hours === undefined) {
-      return res.status(400).json({ error: 'project_id, date, and hours are required' });
-    }
-
-    // Verify project exists
-    const project = projectQueries.findById.get(project_id);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(400).json({ error: 'project_id, date, hours required' });
     }
 
     const result = hoursLogQueries.create.run(
-      project_id,
-      date,
-      hours,
-      category || null,
-      description || null
+      project_id, date, hours, category, description
     );
 
-    const entry = hoursLogQueries.findById.get(result.lastInsertRowid);
-    res.json(entry);
+    res.json({ id: result.lastInsertRowid, ...req.body });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 });
 
@@ -72,23 +61,13 @@ router.post('/', (req, res) => {
 router.patch('/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { date, hours, category, description } = req.body;
-
     const entry = hoursLogQueries.findById.get(id);
-    if (!entry) {
-      return res.status(404).json({ error: 'Hours log entry not found' });
-    }
+    if (!entry) return res.status(404).json({ error: 'Hours log entry not found' });
 
-    hoursLogQueries.update.run(
-      date !== undefined ? date : entry.date,
-      hours !== undefined ? hours : entry.hours,
-      category !== undefined ? category : entry.category,
-      description !== undefined ? description : entry.description,
-      id
-    );
+    const updates = { ...entry, ...req.body };
+    hoursLogQueries.update.run(updates.date, updates.hours, updates.category, updates.description, id);
 
-    const updatedEntry = hoursLogQueries.findById.get(id);
-    res.json(updatedEntry);
+    res.json({ ...entry, ...req.body });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

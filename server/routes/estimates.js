@@ -26,52 +26,22 @@ router.get('/project/:projectId', (req, res) => {
 // Create new estimate
 router.post('/', (req, res) => {
   try {
-    const {
-      project_id,
-      runtime,
-      music_minutes,
-      dialogue_hours,
-      sound_design_hours,
-      mix_hours,
-      revision_hours,
-      post_days,
-      bundle_discount,
-      music_cost,
-      post_cost,
-      discount_amount,
-      total_cost
-    } = req.body;
+    const { project_id, runtime, music_minutes = 0, dialogue_hours = 0,
+            sound_design_hours = 0, mix_hours = 0, revision_hours = 0,
+            post_days = 0, bundle_discount = 0, music_cost = 0,
+            post_cost = 0, discount_amount = 0, total_cost = 0 } = req.body;
 
-    if (!project_id) {
-      return res.status(400).json({ error: 'project_id is required' });
-    }
-
-    // Verify project exists
-    const project = projectQueries.findById.get(project_id);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
+    if (!project_id) return res.status(400).json({ error: 'project_id required' });
 
     const result = estimateQueries.create.run(
-      project_id,
-      runtime || null,
-      music_minutes || 0,
-      dialogue_hours || 0,
-      sound_design_hours || 0,
-      mix_hours || 0,
-      revision_hours || 0,
-      post_days || 0,
-      bundle_discount ? 1 : 0,
-      music_cost || 0,
-      post_cost || 0,
-      discount_amount || 0,
-      total_cost || 0
+      project_id, runtime, music_minutes, dialogue_hours, sound_design_hours,
+      mix_hours, revision_hours, post_days, bundle_discount ? 1 : 0,
+      music_cost, post_cost, discount_amount, total_cost
     );
 
-    const estimate = estimateQueries.findById.get(result.lastInsertRowid);
-    res.json(estimate);
+    res.json({ id: result.lastInsertRowid, project_id, ...req.body });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 });
 
