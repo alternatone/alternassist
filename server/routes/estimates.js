@@ -2,6 +2,17 @@ const express = require('express');
 const router = express.Router();
 const { estimateQueries, scopeQueries, projectQueries } = require('../models/database');
 
+// Get all estimates with project info (optimized - single query with JOIN)
+router.get('/with-projects', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const estimates = estimateQueries.getAllWithProjects.all(limit);
+    res.json(estimates);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get all estimates
 router.get('/', (req, res) => {
   try {
@@ -42,6 +53,22 @@ router.post('/', (req, res) => {
     res.json({ id: result.lastInsertRowid, project_id, ...req.body });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// Get single estimate with project info (optimized - single query with JOIN)
+router.get('/:id/with-project', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const estimate = estimateQueries.getWithProject.get(id);
+
+    if (!estimate) {
+      return res.status(404).json({ error: 'Estimate not found' });
+    }
+
+    res.json(estimate);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { projectQueries, fileQueries, shareLinkQueries, db } = require('../models/database');
+const { projectQueries, fileQueries, shareLinkQueries, scopeQueries, estimateQueries, db } = require('../models/database');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -71,6 +71,97 @@ router.post('/', (req, res) => {
       id: result.lastInsertRowid,
       name,
       password: plainPassword
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Create project with estimate (unified transaction endpoint for estimate calculator)
+router.post('/with-estimate', (req, res) => {
+  try {
+    const { project, scope, estimate } = req.body;
+
+    if (!project || !project.name) {
+      return res.status(400).json({ error: 'Project data with name is required' });
+    }
+
+    // Use transaction for atomicity
+    const createProject = db.transaction(() => {
+      // 1. Create project
+      const plainPassword = project.password || 'default';
+      const hashedPassword = bcrypt.hashSync(plainPassword, 10);
+
+      const result = projectQueries.createWithPlaintext.run(
+        project.name,
+        hashedPassword,
+        plainPassword,
+        project.client_name || null,
+        project.contact_email || null,
+        project.status || 'prospects',
+        project.notes || null,
+        project.pinned ? 1 : 0,
+        project.media_folder_path || null,
+        project.password_protected ? 1 : 0,
+        project.trt || null,
+        project.music_coverage || 0,
+        project.timeline_start || null,
+        project.timeline_end || null,
+        project.estimated_total || 0,
+        project.estimated_taxes || 0,
+        project.net_after_taxes || 0
+      );
+
+      const projectId = result.lastInsertRowid;
+
+      // 2. Create scope if provided
+      if (scope) {
+        scopeQueries.upsert.run(
+          projectId,
+          scope.contact_email || null,
+          scope.music_minutes || 0,
+          scope.dialogue_hours || 0,
+          scope.sound_design_hours || 0,
+          scope.mix_hours || 0,
+          scope.revision_hours || 0
+        );
+      }
+
+      // 3. Create estimate if provided
+      if (estimate) {
+        estimateQueries.create.run(
+          projectId,
+          estimate.runtime || 0,
+          estimate.music_minutes || 0,
+          estimate.dialogue_hours || 0,
+          estimate.sound_design_hours || 0,
+          estimate.mix_hours || 0,
+          estimate.revision_hours || 0,
+          estimate.post_days || 0,
+          estimate.bundle_discount ? 1 : 0,
+          estimate.music_cost || 0,
+          estimate.post_cost || 0,
+          estimate.discount_amount || 0,
+          estimate.total_cost || 0
+        );
+      }
+
+      return projectId;
+    });
+
+    const projectId = createProject();
+
+    // Async filesystem operation
+    const projectPath = path.join(config.storagePath, project.name);
+    fs.mkdir(projectPath, { recursive: true }, () => {});
+
+    // Invalidate cache
+    cache.invalidate('projects:all');
+
+    res.json({
+      success: true,
+      project_id: projectId,
+      message: 'Project, scope, and estimate created successfully'
     });
   } catch (error) {
     res.status(400).json({ error: error.message });

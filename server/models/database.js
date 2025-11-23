@@ -453,6 +453,27 @@ const estimateQueries = {
   findById: db.prepare('SELECT * FROM estimates WHERE id = ?'),
   findByProject: db.prepare('SELECT * FROM estimates WHERE project_id = ? ORDER BY created_at DESC'),
   getAll: db.prepare('SELECT * FROM estimates ORDER BY created_at DESC'),
+  getAllWithProjects: db.prepare(`
+    SELECT
+      e.*,
+      p.name as project_name,
+      p.client_name,
+      p.contact_email
+    FROM estimates e
+    LEFT JOIN projects p ON p.id = e.project_id
+    ORDER BY e.created_at DESC
+    LIMIT ?
+  `),
+  getWithProject: db.prepare(`
+    SELECT
+      e.*,
+      p.name as project_name,
+      p.client_name,
+      p.contact_email
+    FROM estimates e
+    LEFT JOIN projects p ON p.id = e.project_id
+    WHERE e.id = ?
+  `),
   delete: db.prepare('DELETE FROM estimates WHERE id = ?')
 };
 

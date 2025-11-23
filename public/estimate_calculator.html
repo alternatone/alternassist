@@ -347,7 +347,6 @@
         async function sendToProjects() {
             const projectName = document.getElementById('projectName').value;
             const clientName = document.getElementById('clientName').value;
-            const contactName = document.getElementById('clientName').value;
             const contactEmail = document.getElementById('clientEmail').value;
 
             if (!projectName || !clientName) {
@@ -355,110 +354,83 @@
                 return;
             }
 
-            // Build scope summary
+            // Gather all data
             const runtime = parseFloat(document.getElementById('runtime').value) || 0;
             const musicCoverage = parseFloat(document.getElementById('musicCoverage').value) || 80;
             const dialogueHours = parseFloat(document.getElementById('dialogueHours').value) || 0;
             const soundDesignHours = parseFloat(document.getElementById('soundDesignHours').value) || 0;
             const mixHours = parseFloat(document.getElementById('mixHours').value) || 0;
             const revisionHours = parseFloat(document.getElementById('revisionHours').value) || 0;
+            const bundleDiscount = document.getElementById('bundleDiscount').checked;
 
+            // Calculate totals
             const musicMinutes = runtime * (musicCoverage / 100);
+            const musicCost = musicMinutes * MUSIC_RATE;
             const totalPostHours = dialogueHours + soundDesignHours + mixHours + revisionHours;
-
-            const scopeParts = [];
-            if (musicMinutes > 0) scopeParts.push(`${Math.round(musicMinutes)} mins music`);
-            if (dialogueHours > 0) scopeParts.push(`${dialogueHours} hrs dialogue`);
-            if (soundDesignHours > 0) scopeParts.push(`${soundDesignHours} hrs sound design`);
-            if (mixHours > 0) scopeParts.push(`${mixHours} hrs mix`);
-            if (revisionHours > 0) scopeParts.push(`${revisionHours} hrs revisions`);
-            const scopeNotes = scopeParts.join(', ');
+            const postDays = roundToHalfDay(totalPostHours);
+            const postCost = postDays * DAY_RATE;
+            const subtotal = musicCost + postCost;
+            const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
+            const total = subtotal - discount;
+            const estimatedTaxes = total * 0.30;
+            const netAfterTaxes = total - estimatedTaxes;
 
             try {
-                // Calculate totals for project
-                const musicCost = musicMinutes * MUSIC_RATE;
-                const postDays = roundToHalfDay(totalPostHours);
-                const postCost = postDays * DAY_RATE;
-                let subtotal = musicCost + postCost;
-                const bundleDiscount = document.getElementById('bundleDiscount').checked;
-                const discount = bundleDiscount && musicCost > 0 && postCost > 0 ? subtotal * 0.1 : 0;
-                const total = subtotal - discount;
-
-                // Calculate taxes (assuming 30% for estimates)
-                const estimatedTaxes = total * 0.30;
-                const netAfterTaxes = total - estimatedTaxes;
-
-                // Step 1: Create project with all comprehensive data
-                const projectResponse = await fetch('http://localhost:3000/api/projects', {
+                // Single API call creates everything!
+                const response = await fetch('http://localhost:3000/api/projects/with-estimate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        name: projectName,
-                        client_name: clientName,
-                        contact_email: contactEmail,
-                        status: 'prospects',
-                        notes: '',
-                        pinned: 0,
-                        password: 'default',
-                        trt: `${runtime} min`,
-                        music_coverage: Math.round(musicMinutes),
-                        timeline_start: null,
-                        timeline_end: null,
-                        estimated_total: total,
-                        estimated_taxes: estimatedTaxes,
-                        net_after_taxes: netAfterTaxes
+                        project: {
+                            name: projectName,
+                            client_name: clientName,
+                            contact_email: contactEmail,
+                            status: 'prospects',
+                            notes: '',
+                            pinned: 0,
+                            password: 'default',
+                            trt: `${runtime} min`,
+                            music_coverage: Math.round(musicMinutes),
+                            timeline_start: null,
+                            timeline_end: null,
+                            estimated_total: total,
+                            estimated_taxes: estimatedTaxes,
+                            net_after_taxes: netAfterTaxes
+                        },
+                        scope: {
+                            contact_email: contactEmail,
+                            music_minutes: Math.round(musicMinutes),
+                            dialogue_hours: dialogueHours,
+                            sound_design_hours: soundDesignHours,
+                            mix_hours: mixHours,
+                            revision_hours: revisionHours
+                        },
+                        estimate: {
+                            runtime: runtime,
+                            music_minutes: Math.round(musicMinutes),
+                            dialogue_hours: dialogueHours,
+                            sound_design_hours: soundDesignHours,
+                            mix_hours: mixHours,
+                            revision_hours: revisionHours,
+                            post_days: postDays,
+                            bundle_discount: bundleDiscount,
+                            music_cost: musicCost,
+                            post_cost: postCost,
+                            discount_amount: discount,
+                            total_cost: total
+                        }
                     })
                 });
 
-                if (!projectResponse.ok) {
-                    const error = await projectResponse.json();
+                if (!response.ok) {
+                    const error = await response.json();
                     alert(`Failed to create project: ${error.error}`);
                     return;
                 }
 
-                const newProject = await projectResponse.json();
-                const projectId = newProject.id;
-
-                // Step 2: Create project scope
-                await fetch('http://localhost:3000/api/estimates/scope', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project_id: projectId,
-                        contact_email: contactEmail,
-                        music_minutes: Math.round(musicMinutes),
-                        dialogue_hours: dialogueHours,
-                        sound_design_hours: soundDesignHours,
-                        mix_hours: mixHours,
-                        revision_hours: revisionHours
-                    })
-                });
-
-                // Step 3: Log the estimate
-                await fetch('http://localhost:3000/api/estimates', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project_id: projectId,
-                        runtime: runtime,
-                        music_minutes: Math.round(musicMinutes),
-                        dialogue_hours: dialogueHours,
-                        sound_design_hours: soundDesignHours,
-                        mix_hours: mixHours,
-                        revision_hours: revisionHours,
-                        post_days: postDays,
-                        bundle_discount: bundleDiscount ? 1 : 0,
-                        music_cost: musicCost,
-                        post_cost: postCost,
-                        discount_amount: discount,
-                        total_cost: total
-                    })
-                });
-
-                // Refresh logged estimates display
-                await renderLoggedEstimates();
-
                 alert('Project added to prospects pipeline successfully! Switch to the Projects tab to see it.');
+                clearEstimateForm();
+                await renderLoggedEstimates();
 
                 // Notify parent window to refresh
                 if (window.parent && window.parent !== window) {
@@ -468,9 +440,6 @@
                 console.error('Error creating project:', error);
                 alert('Failed to create project. Please try again.');
             }
-
-            // Clear the form after sending to projects
-            clearEstimateForm();
         }
 
         function handleFileImport(event) {
@@ -619,21 +588,11 @@
             const list = document.getElementById('loggedEstimatesList');
 
             try {
-                // Fetch all estimates from API
-                const response = await fetch('http://localhost:3000/api/estimates');
+                // Single optimized query with JOIN!
+                const response = await fetch('http://localhost:3000/api/estimates/with-projects?limit=50');
                 if (!response.ok) throw new Error('Failed to load estimates');
 
                 const estimates = await response.json();
-
-                // Fetch all projects to get names
-                const projectsResponse = await fetch('http://localhost:3000/api/projects');
-                const projects = await projectsResponse.json();
-
-                // Map project IDs to names
-                const projectMap = {};
-                projects.forEach(p => {
-                    projectMap[p.id] = { name: p.name, client: p.client_name || '' };
-                });
 
                 if (estimates.length === 0) {
                     section.style.display = 'none';
@@ -642,15 +601,14 @@
 
                 section.style.display = 'block';
                 list.innerHTML = estimates.reverse().map(estimate => {
-                    const project = projectMap[estimate.project_id] || { name: 'Unknown', client: '' };
                     return `
-                        <div class="logged-estimate-card" onclick="loadLoggedEstimate(${estimate.id})" style="cursor: pointer;">
+                        <div class="logged-estimate-card" data-estimate-id="${estimate.id}" onclick="loadLoggedEstimate(${estimate.id})" style="cursor: pointer;">
                             <div class="logged-estimate-header">
                                 <div>
-                                    <div class="logged-estimate-title">${project.name}</div>
+                                    <div class="logged-estimate-title">${estimate.project_name || 'Unknown'}</div>
                                     <div class="logged-estimate-date">${new Date(estimate.created_at).toLocaleDateString()}</div>
                                 </div>
-                                <button class="logged-estimate-delete" onclick="event.stopPropagation(); deleteLoggedEstimate(${estimate.id})" title="Delete">
+                                <button class="logged-estimate-delete" onclick="event.stopPropagation(); deleteLoggedEstimate(${estimate.id}, '${(estimate.project_name || 'Unknown').replace(/'/g, "\\'")}')" title="Delete">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -660,7 +618,7 @@
                                 </button>
                             </div>
                             <div class="logged-estimate-info">
-                                <div><strong>Client:</strong> ${project.client}</div>
+                                <div><strong>Client:</strong> ${estimate.client_name || ''}</div>
                                 <div><strong>Music:</strong> ${estimate.music_minutes} mins</div>
                                 <div><strong>Post:</strong> ${estimate.post_days} days</div>
                                 <div><strong>Total:</strong> $${(estimate.total_cost || 0).toFixed(0)}</div>
@@ -676,32 +634,22 @@
 
         async function loadLoggedEstimate(id) {
             try {
-                // Fetch estimate from API
-                const response = await fetch(`http://localhost:3000/api/estimates`);
-                if (!response.ok) throw new Error('Failed to load estimates');
+                // Single optimized query!
+                const response = await fetch(`http://localhost:3000/api/estimates/${id}/with-project`);
+                if (!response.ok) throw new Error('Failed to load estimate');
 
-                const estimates = await response.json();
-                const estimate = estimates.find(e => e.id === id);
-                if (!estimate) return;
+                const data = await response.json();
 
-                // Fetch project details
-                const projectResponse = await fetch(`http://localhost:3000/api/projects`);
-                const projects = await projectResponse.json();
-                const project = projects.find(p => p.id === estimate.project_id);
-
-                if (project) {
-                    document.getElementById('projectName').value = project.name || '';
-                    document.getElementById('clientName').value = project.client_name || '';
-                }
-
-                // Populate form fields from logged estimate
-                document.getElementById('runtime').value = estimate.runtime || '';
+                // Direct field access - no need to fetch projects separately
+                document.getElementById('projectName').value = data.project_name || '';
+                document.getElementById('clientName').value = data.client_name || '';
+                document.getElementById('runtime').value = data.runtime || '';
                 document.getElementById('musicCoverage').value = 80; // Default
-                document.getElementById('dialogueHours').value = estimate.dialogue_hours || '';
-                document.getElementById('soundDesignHours').value = estimate.sound_design_hours || '';
-                document.getElementById('mixHours').value = estimate.mix_hours || '';
-                document.getElementById('revisionHours').value = estimate.revision_hours || '';
-                document.getElementById('bundleDiscount').checked = estimate.bundle_discount || false;
+                document.getElementById('dialogueHours').value = data.dialogue_hours || '';
+                document.getElementById('soundDesignHours').value = data.sound_design_hours || '';
+                document.getElementById('mixHours').value = data.mix_hours || '';
+                document.getElementById('revisionHours').value = data.revision_hours || '';
+                document.getElementById('bundleDiscount').checked = data.bundle_discount || false;
 
                 // Recalculate
                 calculateEstimate();
@@ -714,8 +662,8 @@
             }
         }
 
-        async function deleteLoggedEstimate(id) {
-            if (!confirm('Delete this logged estimate?')) return;
+        async function deleteLoggedEstimate(id, projectName) {
+            if (!confirm(`Delete estimate for "${projectName}"?`)) return;
 
             try {
                 const response = await fetch(`http://localhost:3000/api/estimates/${id}`, {
@@ -723,7 +671,14 @@
                 });
 
                 if (response.ok) {
-                    await renderLoggedEstimates();
+                    // Optimistic UI update - just remove the card with animation!
+                    const card = document.querySelector(`[data-estimate-id="${id}"]`);
+                    if (card) {
+                        card.style.transition = 'opacity 0.2s, transform 0.2s';
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        setTimeout(() => card.remove(), 200);
+                    }
                 } else {
                     alert('Failed to delete estimate');
                 }
