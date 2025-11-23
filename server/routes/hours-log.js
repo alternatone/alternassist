@@ -98,37 +98,26 @@ router.post('/project/:projectId/upsert-totals', (req, res) => {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    const categories = [
-      { name: 'music', hours: parseFloat(music) || 0 },
-      { name: 'dialogue', hours: parseFloat(dialogue) || 0 },
-      { name: 'sound-design', hours: parseFloat(soundDesign) || 0 },
-      { name: 'mix', hours: parseFloat(mix) || 0 },
-      { name: 'revisions', hours: parseFloat(revisions) || 0 }
-    ];
+    const categories = { music, dialogue, 'sound-design': soundDesign, mix, revisions };
 
-    // For each category, get existing total and calculate difference
-    for (const cat of categories) {
-      if (cat.hours === 0) continue;
+    // Single query to get current totals by category
+    const totals = hoursLogQueries.getTotalByProject.all(projectId);
+    const totalMap = Object.fromEntries(totals.map(t => [t.category, t.total_hours || 0]));
 
-      const existingEntries = hoursLogQueries.findByProject.all(projectId)
-        .filter(entry => entry.category === cat.name);
+    // Calculate differences and batch insert
+    for (const [name, targetHours] of Object.entries(categories)) {
+      const target = parseFloat(targetHours) || 0;
+      if (target === 0) continue;
 
-      const existingTotal = existingEntries.reduce((sum, entry) => sum + entry.hours, 0);
-      const difference = cat.hours - existingTotal;
+      const current = totalMap[name] || 0;
+      const diff = target - current;
 
-      if (difference !== 0) {
-        // Create a new entry with the difference
-        hoursLogQueries.create.run(
-          projectId,
-          today,
-          difference,
-          cat.name,
-          'Updated from kanban board'
-        );
+      if (diff !== 0) {
+        hoursLogQueries.create.run(projectId, today, diff, name, 'Updated from kanban board');
       }
     }
 
-    res.json({ success: true, message: 'Hours updated successfully' });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

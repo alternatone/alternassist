@@ -23,23 +23,17 @@ router.get('/project/:projectId', (req, res) => {
   }
 });
 
-// Get single invoice by ID
+// Get single invoice by ID (optimized with JSON_GROUP_ARRAY)
 router.get('/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const invoice = invoiceQueries.findById.get(id);
+    const data = invoiceQueries.getWithPayments.get(id);
 
-    if (!invoice) {
-      return res.status(404).json({ error: 'Invoice not found' });
-    }
+    if (!data) return res.status(404).json({ error: 'Invoice not found' });
 
-    // Get payments for this invoice
-    const payments = paymentQueries.findByInvoice.all(id);
-
-    res.json({
-      ...invoice,
-      payments
-    });
+    // Parse JSON aggregated payments
+    const { payments_json, ...invoice } = data;
+    res.json({ ...invoice, payments: JSON.parse(payments_json || '[]') });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

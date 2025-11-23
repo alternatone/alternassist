@@ -348,6 +348,16 @@ const projectQueries = {
     GROUP BY p.id
     ORDER BY p.updated_at DESC
   `),
+  getWithStats: db.prepare(`
+    SELECT
+      p.*,
+      COALESCE(COUNT(f.id), 0) as file_count,
+      COALESCE(SUM(f.file_size), 0) as total_size
+    FROM projects p
+    LEFT JOIN files f ON f.project_id = p.id
+    WHERE p.id = ?
+    GROUP BY p.id
+  `),
   update: db.prepare(`
     UPDATE projects
     SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, pinned = ?,
@@ -464,6 +474,29 @@ const invoiceQueries = {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   findById: db.prepare('SELECT * FROM invoices WHERE id = ?'),
+  getWithPayments: db.prepare(`
+    SELECT i.*,
+      COALESCE(
+        JSON_GROUP_ARRAY(
+          CASE WHEN p.id IS NOT NULL THEN
+            JSON_OBJECT(
+              'id', p.id,
+              'amount', p.amount,
+              'payment_date', p.payment_date,
+              'payment_method', p.payment_method,
+              'payment_type', p.payment_type,
+              'notes', p.notes,
+              'created_at', p.created_at
+            )
+          END
+        ) FILTER (WHERE p.id IS NOT NULL),
+        '[]'
+      ) as payments_json
+    FROM invoices i
+    LEFT JOIN payments p ON p.invoice_id = i.id
+    WHERE i.id = ?
+    GROUP BY i.id
+  `),
   findByProject: db.prepare('SELECT * FROM invoices WHERE project_id = ? ORDER BY created_at DESC'),
   getAll: db.prepare('SELECT * FROM invoices ORDER BY created_at DESC'),
   update: db.prepare(`

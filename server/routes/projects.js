@@ -10,40 +10,30 @@ const config = require('../../alternaview-config');
 const folderSync = require('../services/folder-sync');
 const { generateSecurePassword } = require('../utils/password-generator');
 const transcoder = require('../services/transcoder');
+const cache = require('../utils/cache');
 
 // Get storage path configuration
 router.get('/config/storage-path', (req, res) => {
   res.json({ storagePath: config.storagePath });
 });
 
-// Get all projects (admin view)
+// Get all projects (admin view) - with caching
 router.get('/', (req, res) => {
   try {
-    // Single query with JOIN - much more efficient than N+1 queries
-    const projects = projectQueries.getAllWithStats.all();
+    const projects = cache.wrap('projects:all', () => projectQueries.getAllWithStats.all());
     res.json(projects);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get single project with stats (admin view)
+// Get single project with stats (admin view) - optimized single query
 router.get('/:id', (req, res) => {
   try {
-    const projectId = parseInt(req.params.id);
-    const project = projectQueries.findById.get(projectId);
+    const project = projectQueries.getWithStats.get(parseInt(req.params.id));
+    if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const stats = fileQueries.getStats.get(projectId);
-
-    res.json({
-      ...project,
-      file_count: stats?.file_count || 0,
-      total_size: stats?.total_size || 0
-    });
+    res.json(project);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -73,6 +63,9 @@ router.post('/', (req, res) => {
     // Async filesystem operation - don't block response
     const projectPath = path.join(config.storagePath, name);
     fs.mkdir(projectPath, { recursive: true }, () => {});
+
+    // Invalidate cache
+    cache.invalidate('projects:all');
 
     res.json({
       id: result.lastInsertRowid,
@@ -121,28 +114,21 @@ router.post('/auth', (req, res) => {
   }
 });
 
-// Get current authenticated project
+// Get current authenticated project (optimized single query)
 router.get('/current', (req, res) => {
   if (!req.session.projectId) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
   try {
-    const project = projectQueries.findById.get(req.session.projectId);
+    const project = projectQueries.getWithStats.get(req.session.projectId);
 
     if (!project) {
       req.session.destroy();
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const stats = fileQueries.getStats.get(project.id);
-
-    res.json({
-      id: project.id,
-      name: project.name,
-      file_count: stats.file_count || 0,
-      total_size: stats.total_size || 0
-    });
+    res.json(project);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -196,6 +182,9 @@ router.patch('/:id', (req, res) => {
       updates.net_after_taxes, projectId
     );
 
+    // Invalidate cache
+    cache.invalidate('projects:all');
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -213,6 +202,9 @@ router.delete('/:id', (req, res) => {
     // Non-blocking filesystem cleanup
     fs.rm(path.join(config.storagePath, project.name),
           { recursive: true, force: true }, () => {});
+
+    // Invalidate cache
+    cache.invalidate('projects:all');
 
     res.json({ success: true });
   } catch (error) {
