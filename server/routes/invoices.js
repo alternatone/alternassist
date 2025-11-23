@@ -1,6 +1,35 @@
 const express = require('express');
 const router = express.Router();
-const { invoiceQueries, paymentQueries, projectQueries } = require('../models/database');
+const { invoiceQueries, paymentQueries, projectQueries, db } = require('../models/database');
+const cache = require('../utils/cache');
+
+// Get all invoices with project info (optimized - single query with JOIN)
+router.get('/with-projects', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const invoices = cache.wrap(
+      `invoices:with-projects:${limit}`,
+      () => invoiceQueries.getAllWithProjects.all(limit),
+      30000  // 30 second cache
+    );
+    res.json(invoices);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get next invoice number (optimized - database MAX() query)
+router.get('/next-number', (req, res) => {
+  try {
+    const result = invoiceQueries.getNextInvoiceNumber.get();
+    const maxNumber = result?.max_num || 2522;
+    const nextNumber = '25' + String(maxNumber + 1).padStart(2, '0');
+
+    res.json({ nextNumber, currentMax: maxNumber });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Get all invoices
 router.get('/', (req, res) => {
@@ -18,6 +47,21 @@ router.get('/project/:projectId', (req, res) => {
     const projectId = parseInt(req.params.projectId);
     const invoices = invoiceQueries.findByProject.all(projectId);
     res.json(invoices);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single invoice with project info (optimized - single query with JOIN)
+router.get('/:id/with-project', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const data = invoiceQueries.getWithProject.get(id);
+
+    if (!data) return res.status(404).json({ error: 'Invoice not found' });
+
+    const { payments_json, ...invoice } = data;
+    res.json({ ...invoice, payments: JSON.parse(payments_json || '[]') });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -54,7 +98,77 @@ router.post('/', (req, res) => {
       final_amount, status, due_date, issue_date, lineItemsJson
     );
 
+    // Invalidate cache
+    cache.invalidatePattern('invoices:with-projects:');
+
     res.json({ id: result.lastInsertRowid, project_id, ...req.body });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Create invoice with payment (unified transaction endpoint)
+router.post('/with-payment', (req, res) => {
+  try {
+    const { invoice, payment, updateProject } = req.body;
+
+    if (!invoice || !payment) {
+      return res.status(400).json({ error: 'Invoice and payment data required' });
+    }
+
+    // Use transaction for atomicity
+    const createInvoiceWithPayment = db.transaction(() => {
+      // 1. Create invoice
+      const lineItemsJson = typeof invoice.line_items === 'string'
+        ? invoice.line_items
+        : JSON.stringify(invoice.line_items);
+
+      const invoiceResult = invoiceQueries.create.run(
+        invoice.project_id,
+        invoice.invoice_number,
+        invoice.amount,
+        invoice.deposit_amount || 0,
+        invoice.deposit_percentage || 0,
+        invoice.final_amount || 0,
+        invoice.status || 'sent',
+        invoice.due_date,
+        invoice.issue_date,
+        lineItemsJson
+      );
+
+      const invoiceId = invoiceResult.lastInsertRowid;
+
+      // 2. Create payment record
+      paymentQueries.create.run(
+        invoiceId,
+        payment.project_id,
+        payment.amount,
+        payment.payment_date || null,
+        payment.payment_method || null,
+        payment.payment_type || 'final',
+        payment.notes || ''
+      );
+
+      // 3. Update project status if requested
+      if (updateProject && updateProject.project_id && updateProject.status) {
+        const updateStatus = db.prepare('UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+        updateStatus.run(updateProject.status, updateProject.project_id);
+      }
+
+      return invoiceId;
+    });
+
+    const invoiceId = createInvoiceWithPayment();
+
+    // Invalidate caches
+    cache.invalidatePattern('invoices:with-projects:');
+    cache.invalidate('projects:all');
+
+    res.json({
+      success: true,
+      invoice_id: invoiceId,
+      message: 'Invoice and payment created successfully'
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -78,6 +192,9 @@ router.patch('/:id', (req, res) => {
       updates.due_date, updates.issue_date, updates.line_items, id
     );
 
+    // Invalidate cache
+    cache.invalidatePattern('invoices:with-projects:');
+
     res.json({ ...invoice, ...req.body, id });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -89,6 +206,10 @@ router.delete('/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
     invoiceQueries.delete.run(id);
+
+    // Invalidate cache
+    cache.invalidatePattern('invoices:with-projects:');
+
     res.json({ success: true, message: 'Invoice deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });

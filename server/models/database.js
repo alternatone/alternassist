@@ -518,6 +518,48 @@ const invoiceQueries = {
     WHERE i.id = ?
     GROUP BY i.id
   `),
+  getAllWithProjects: db.prepare(`
+    SELECT
+      i.*,
+      p.name as project_name,
+      p.client_name
+    FROM invoices i
+    LEFT JOIN projects p ON p.id = i.project_id
+    ORDER BY i.created_at DESC
+    LIMIT ?
+  `),
+  getNextInvoiceNumber: db.prepare(`
+    SELECT MAX(CAST(SUBSTR(invoice_number, 3) AS INTEGER)) as max_num
+    FROM invoices
+    WHERE invoice_number LIKE '25%'
+      AND LENGTH(invoice_number) >= 4
+  `),
+  getWithProject: db.prepare(`
+    SELECT
+      i.*,
+      p.name as project_name,
+      p.client_name,
+      COALESCE(
+        JSON_GROUP_ARRAY(
+          CASE WHEN pm.id IS NOT NULL THEN
+            JSON_OBJECT(
+              'id', pm.id,
+              'amount', pm.amount,
+              'payment_date', pm.payment_date,
+              'payment_method', pm.payment_method,
+              'payment_type', pm.payment_type,
+              'notes', pm.notes
+            )
+          END
+        ) FILTER (WHERE pm.id IS NOT NULL),
+        '[]'
+      ) as payments_json
+    FROM invoices i
+    LEFT JOIN projects p ON p.id = i.project_id
+    LEFT JOIN payments pm ON pm.invoice_id = i.id
+    WHERE i.id = ?
+    GROUP BY i.id
+  `),
   findByProject: db.prepare('SELECT * FROM invoices WHERE project_id = ? ORDER BY created_at DESC'),
   getAll: db.prepare('SELECT * FROM invoices ORDER BY created_at DESC'),
   update: db.prepare(`

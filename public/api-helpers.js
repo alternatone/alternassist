@@ -169,9 +169,27 @@ const InvoicesAPI = {
     return response.json();
   },
 
+  async getAllWithProjects(limit = 50) {
+    const response = await fetch(`${API_BASE}/invoices/with-projects?limit=${limit}`);
+    if (!response.ok) throw new Error('Failed to fetch invoices with projects');
+    return response.json();
+  },
+
+  async getNextNumber() {
+    const response = await fetch(`${API_BASE}/invoices/next-number`);
+    if (!response.ok) throw new Error('Failed to fetch next invoice number');
+    return response.json();
+  },
+
   async getById(id) {
     const response = await fetch(`${API_BASE}/invoices/${id}`);
     if (!response.ok) throw new Error('Failed to fetch invoice');
+    return response.json();
+  },
+
+  async getWithProject(id) {
+    const response = await fetch(`${API_BASE}/invoices/${id}/with-project`);
+    if (!response.ok) throw new Error('Failed to fetch invoice with project');
     return response.json();
   },
 
@@ -188,6 +206,19 @@ const InvoicesAPI = {
       body: JSON.stringify(invoiceData)
     });
     if (!response.ok) throw new Error('Failed to create invoice');
+    return response.json();
+  },
+
+  async createWithPayment(data) {
+    const response = await fetch(`${API_BASE}/invoices/with-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create invoice with payment');
+    }
     return response.json();
   },
 
