@@ -429,17 +429,10 @@
         async function populateFromEstimate() {
             if (!estimateData) return;
 
-            // Set today's date and get current invoice number from API
+            // Set today's date
             document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
 
-            // Get next invoice number (optimized - single query!)
-            try {
-                const { nextNumber } = await InvoicesAPI.getNextNumber();
-                document.getElementById('invoiceNumber').value = nextNumber;
-            } catch (e) {
-                console.error('Failed to get invoice number:', e);
-                document.getElementById('invoiceNumber').value = '2523';
-            }
+            // OPTIMIZED: Invoice number already set in DOMContentLoaded - no need to fetch again
 
             // Set project and client info
             document.getElementById('projectName').value = estimateData.projectName || '';
