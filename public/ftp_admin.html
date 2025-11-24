@@ -234,6 +234,9 @@
                     }).catch(err => {
                         console.error('Failed to copy password:', err);
                     });
+
+                    // OPTIMIZED: Reload projects to show updated password status
+                    await loadProjects();
                 } else {
                     alert(`Error: ${data.error || 'Failed to regenerate password'}`);
                 }

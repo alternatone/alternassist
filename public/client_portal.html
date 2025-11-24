@@ -375,50 +375,25 @@
         let currentProject = null;
         let currentUploads = [];
 
-        // Load projects on page load
-        async function loadProjects() {
+        // SECURITY FIX: Load only the authenticated project
+        async function loadCurrentProject() {
             try {
-                const response = await fetch('http://localhost:3000/api/projects');
-                const projects = await response.json();
-
-                const select = document.getElementById('projectSelect');
-                select.innerHTML = '<option value="">select project...</option>';
-
-                // Filter to only show projects that are not prospects
-                const activeProjects = projects.filter(p => p.status !== 'prospects');
-
-                activeProjects.forEach(project => {
-                    const option = document.createElement('option');
-                    option.value = project.id;
-                    option.textContent = project.name;
-                    select.appendChild(option);
+                // Only returns project for authenticated session
+                const response = await fetch('http://localhost:3000/api/projects/current', {
+                    credentials: 'include'
                 });
-            } catch (error) {
-                console.error('Failed to load projects:', error);
-            }
-        }
 
-        async function loadProject() {
-            const projectId = document.getElementById('projectSelect').value;
-
-            if (!projectId) {
-                document.getElementById('sidebar').style.display = 'none';
-                document.getElementById('emptyState').style.display = 'block';
-                document.getElementById('fileTable').style.display = 'none';
-                currentProject = null;
-                return;
-            }
-
-            try {
-                // Load project details
-                const response = await fetch(`http://localhost:3000/api/projects`);
-                const projects = await response.json();
-                currentProject = projects.find(p => p.id == projectId);
-
-                if (!currentProject) {
-                    alert('Project not found');
+                if (!response.ok) {
+                    // Not logged in - redirect to login
+                    window.location.href = '/client_login.html';
                     return;
                 }
+
+                currentProject = await response.json();
+
+                // Display project info directly (no dropdown needed)
+                document.getElementById('projectName').textContent = currentProject.name;
+                document.getElementById('clientName').textContent = currentProject.client_name || 'N/A';
 
                 // Show sidebar
                 document.getElementById('sidebar').style.display = 'block';
@@ -432,7 +407,8 @@
 
             } catch (error) {
                 console.error('Failed to load project:', error);
-                alert('Failed to load project');
+                // Redirect to login on error
+                window.location.href = '/client_login.html';
             }
         }
 
@@ -600,8 +576,8 @@
             }, 2000);
         }
 
-        // Initialize
-        loadProjects();
+        // Initialize (SECURITY FIX: load authenticated project only)
+        loadCurrentProject();
     </script>
 </body>
 </html>
