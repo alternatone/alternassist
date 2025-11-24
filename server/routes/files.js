@@ -93,6 +93,28 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
+// Get single file by ID (OPTIMIZED: eliminates fetching all files)
+router.get('/:id', (req, res) => {
+  try {
+    const fileId = parseInt(req.params.id);
+    const file = fileQueries.findById.get(fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const typeMap = { video: 'video/', audio: 'audio/', image: 'image/' };
+    const type = Object.keys(typeMap).find(k => file.mime_type.startsWith(typeMap[k])) || 'document';
+
+    res.json({
+      ...file,
+      type
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload file
 router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
   try {
@@ -321,5 +343,50 @@ router.post('/:projectId/:id/comments', (req, res) =>
 router.post('/:id/comments', requireAuth, (req, res) =>
   addComment(req.params.id, req.session.projectId, req.body, res)
 );
+
+// Update comment status (OPTIMIZED: persist comment status changes)
+router.patch('/comments/:id', (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+    const { status } = req.body;
+
+    if (!['open', 'resolved'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be "open" or "resolved"' });
+    }
+
+    // Check if comment exists
+    const comment = commentQueries.findById.get(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Update status
+    commentQueries.updateStatus.run(status, commentId);
+
+    res.json({ success: true, id: commentId, status });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete comment (OPTIMIZED: persist comment deletions)
+router.delete('/comments/:id', (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+
+    // Check if comment exists
+    const comment = commentQueries.findById.get(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Delete comment
+    commentQueries.delete.run(commentId);
+
+    res.json({ success: true, id: commentId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

@@ -803,33 +803,37 @@
         // Track video state for auto-pause/play
         let wasPlayingBeforeComment = false;
         let commentTimecode = null;
+        let projectId = null; // FIXED: Declare projectId variable
 
-        // Get file ID from URL
+        // Get file and project ID from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         currentFileId = urlParams.get('file');
+        projectId = urlParams.get('projectId'); // FIXED: Extract projectId from URL
 
         // Load file from backend if specified
-        if (currentFileId) {
-            loadFileFromBackend();
+        if (currentFileId && projectId) {
+            // OPTIMIZED: Load file and comments in parallel
+            Promise.all([
+                loadFileFromBackend(),
+                loadCommentsFromBackend()
+            ]).catch(error => {
+                console.error('Error loading page:', error);
+                alert('Failed to load media review page');
+            });
+        } else if (!projectId) {
+            alert('Missing project ID in URL');
         }
 
         async function loadFileFromBackend() {
             try {
-                // Load file metadata using project-scoped endpoint
-                const filesResponse = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
-                if (!filesResponse.ok) {
+                // OPTIMIZED: Fetch only the single file we need (not all files!)
+                const response = await fetch(`http://localhost:3000/api/files/${currentFileId}`);
+                if (!response.ok) {
                     alert('Failed to load file');
                     return;
                 }
 
-                const files = await filesResponse.json();
-                const file = files.find(f => f.id == currentFileId);
-
-                if (!file) {
-                    alert('File not found');
-                    window.location.href = '/';
-                    return;
-                }
+                const file = await response.json();
 
                 // Determine which player to use based on file type
                 const audioVisualizer = document.getElementById('audioVisualizer');
@@ -857,9 +861,6 @@
 
                 // Load the media
                 activePlayer.load();
-
-                // Load comments for this file
-                await loadCommentsFromBackend();
             } catch (error) {
                 console.error('Error loading file:', error);
                 alert('Failed to load file');
@@ -1200,29 +1201,68 @@
                 });
             });
 
-            // Resolve/reopen button
+            // Resolve/reopen button (OPTIMIZED: persist to backend)
             document.querySelectorAll('.resolve-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const card = e.target.closest('.comment-card');
                     const id = card.dataset.id;
                     const comment = comments.find(c => c.id === id);
-                    if (comment) {
+                    if (!comment) return;
+
+                    const newStatus = comment.status === 'open' ? 'resolved' : 'open';
+
+                    // Optimistic update
+                    comment.status = newStatus;
+                    renderComments();
+
+                    try {
+                        // Save to backend
+                        const response = await fetch(`http://localhost:3000/api/files/comments/${id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: newStatus })
+                        });
+
+                        if (!response.ok) throw new Error('Failed to update status');
+                    } catch (error) {
+                        console.error('Error updating comment status:', error);
+                        // Revert optimistic update
                         comment.status = comment.status === 'open' ? 'resolved' : 'open';
                         renderComments();
+                        alert('Failed to update comment status');
                     }
                 });
             });
 
-            // Delete button
+            // Delete button (OPTIMIZED: persist to backend)
             document.querySelectorAll('.icon-btn.delete').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const card = e.target.closest('.comment-card');
                     const id = card.dataset.id;
-                    if (confirm('Delete this comment?')) {
-                        comments = comments.filter(c => c.id !== id);
+
+                    if (!confirm('Delete this comment?')) return;
+
+                    // Optimistic update
+                    const deletedIndex = comments.findIndex(c => c.id === id);
+                    const deletedComment = comments[deletedIndex];
+                    comments.splice(deletedIndex, 1);
+                    renderComments();
+
+                    try {
+                        // Delete from backend
+                        const response = await fetch(`http://localhost:3000/api/files/comments/${id}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (!response.ok) throw new Error('Failed to delete comment');
+                    } catch (error) {
+                        console.error('Error deleting comment:', error);
+                        // Revert optimistic update
+                        comments.splice(deletedIndex, 0, deletedComment);
                         renderComments();
+                        alert('Failed to delete comment');
                     }
                 });
             });

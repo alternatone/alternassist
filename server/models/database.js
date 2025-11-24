@@ -451,10 +451,12 @@ const fileQueries = {
   `)
 };
 
-// Comment queries (for future)
+// Comment queries
 const commentQueries = {
   create: db.prepare('INSERT INTO comments (file_id, author_name, timecode, comment_text) VALUES (?, ?, ?, ?)'),
   findByFile: db.prepare('SELECT * FROM comments WHERE file_id = ? ORDER BY created_at ASC'),
+  findById: db.prepare('SELECT * FROM comments WHERE id = ?'),
+  updateStatus: db.prepare('UPDATE comments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   delete: db.prepare('DELETE FROM comments WHERE id = ?')
 };
 
