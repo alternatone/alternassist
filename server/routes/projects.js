@@ -41,6 +41,40 @@ router.get('/with-music', (req, res) => {
   }
 });
 
+// Get all projects with scope (optimized for kanban board)
+router.get('/with-scope', (req, res) => {
+  try {
+    const projects = cache.wrap(
+      'projects:with-scope',
+      () => projectQueries.getAllWithScope.all(),
+      60000  // 1 minute cache
+    );
+    res.json(projects);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single project with aggregated kanban data (optimized)
+router.get('/:id/kanban-data', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const data = cache.wrap(
+      `projects:kanban-data:${id}`,
+      () => projectQueries.getKanbanData.get(id),
+      30000  // 30 second cache
+    );
+
+    if (!data) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get single project with stats (admin view) - optimized single query
 router.get('/:id', (req, res) => {
   try {
@@ -80,6 +114,7 @@ router.post('/', (req, res) => {
 
     // Invalidate cache
     cache.invalidate('projects:all');
+    cache.invalidate('projects:with-scope');
 
     res.json({
       id: result.lastInsertRowid,
@@ -289,6 +324,8 @@ router.patch('/:id', (req, res) => {
 
     // Invalidate cache
     cache.invalidate('projects:all');
+    cache.invalidate('projects:with-scope');
+    cache.invalidate(`projects:kanban-data:${projectId}`);
 
     res.json({ success: true });
   } catch (error) {

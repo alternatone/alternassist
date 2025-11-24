@@ -392,25 +392,39 @@
             }
         }
 
-        function handleDrop(e) {
+        async function handleDrop(e) {
             if (e.stopPropagation) {
                 e.stopPropagation();
             }
-            
+
             const column = e.target.closest('.column');
             if (column) {
                 column.classList.remove('drag-over');
                 const newColumn = column.dataset.column;
                 const projectId = draggedElement.dataset.id;
-                
+
                 const project = projects.find(p => p.id === projectId);
                 if (project) {
+                    // OPTIMIZED: Optimistic UI update + single project save
                     project.column = newColumn;
-                    saveProjects();
+
+                    // Mark this project as dirty and render immediately
+                    window.kanbanAPI.markDirty(projectId);
                     renderBoard();
+
+                    // Save only the changed project in the background
+                    try {
+                        await saveProjects();
+                    } catch (error) {
+                        console.error('Failed to save project:', error);
+                        // Revert optimistic update on failure
+                        await window.kanbanAPI.loadProjects();
+                        projects = window.kanbanAPI.getProjects();
+                        renderBoard();
+                    }
                 }
             }
-            
+
             return false;
         }
 
@@ -513,6 +527,8 @@
 
             if (currentProjectId) {
                 Object.assign(project, { title, client, contactEmail, scopeData, loggedHours, status, notes });
+                // Mark project as dirty for optimized save
+                window.kanbanAPI.markDirty(currentProjectId);
             } else {
                 const newProject = {
                     id: Date.now().toString(),
@@ -520,6 +536,8 @@
                     column: 'prospects'
                 };
                 projects.push(newProject);
+                // Mark new project as dirty
+                window.kanbanAPI.markDirty(newProject.id);
 
                 // Save projects to get the real DB ID
                 await saveProjects();
@@ -609,16 +627,26 @@
             const isApprovedBilled = project.column === 'approved-billed';
             const isArchive = project.column === 'archive';
 
-            // Fetch scope data from API
-            let scopeFromAPI = {};
+            // OPTIMIZED: Fetch all data in single aggregated query
+            let kanbanData = {};
             try {
-                const scopeResponse = await fetch(`http://localhost:3000/api/estimates/scope/${project.id}`);
-                if (scopeResponse.ok) {
-                    scopeFromAPI = await scopeResponse.json();
+                const response = await fetch(`http://localhost:3000/api/projects/${project.id}/kanban-data`);
+                if (response.ok) {
+                    kanbanData = await response.json();
                 }
             } catch (e) {
-                console.error('Failed to fetch scope:', e);
+                console.error('Failed to fetch kanban data:', e);
             }
+
+            // Extract scope data from aggregated response
+            const scopeFromAPI = {
+                music_minutes: kanbanData.music_minutes || 0,
+                dialogue_hours: kanbanData.dialogue_hours || 0,
+                sound_design_hours: kanbanData.sound_design_hours || 0,
+                mix_hours: kanbanData.mix_hours || 0,
+                revision_hours: kanbanData.revision_hours || 0,
+                contact_email: kanbanData.contact_email || ''
+            };
 
             if (isInProcess || isInReview || isApprovedBilled || isArchive) {
                 // Show hours logger for in-process, in-review, approved-billed, and archive projects
@@ -639,45 +667,30 @@
                 document.getElementById('scopeMixDisplay').textContent = (scopeFromAPI.mix_hours || 0) + ' hrs';
                 document.getElementById('scopeRevisionsDisplay').textContent = (scopeFromAPI.revision_hours || 0) + ' hrs';
 
-                // Calculate approved music duration from cue tracker
-                let projectCues = [];
+                // OPTIMIZED: Use pre-aggregated cue stats from kanbanData
+                const toWrite = kanbanData.cues_to_write || 0;
+                const written = kanbanData.cues_written || 0;
+                const revisions = kanbanData.cues_revisions || 0;
+                const approved = kanbanData.cues_approved || 0;
+                const total = toWrite + written + revisions + approved;
+
+                // Get approved minutes from aggregated data (not fetching all cues!)
+                // Note: For now, still need to fetch cue stats for approved_minutes
+                // The kanbanData doesn't include approved_minutes yet
+                let approvedMinutes = 0;
                 try {
-                    projectCues = await CuesAPI.getByProject(project.id);
+                    const cueStats = await fetch(`http://localhost:3000/api/cues/project/${project.id}/stats`);
+                    if (cueStats.ok) {
+                        const stats = await cueStats.json();
+                        approvedMinutes = stats.approved_minutes || 0;
+                    }
                 } catch (e) {
-                    console.error('Failed to load cues:', e);
-                    projectCues = [];
+                    console.error('Failed to load cue stats:', e);
                 }
-
-                const approvedCues = projectCues.filter(cue => {
-                    const status = cue.status;
-                    return status === 'approved' || status === 'complete';
-                });
-
-                const approvedMinutes = approvedCues.reduce((total, cue) => {
-                    const start = timeToSeconds(cue.start_time || '00:00:00');
-                    const end = timeToSeconds(cue.end_time || '00:00:00');
-                    const durationSeconds = end - start;
-                    return total + (durationSeconds / 60);
-                }, 0);
 
                 // Update music logged hours with approved cue duration (rounded down)
                 const musicMins = Math.floor(approvedMinutes);
                 document.getElementById('loggedMusic').value = musicMins;
-
-                // Calculate status breakdown for progress bar
-                const normalizeStatus = (status) => {
-                    if (status === 'sketch') return 'to-write';
-                    if (status === 'recording') return 'written';
-                    if (status === 'mixing') return 'revisions';
-                    if (status === 'complete') return 'approved';
-                    return status;
-                };
-
-                const toWrite = projectCues.filter(c => normalizeStatus(c.status) === 'to-write').length;
-                const written = projectCues.filter(c => normalizeStatus(c.status) === 'written').length;
-                const revisions = projectCues.filter(c => normalizeStatus(c.status) === 'revisions').length;
-                const approved = projectCues.filter(c => normalizeStatus(c.status) === 'approved').length;
-                const total = projectCues.length;
 
                 // Update progress bar
                 const progressBar = document.getElementById('musicProgressBar');
@@ -697,26 +710,11 @@
                     `;
                 }
 
-                // Load logged hours from API
-                let loggedHoursFromAPI = {};
-                try {
-                    const hoursResponse = await fetch(`http://localhost:3000/api/hours-log/project/${project.id}/totals`);
-                    if (hoursResponse.ok) {
-                        const hoursData = await hoursResponse.json();
-                        // Convert array to object by category
-                        loggedHoursFromAPI = hoursData.by_category.reduce((acc, item) => {
-                            acc[item.category] = item.total_hours;
-                            return acc;
-                        }, {});
-                    }
-                } catch (e) {
-                    console.error('Failed to load logged hours:', e);
-                }
-
-                document.getElementById('loggedDialogue').value = loggedHoursFromAPI['dialogue'] || '';
-                document.getElementById('loggedSoundDesign').value = loggedHoursFromAPI['sound-design'] || '';
-                document.getElementById('loggedMix').value = loggedHoursFromAPI['mix'] || '';
-                document.getElementById('loggedRevisions').value = loggedHoursFromAPI['revisions'] || '';
+                // OPTIMIZED: Use logged hours from aggregated kanbanData
+                document.getElementById('loggedDialogue').value = kanbanData.logged_dialogue || '';
+                document.getElementById('loggedSoundDesign').value = kanbanData.logged_sound_design || '';
+                document.getElementById('loggedMix').value = kanbanData.logged_mix || '';
+                document.getElementById('loggedRevisions').value = kanbanData.logged_revisions || '';
             } else {
                 // Show scope summary for non-in-process projects
                 document.getElementById('scopeSection').style.display = 'block';

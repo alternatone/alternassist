@@ -8,6 +8,7 @@ class KanbanAPIAdapter {
   constructor() {
     this.projects = [];
     this.loaded = false;
+    this.dirtyProjects = new Set(); // Track which projects have changed
   }
 
   /**
@@ -19,37 +20,26 @@ class KanbanAPIAdapter {
   }
 
   /**
-   * Load all projects from API
+   * Load all projects from API (OPTIMIZED: single query with scope data)
    */
   async loadProjects() {
     try {
-      const response = await fetch('http://localhost:3000/api/projects');
+      // Single optimized query with JOIN - eliminates N+1
+      const response = await fetch('http://localhost:3000/api/projects/with-scope');
       if (!response.ok) throw new Error('Failed to load projects');
 
       const apiProjects = await response.json();
 
-      // Fetch all project scopes
-      const scopePromises = apiProjects.map(async (p) => {
-        try {
-          const scopeResponse = await fetch(`http://localhost:3000/api/estimates/scope/${p.id}`);
-          if (scopeResponse.ok) {
-            return { projectId: p.id, scope: await scopeResponse.json() };
-          }
-        } catch (e) {
-          console.error(`Failed to fetch scope for project ${p.id}:`, e);
-        }
-        return { projectId: p.id, scope: null };
-      });
-
-      const scopesData = await Promise.all(scopePromises);
-      const scopeMap = {};
-      scopesData.forEach(({ projectId, scope }) => {
-        scopeMap[projectId] = scope;
-      });
-
       // Transform API format to Kanban format
       this.projects = apiProjects.map(p => {
-        const scope = scopeMap[p.id] || {};
+        const scope = {
+          contact_email: p.contact_email || '',
+          music_minutes: p.music_minutes || 0,
+          dialogue_hours: p.dialogue_hours || 0,
+          sound_design_hours: p.sound_design_hours || 0,
+          mix_hours: p.mix_hours || 0,
+          revision_hours: p.revision_hours || 0
+        };
 
         // Check if notes contains JSON scope data - if so, don't use it as status text
         let statusText = '';
@@ -89,14 +79,27 @@ class KanbanAPIAdapter {
   }
 
   /**
-   * Save all projects back to API
+   * Mark a project as dirty (changed)
+   */
+  markDirty(projectId) {
+    this.dirtyProjects.add(projectId.toString());
+  }
+
+  /**
+   * Save projects back to API (OPTIMIZED: only saves changed projects in parallel)
    */
   async saveProjects(projects) {
     this.projects = projects;
 
-    // Update each project individually
-    // In a production app, we'd batch these or use optimistic updates
-    for (const project of projects) {
+    // Only save projects that have changed
+    const toSave = projects.filter(p => this.dirtyProjects.has(p.id.toString()));
+
+    if (toSave.length === 0) {
+      return; // Nothing to save
+    }
+
+    // Save all changed projects in parallel (not sequential!)
+    await Promise.all(toSave.map(async (project) => {
       try {
         const apiData = {
           name: project.title,
@@ -132,7 +135,10 @@ class KanbanAPIAdapter {
       } catch (error) {
         console.error(`Error saving project ${project.title}:`, error);
       }
-    }
+    }));
+
+    // Clear dirty tracking after successful save
+    this.dirtyProjects.clear();
   }
 
   /**

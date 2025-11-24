@@ -369,6 +369,52 @@ const projectQueries = {
     WHERE COALESCE(p.music_coverage, ps.music_minutes, 0) > 0
     ORDER BY p.updated_at DESC
   `),
+  getAllWithScope: db.prepare(`
+    SELECT
+      p.id,
+      p.name,
+      p.client_name,
+      p.status,
+      p.notes,
+      p.pinned,
+      p.music_coverage,
+      p.updated_at,
+      ps.contact_email,
+      ps.music_minutes,
+      ps.dialogue_hours,
+      ps.sound_design_hours,
+      ps.mix_hours,
+      ps.revision_hours
+    FROM projects p
+    LEFT JOIN project_scope ps ON ps.project_id = p.id
+    ORDER BY p.updated_at DESC
+  `),
+  getKanbanData: db.prepare(`
+    SELECT
+      p.id,
+      p.name,
+      p.client_name,
+      p.status,
+      p.notes,
+      p.pinned,
+      ps.contact_email,
+      ps.music_minutes,
+      ps.dialogue_hours,
+      ps.sound_design_hours,
+      ps.mix_hours,
+      ps.revision_hours,
+      (SELECT COUNT(*) FROM cues WHERE project_id = p.id AND status = 'to-write') as cues_to_write,
+      (SELECT COUNT(*) FROM cues WHERE project_id = p.id AND status = 'written') as cues_written,
+      (SELECT COUNT(*) FROM cues WHERE project_id = p.id AND status = 'revisions') as cues_revisions,
+      (SELECT COUNT(*) FROM cues WHERE project_id = p.id AND (status = 'approved' OR status = 'complete')) as cues_approved,
+      (SELECT COALESCE(SUM(hours), 0) FROM hours_log WHERE project_id = p.id AND category = 'dialogue') as logged_dialogue,
+      (SELECT COALESCE(SUM(hours), 0) FROM hours_log WHERE project_id = p.id AND category = 'sound-design') as logged_sound_design,
+      (SELECT COALESCE(SUM(hours), 0) FROM hours_log WHERE project_id = p.id AND category = 'mix') as logged_mix,
+      (SELECT COALESCE(SUM(hours), 0) FROM hours_log WHERE project_id = p.id AND category = 'revisions') as logged_revisions
+    FROM projects p
+    LEFT JOIN project_scope ps ON ps.project_id = p.id
+    WHERE p.id = ?
+  `),
   update: db.prepare(`
     UPDATE projects
     SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, pinned = ?,
@@ -496,7 +542,28 @@ const cueQueries = {
   getAll: db.prepare('SELECT * FROM cues ORDER BY project_id, cue_number'),
   update: db.prepare('UPDATE cues SET cue_number = ?, title = ?, status = ?, duration = ?, notes = ?, start_time = ?, end_time = ?, theme = ?, version = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   delete: db.prepare('DELETE FROM cues WHERE id = ?'),
-  deleteByProject: db.prepare('DELETE FROM cues WHERE project_id = ?')
+  deleteByProject: db.prepare('DELETE FROM cues WHERE project_id = ?'),
+  getCueStatsByProject: db.prepare(`
+    SELECT
+      COUNT(CASE WHEN status = 'to-write' THEN 1 END) as to_write,
+      COUNT(CASE WHEN status = 'written' THEN 1 END) as written,
+      COUNT(CASE WHEN status = 'revisions' THEN 1 END) as revisions,
+      COUNT(CASE WHEN status = 'approved' OR status = 'complete' THEN 1 END) as approved,
+      COALESCE(SUM(CASE
+        WHEN (status = 'approved' OR status = 'complete') AND start_time IS NOT NULL AND end_time IS NOT NULL
+        THEN (
+          (CAST(SUBSTR(end_time, 1, 2) AS INTEGER) * 3600 +
+           CAST(SUBSTR(end_time, 4, 2) AS INTEGER) * 60 +
+           CAST(SUBSTR(end_time, 7, 2) AS INTEGER)) -
+          (CAST(SUBSTR(start_time, 1, 2) AS INTEGER) * 3600 +
+           CAST(SUBSTR(start_time, 4, 2) AS INTEGER) * 60 +
+           CAST(SUBSTR(start_time, 7, 2) AS INTEGER))
+        ) / 60.0
+        ELSE 0
+      END), 0) as approved_minutes
+    FROM cues
+    WHERE project_id = ?
+  `)
 };
 
 // Invoice queries
