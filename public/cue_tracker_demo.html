@@ -282,6 +282,13 @@
         let currentCueId = null;
         let pendingThemeCueId = null;
         let cues = {}; // Stores cues by project_id
+        const debounceTimers = {}; // Track debounce timers per cue-field
+
+        // Debounce utility: delays execution until after wait time has elapsed
+        function debounce(key, func, wait) {
+            clearTimeout(debounceTimers[key]);
+            debounceTimers[key] = setTimeout(func, wait);
+        }
 
         async function initializeSampleData() {
             try {
@@ -422,18 +429,21 @@
             return `${totalMins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        function loadProjectCues() {
+        async function loadProjectCues() {
             const projectId = document.getElementById('projectSelect').value;
             if (!projectId) {
                 currentProject = null;
                 renderCues();
                 return;
             }
-            
+
             currentProject = projectId;
+
+            // Lazy load cues from API if not already cached
             if (!cues[projectId]) {
-                cues[projectId] = [];
+                await loadProjectCuesFromAPI(projectId);
             }
+
             renderCues();
         }
 
@@ -649,30 +659,35 @@
                 renderCues();  // Re-render to show updated status color
             }
 
-            // Map field names to API fields - always send complete cue data
-            const apiData = {
-                cue_number: cue.number,
-                title: cue.title,
-                status: cue.status,
-                duration: cue.duration,
-                notes: cue.notes,
-                start_time: cue.startTime,
-                end_time: cue.endTime,
-                theme: cue.theme,
-                version: cue.version
-            };
+            // Debounce API calls: wait 500ms after last edit before saving
+            // UI updates happen immediately, API calls are delayed
+            const debounceKey = `cue-${cueId}-${fieldName}`;
+            debounce(debounceKey, async () => {
+                // Map field names to API fields - always send complete cue data
+                const apiData = {
+                    cue_number: cue.number,
+                    title: cue.title,
+                    status: cue.status,
+                    duration: cue.duration,
+                    notes: cue.notes,
+                    start_time: cue.startTime,
+                    end_time: cue.endTime,
+                    theme: cue.theme,
+                    version: cue.version
+                };
 
-            try {
-                await CuesAPI.update(cueId, apiData);
+                try {
+                    await CuesAPI.update(cueId, apiData);
 
-                // Update stats if status or timing changed
-                if (fieldName === 'status' || fieldName === 'startTime' || fieldName === 'endTime') {
-                    updateStats();
+                    // Update stats if status or timing changed
+                    if (fieldName === 'status' || fieldName === 'startTime' || fieldName === 'endTime') {
+                        updateStats();
+                    }
+                } catch (error) {
+                    console.error('Error updating cue:', error);
+                    alert('Failed to update cue. Please try again.');
                 }
-            } catch (error) {
-                console.error('Error updating cue:', error);
-                alert('Failed to update cue. Please try again.');
-            }
+            }, 500);  // 500ms debounce delay
         }
 
         function showAddCueModal() {
