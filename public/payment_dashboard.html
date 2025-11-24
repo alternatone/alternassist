@@ -193,11 +193,14 @@
         // Load initial data from API
         async function loadPaymentData() {
             try {
-                // Load all invoices
-                const allInvoices = await InvoicesAPI.getAll();
+                // OPTIMIZED: Load all data in parallel (not sequential)
+                const [allInvoices, projects, allPayments] = await Promise.all([
+                    InvoicesAPI.getAll(),
+                    ProjectsAPI.getAll(),
+                    PaymentsAPI.getAll()
+                ]);
 
-                // Get projects for mapping
-                const projects = await ProjectsAPI.getAll();
+                // Build project map
                 const projectMap = {};
                 projects.forEach(p => {
                     projectMap[p.id] = { name: p.name, client: p.client_name || '' };
@@ -216,8 +219,7 @@
                     projectId: inv.project_id
                 }));
 
-                // Load all payments
-                const allPayments = await PaymentsAPI.getAll();
+                // Map payments
                 invoiceData.payments = allPayments
                     .filter(p => p.payment_date !== null)
                     .map(p => ({
@@ -232,7 +234,7 @@
 
                 updateStats();
                 renderOutstandingInvoices();
-                renderPaymentHistory();
+                renderRecentPayments();
             } catch (error) {
                 console.error('Error loading payment data:', error);
             }
@@ -423,45 +425,53 @@
             try {
                 const invoice = invoiceData.invoices.find(inv => inv.id === invoiceData.currentInvoiceId);
 
-                // Update invoice status to paid
-                await InvoicesAPI.update(invoiceData.currentInvoiceId, {
-                    status: 'paid'
+                // Optimistic UI update
+                invoice.status = 'paid';
+                renderOutstandingInvoices();
+                updateStats();
+
+                // OPTIMIZED: Single transactional API call (7 calls → 1 call)
+                const response = await fetch('http://localhost:3000/api/payments/mark-invoice-paid', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        invoice_id: invoiceData.currentInvoiceId,
+                        payment: {
+                            project_id: invoice.projectId,
+                            amount: paidAmount,
+                            payment_date: paidDate,
+                            payment_method: paymentMethod,
+                            payment_type: 'final',
+                            notes: 'Payment received'
+                        }
+                    })
                 });
 
-                // Create payment record
-                await PaymentsAPI.create({
-                    invoice_id: invoiceData.currentInvoiceId,
-                    project_id: invoice.projectId,
+                if (!response.ok) {
+                    throw new Error('Failed to mark invoice as paid');
+                }
+
+                const result = await response.json();
+
+                // Add payment to local data (no full reload)
+                invoiceData.payments.push({
+                    id: result.payment.id,
+                    invoiceId: invoiceData.currentInvoiceId,
+                    projectName: invoice.projectName,
                     amount: paidAmount,
-                    payment_date: paidDate,
-                    payment_method: paymentMethod,
-                    payment_type: invoice.amount < invoice.finalAmount ? 'partial' : 'final',
+                    date: paidDate,
+                    method: paymentMethod,
                     notes: 'Payment received'
                 });
 
-                // Update associated project status
-                if (invoice.projectId) {
-                    // Get invoice details to determine if deposit or final
-                    const fullInvoice = await InvoicesAPI.getById(invoiceData.currentInvoiceId);
-
-                    if (fullInvoice.deposit_percentage === 50) {
-                        // This was a 50% deposit
-                        await ProjectsAPI.update(invoice.projectId, {
-                            status: '50% deposit received'
-                        });
-                    } else {
-                        // Full payment received, move to archive
-                        await ProjectsAPI.update(invoice.projectId, {
-                            status: 'archive'
-                        });
-                    }
-                }
-
                 hidePaidModal();
-                await loadPaymentData();
+                renderRecentPayments();
+                updateStats();
             } catch (error) {
                 console.error('Error marking invoice as paid:', error);
                 alert('Failed to mark invoice as paid. Please try again.');
+                // Revert optimistic update on error
+                await loadPaymentData();
             }
         }
 

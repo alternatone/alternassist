@@ -593,22 +593,17 @@
         // Load income from paid invoices via API
         async function loadIncomeFromPayments() {
             try {
-                // Get all payments that have been received
-                const payments = await PaymentsAPI.getAll();
-                const paidPayments = payments.filter(p => p.payment_date !== null);
+                // OPTIMIZED: Get all payments with project names in single query (eliminates N+1)
+                const response = await fetch('http://localhost:3000/api/payments/with-projects');
+                const paymentsWithProjects = await response.json();
 
-                // Get all projects for names
-                const projects = await ProjectsAPI.getAll();
-                const projectMap = {};
-                projects.forEach(p => {
-                    projectMap[p.id] = p.name;
-                });
+                const paidPayments = paymentsWithProjects.filter(p => p.payment_date !== null);
 
                 for (const payment of paidPayments) {
                     // Check if this payment already exists in transactions
                     const exists = transactions.some(t =>
                         t.type === 'income' &&
-                        t.description.includes(projectMap[payment.project_id])
+                        t.description.includes(payment.project_name)
                     );
 
                     if (!exists) {
@@ -617,7 +612,7 @@
                             id: payment.id,
                             type: 'income',
                             date: payment.payment_date,
-                            description: `Payment for ${projectMap[payment.project_id] || 'Project'}`,
+                            description: `Payment for ${payment.project_name || 'Project'}`,
                             category: 'income',
                             account: 'Business Checking',
                             amount: payment.amount,

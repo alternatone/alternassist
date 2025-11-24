@@ -655,7 +655,22 @@ const paymentQueries = {
   findByInvoice: db.prepare('SELECT * FROM payments WHERE invoice_id = ? ORDER BY payment_date DESC'),
   findByProject: db.prepare('SELECT * FROM payments WHERE project_id = ? ORDER BY payment_date DESC'),
   getAll: db.prepare('SELECT * FROM payments ORDER BY payment_date DESC'),
-  delete: db.prepare('DELETE FROM payments WHERE id = ?')
+  delete: db.prepare('DELETE FROM payments WHERE id = ?'),
+  getAllWithProjects: db.prepare(`
+    SELECT
+      p.id,
+      p.invoice_id,
+      p.project_id,
+      p.amount,
+      p.payment_date,
+      p.payment_method,
+      p.payment_type,
+      p.notes,
+      pr.name as project_name
+    FROM payments p
+    LEFT JOIN projects pr ON pr.id = p.project_id
+    ORDER BY p.payment_date DESC
+  `)
 };
 
 // Accounting queries
