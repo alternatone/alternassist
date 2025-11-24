@@ -358,6 +358,17 @@ const projectQueries = {
     WHERE p.id = ?
     GROUP BY p.id
   `),
+  getAllWithMusicScope: db.prepare(`
+    SELECT
+      p.id,
+      p.name,
+      p.client_name,
+      COALESCE(p.music_coverage, ps.music_minutes, 0) as music_minutes
+    FROM projects p
+    LEFT JOIN project_scope ps ON ps.project_id = p.id
+    WHERE COALESCE(p.music_coverage, ps.music_minutes, 0) > 0
+    ORDER BY p.updated_at DESC
+  `),
   update: db.prepare(`
     UPDATE projects
     SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, pinned = ?,

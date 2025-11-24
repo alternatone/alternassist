@@ -285,35 +285,15 @@
 
         async function initializeSampleData() {
             try {
-                // Load projects with music from API
+                // Optimized: Single query for projects with music
                 const projectsWithMusic = await getProjectsWithMusic();
 
-                // Load all cues from API
-                const allCues = await CuesAPI.getAll();
-
-                // Group cues by project_id
-                cues = {};
-                allCues.forEach(cue => {
-                    if (!cues[cue.project_id]) {
-                        cues[cue.project_id] = [];
-                    }
-                    cues[cue.project_id].push({
-                        id: cue.id,
-                        number: cue.cue_number,
-                        title: cue.title,
-                        startTime: cue.start_time || '00:00:00',
-                        endTime: cue.end_time || '00:00:00',
-                        theme: cue.theme || '',
-                        status: cue.status,
-                        version: cue.version || '',
-                        notes: cue.notes || '',
-                        duration: cue.duration
-                    });
-                });
+                // Don't load cues until project is selected (lazy loading)
+                cues = {};  // Empty initially
 
                 // Populate project select
                 const select = document.getElementById('projectSelect');
-                const selectedValue = select.value; // Preserve current selection
+                const selectedValue = select.value;
 
                 select.innerHTML = '<option value="">select project...</option>';
 
@@ -328,15 +308,37 @@
                     select.appendChild(option);
                 });
 
-                // Only reset currentProject if it was null or the project no longer exists
-                if (currentProject && !projectsWithMusic.find(p => p.id == currentProject)) {
-                    currentProject = null;
+                // Load cues only if a project is already selected
+                if (currentProject) {
+                    await loadProjectCuesFromAPI(currentProject);
                 }
 
                 renderCues();
             } catch (error) {
                 console.error('Error loading cue tracker data:', error);
                 alert('Failed to load cue tracker data. Please refresh.');
+            }
+        }
+
+        async function loadProjectCuesFromAPI(projectId) {
+            try {
+                const projectCues = await CuesAPI.getByProject(projectId);
+
+                cues[projectId] = projectCues.map(cue => ({
+                    id: cue.id,
+                    number: cue.cue_number,
+                    title: cue.title,
+                    startTime: cue.start_time || '00:00:00',
+                    endTime: cue.end_time || '00:00:00',
+                    theme: cue.theme || '',
+                    status: cue.status,
+                    version: cue.version || '',
+                    notes: cue.notes || '',
+                    duration: cue.duration
+                }));
+            } catch (error) {
+                console.error('Error loading project cues:', error);
+                cues[projectId] = [];
             }
         }
 

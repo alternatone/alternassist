@@ -27,6 +27,20 @@ router.get('/', (req, res) => {
   }
 });
 
+// Get projects with music scope (optimized for cue tracker)
+router.get('/with-music', (req, res) => {
+  try {
+    const projects = cache.wrap(
+      'projects:with-music',
+      () => projectQueries.getAllWithMusicScope.all(),
+      60000  // 1 minute cache
+    );
+    res.json(projects);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get single project with stats (admin view) - optimized single query
 router.get('/:id', (req, res) => {
   try {

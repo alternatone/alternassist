@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { cueQueries, projectQueries } = require('../models/database');
+const cache = require('../utils/cache');
 
 // Get all cues
 router.get('/', (req, res) => {
@@ -12,11 +13,15 @@ router.get('/', (req, res) => {
   }
 });
 
-// Get cues for a specific project
+// Get cues for a specific project (with caching)
 router.get('/project/:projectId', (req, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
-    const cues = cueQueries.findByProject.all(projectId);
+    const cues = cache.wrap(
+      `cues:project:${projectId}`,
+      () => cueQueries.findByProject.all(projectId),
+      30000  // 30 second cache
+    );
     res.json(cues);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -35,6 +40,9 @@ router.post('/', (req, res) => {
       project_id, cue_number, title, status, duration, notes,
       start_time, end_time, theme, version
     );
+
+    // Invalidate cache for this project
+    cache.invalidate(`cues:project:${project_id}`);
 
     res.json({ id: result.lastInsertRowid, project_id, ...req.body });
   } catch (error) {
@@ -56,6 +64,9 @@ router.patch('/:id', (req, res) => {
       updates.version, id
     );
 
+    // Invalidate cache for this project
+    cache.invalidate(`cues:project:${cue.project_id}`);
+
     res.json({ ...cue, ...req.body });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -66,7 +77,12 @@ router.patch('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    cueQueries.delete.run(id);
+    const cue = cueQueries.findById.get(id);
+    if (cue) {
+      cueQueries.delete.run(id);
+      // Invalidate cache for this project
+      cache.invalidate(`cues:project:${cue.project_id}`);
+    }
     res.json({ success: true, message: 'Cue deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -78,6 +94,10 @@ router.delete('/project/:projectId', (req, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     cueQueries.deleteByProject.run(projectId);
+
+    // Invalidate cache for this project
+    cache.invalidate(`cues:project:${projectId}`);
+
     res.json({ success: true, message: 'Project cues deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });

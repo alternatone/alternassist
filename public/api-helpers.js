@@ -286,38 +286,18 @@ const PaymentsAPI = {
 // HELPER: Get projects with music scope
 // ============================================
 async function getProjectsWithMusic() {
-  const projects = await ProjectsAPI.getAll();
-  const projectsWithMusic = [];
+  // Single optimized query with JOIN!
+  const response = await fetch(`${API_BASE}/projects/with-music`);
+  if (!response.ok) throw new Error('Failed to fetch projects with music');
 
-  for (const project of projects) {
-    // Check if project has music coverage in the main projects table first
-    if (project.music_coverage && project.music_coverage > 0) {
-      projectsWithMusic.push({
-        id: project.id,
-        name: project.name,
-        client: project.client_name || '',
-        musicMinutes: project.music_coverage
-      });
-      continue;
-    }
+  const projects = await response.json();
 
-    // Fallback: Check old project_scope table for legacy projects
-    try {
-      const scope = await ScopeAPI.get(project.id);
-      if (scope && scope.music_minutes > 0) {
-        projectsWithMusic.push({
-          id: project.id,
-          name: project.name,
-          client: project.client_name || '',
-          musicMinutes: scope.music_minutes
-        });
-      }
-    } catch (e) {
-      // No scope data, skip
-    }
-  }
-
-  return projectsWithMusic;
+  return projects.map(p => ({
+    id: p.id,
+    name: p.name,
+    client: p.client_name || '',
+    musicMinutes: p.music_minutes
+  }));
 }
 
 // ============================================
