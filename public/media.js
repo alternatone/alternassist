@@ -3,6 +3,62 @@ let expandedFolders = new Set(); // Folders per project like "123-FROM AA"
 let projectFiles = {}; // Cache files by project ID
 let projectsCache = []; // OPTIMIZED: Cache projects globally to eliminate duplicate fetches
 let projectAbortControllers = {}; // OPTIMIZED: Track abort controllers for request cancellation
+let activeUploads = {}; // Track active uploads for progress display
+
+// UX Enhancement: Toast notification system
+function showToast(message, type = 'success', duration = 3000) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-size: 14px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// Add animation styles
+if (!document.getElementById('toast-styles')) {
+    const style = document.createElement('style');
+    style.id = 'toast-styles';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        .upload-progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #3b82f6;
+            transform-origin: left;
+            transition: transform 0.3s ease;
+            z-index: 10001;
+        }
+    `;
+    document.head.appendChild(style);
+}
 
 // Load projects when DOM is ready
 if (document.readyState === 'loading') {
@@ -226,17 +282,17 @@ async function openFtpSetupForProject(projectId, projectName, status) {
     await openFtpSetup(projectId, projectName, status);
 }
 
-// Copy link from project list
+// Copy link from project list (UX Enhancement: toast notifications)
 function copyClientPortalLinkForProject(projectId, projectName) {
     const link = `http://localhost:3000/client/login.html`;
     navigator.clipboard.writeText(link).then(() => {
-        alert(`Client portal link copied!\n\n${link}\n\nShare this link with "${projectName}" along with their password.`);
+        showToast(`Client portal link copied for "${projectName}"`, 'success');
     }).catch(err => {
-        alert(`Failed to copy link: ${err}`);
+        showToast(`Failed to copy link: ${err}`, 'error');
     });
 }
 
-// Delete project (OPTIMIZED: optimistic UI update)
+// Delete project (OPTIMIZED: optimistic UI update with UX enhancements)
 async function deleteProject(projectId, projectName) {
     if (!confirm(`Are you sure you want to delete the project "${projectName}"?\n\nThis will delete all files and cannot be undone.`)) {
         return;
@@ -248,6 +304,9 @@ async function deleteProject(projectId, projectName) {
     const savedFiles = projectFiles[projectId];
 
     try {
+        // Show deleting notification
+        showToast(`Deleting "${projectName}"...`, 'info', 2000);
+
         // OPTIMIZED: Optimistic update - remove from cache immediately
         projectsCache.splice(projectIndex, 1);
         delete projectFiles[projectId];
@@ -266,6 +325,9 @@ async function deleteProject(projectId, projectName) {
         if (!response.ok) {
             throw new Error('Failed to delete project');
         }
+
+        // Success notification
+        showToast(`Project "${projectName}" deleted successfully`, 'success');
     } catch (error) {
         console.error('Error deleting project:', error);
 
@@ -276,7 +338,7 @@ async function deleteProject(projectId, projectName) {
         }
         await loadProjects();
 
-        alert('Failed to delete project');
+        showToast(`Failed to delete project "${projectName}"`, 'error');
     }
 }
 
@@ -357,15 +419,17 @@ async function copyFileLink(fileId, fileName) {
     const fileUrl = `http://localhost:3000/api/files/${fileId}/download`;
     try {
         await navigator.clipboard.writeText(fileUrl);
-        alert(`Link copied to clipboard!\n\n${fileName}\n${fileUrl}`);
+        showToast(`Link copied for "${fileName}"`, 'success');
     } catch (error) {
         console.error('Error copying link:', error);
-        alert('Failed to copy link');
+        showToast('Failed to copy link', 'error');
     }
 }
 
 async function downloadFile(fileId, fileName) {
     try {
+        showToast(`Downloading "${fileName}"...`, 'info', 2000);
+
         const response = await fetch(`http://localhost:3000/api/files/${fileId}/download`);
         if (!response.ok) throw new Error('Download failed');
 
@@ -378,9 +442,11 @@ async function downloadFile(fileId, fileName) {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+
+        showToast(`Downloaded "${fileName}" successfully`, 'success');
     } catch (error) {
         console.error('Error downloading file:', error);
-        alert('Failed to download file');
+        showToast('Failed to download file', 'error');
     }
 }
 
@@ -395,6 +461,9 @@ async function deleteFile(projectId, fileId, fileName) {
     const deletedFile = files[fileIndex];
 
     try {
+        // Show deleting notification
+        showToast(`Deleting "${fileName}"...`, 'info', 2000);
+
         // OPTIMIZED: Optimistic update - remove from cache immediately
         if (projectFiles[projectId]) {
             projectFiles[projectId] = projectFiles[projectId].filter(f => f.id !== fileId);
@@ -410,6 +479,8 @@ async function deleteFile(projectId, fileId, fileName) {
 
         if (!response.ok) throw new Error('Delete failed');
 
+        // Success notification
+        showToast(`File "${fileName}" deleted successfully`, 'success');
     } catch (error) {
         console.error('Error deleting file:', error);
 
@@ -419,7 +490,7 @@ async function deleteFile(projectId, fileId, fileName) {
         }
         await loadProjects();
 
-        alert('Failed to delete file');
+        showToast(`Failed to delete file "${fileName}"`, 'error');
     }
 }
 
@@ -465,14 +536,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const files = Array.from(e.dataTransfer.files);
 
             if (files.length > 0) {
+                // Show upload starting notification
+                showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}...`, 'info', 2000);
+
+                // Add progress bar
+                const progressBar = document.createElement('div');
+                progressBar.className = 'upload-progress-bar';
+                progressBar.style.transform = 'scaleX(0)';
+                document.body.appendChild(progressBar);
+
                 // OPTIMIZED: Upload all files in parallel!
                 try {
-                    const uploadPromises = files.map(file =>
-                        uploadFile(file, projectId, folder)
-                    );
+                    let completedUploads = 0;
+                    const totalFiles = files.length;
+
+                    const uploadPromises = files.map(async (file) => {
+                        await uploadFile(file, projectId, folder);
+                        completedUploads++;
+                        // Update progress bar
+                        const progress = completedUploads / totalFiles;
+                        progressBar.style.transform = `scaleX(${progress})`;
+                    });
 
                     // Wait for all uploads to complete
                     await Promise.all(uploadPromises);
+
+                    // Remove progress bar
+                    progressBar.remove();
 
                     // Refresh the project after all uploads complete
                     const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
@@ -480,9 +570,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         projectFiles[projectId] = await response.json();
                     }
                     await loadProjects();
+
+                    // Success notification
+                    showToast(`Successfully uploaded ${files.length} file${files.length > 1 ? 's' : ''}`, 'success');
                 } catch (error) {
                     console.error('Error uploading files:', error);
-                    alert('Some files failed to upload');
+                    progressBar.remove();
+                    showToast('Some files failed to upload', 'error');
                 }
             }
         }
