@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { projectQueries, fileQueries, shareLinkQueries, scopeQueries, estimateQueries, db } = require('../models/database');
+const { requireAdmin } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -88,7 +89,7 @@ router.get('/:id', (req, res) => {
 });
 
 // Create new project
-router.post('/', (req, res) => {
+router.post('/', requireAdmin, (req, res) => {
   try {
     const { name, password, client_name, contact_email, status = 'prospects',
             notes, pinned = 0, media_folder_path, password_protected = 0,
@@ -285,7 +286,7 @@ router.post('/logout', (req, res) => {
 });
 
 // Update project (for Kanban board)
-router.patch('/:id', (req, res) => {
+router.patch('/:id', requireAdmin, (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const project = projectQueries.findById.get(projectId);
@@ -333,8 +334,8 @@ router.patch('/:id', (req, res) => {
   }
 });
 
-// Delete project (admin only - add auth later)
-router.delete('/:id', (req, res) => {
+// Delete project (admin only)
+router.delete('/:id', requireAdmin, (req, res) => {
   try {
     const project = projectQueries.findById.get(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });

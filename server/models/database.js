@@ -463,7 +463,8 @@ const commentQueries = {
 // Access log queries
 const logQueries = {
   create: db.prepare('INSERT INTO access_logs (project_id, file_id, action, ip_address) VALUES (?, ?, ?, ?)'),
-  getRecentByProject: db.prepare('SELECT * FROM access_logs WHERE project_id = ? ORDER BY accessed_at DESC LIMIT 100')
+  getRecentByProject: db.prepare('SELECT * FROM access_logs WHERE project_id = ? ORDER BY accessed_at DESC LIMIT ?'),
+  getRecentByFile: db.prepare('SELECT * FROM access_logs WHERE file_id = ? ORDER BY accessed_at DESC LIMIT ?')
 };
 
 // Share link queries
@@ -645,6 +646,11 @@ const invoiceQueries = {
   update: db.prepare(`
     UPDATE invoices
     SET invoice_number = ?, amount = ?, deposit_amount = ?, deposit_percentage = ?, final_amount = ?, status = ?, due_date = ?, issue_date = ?, line_items = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `),
+  updateStatus: db.prepare(`
+    UPDATE invoices
+    SET status = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `),
   delete: db.prepare('DELETE FROM invoices WHERE id = ?')

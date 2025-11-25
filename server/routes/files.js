@@ -4,8 +4,11 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { fileQueries, projectQueries, commentQueries } = require('../models/database');
+const { authenticateProjectAccess } = require('../middleware/auth');
 const config = require('../../alternaview-config');
 const transcoder = require('../services/transcoder');
+const cache = require('../utils/cache');
+const ActivityTracker = require('../services/activity-tracker');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -93,14 +96,21 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-// Get single file by ID (OPTIMIZED: eliminates fetching all files)
-router.get('/:id', (req, res) => {
+// Get single file by ID (with project access validation)
+router.get('/:id', authenticateProjectAccess, (req, res) => {
   try {
     const fileId = parseInt(req.params.id);
     const file = fileQueries.findById.get(fileId);
 
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Validate project access
+    const hasAccess = req.isAdmin || req.projectId === file.project_id;
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const typeMap = { video: 'video/', audio: 'audio/', image: 'image/' };
@@ -142,6 +152,22 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
 
     // Update project timestamp
     projectQueries.updateTimestamp.run(req.session.projectId);
+
+    // Invalidate all relevant caches
+    cache.invalidate('projects:all');
+    cache.invalidate('projects:with-scope');
+    cache.invalidate(`project:${req.session.projectId}:stats`);
+
+    // Track file upload activity
+    ActivityTracker.log('file_upload', {
+      projectId: req.session.projectId,
+      fileId: fileId,
+      metadata: {
+        filename: req.file.originalname,
+        size: req.file.size,
+        type: req.file.mimetype
+      }
+    }, req);
 
     // Send immediate response
     res.json({
@@ -198,6 +224,16 @@ router.get('/:id/download', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'File not found on disk' });
     }
 
+    // Track download activity
+    ActivityTracker.log('file_download', {
+      projectId: file.project_id,
+      fileId: file.id,
+      metadata: {
+        filename: file.original_name,
+        size: file.file_size
+      }
+    }, req);
+
     res.download(file.file_path, file.original_name);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -228,6 +264,18 @@ function streamFile(fileId, projectId, req, res) {
     const [start, end = size - 1] = range
       ? range.replace(/bytes=/, "").split("-").map(Number)
       : [0, size - 1];
+
+    // Track stream activity (only on first request, not ranges)
+    if (!range || start === 0) {
+      ActivityTracker.log('file_stream', {
+        projectId: file.project_id,
+        fileId: file.id,
+        metadata: {
+          filename: file.original_name,
+          mime_type: file.mime_type
+        }
+      }, req);
+    }
 
     res.writeHead(range ? 206 : 200, {
       'Content-Range': range ? `bytes ${start}-${end}/${size}` : undefined,
@@ -278,6 +326,11 @@ router.delete('/:id', requireAuth, (req, res) => {
     // Update project timestamp
     projectQueries.updateTimestamp.run(req.session.projectId);
 
+    // Invalidate all relevant caches
+    cache.invalidate('projects:all');
+    cache.invalidate('projects:with-scope');
+    cache.invalidate(`project:${req.session.projectId}:stats`);
+
     res.json({ success: true, message: 'File deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -305,7 +358,7 @@ function getComments(fileId, projectId, res) {
   }
 }
 
-function addComment(fileId, projectId, body, res) {
+function addComment(fileId, projectId, body, res, req) {
   try {
     const { author_name, timecode, comment_text } = body;
     if (!author_name || !comment_text) {
@@ -318,6 +371,17 @@ function addComment(fileId, projectId, body, res) {
     }
 
     const insertResult = commentQueries.create.run(fileId, author_name, timecode || null, comment_text);
+
+    // Track comment addition activity
+    ActivityTracker.log('comment_added', {
+      projectId: projectId,
+      fileId: fileId,
+      metadata: {
+        author: author_name,
+        commentId: insertResult.lastInsertRowid
+      }
+    }, req);
+
     res.json({ id: insertResult.lastInsertRowid, author: author_name, timecode, text: comment_text });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -336,16 +400,16 @@ router.get('/:id/comments', requireAuth, (req, res) =>
 
 // Add comment - unauthenticated version for Electron app
 router.post('/:projectId/:id/comments', (req, res) =>
-  addComment(req.params.id, parseInt(req.params.projectId), req.body, res)
+  addComment(req.params.id, parseInt(req.params.projectId), req.body, res, req)
 );
 
 // Add comment - authenticated version for web client
 router.post('/:id/comments', requireAuth, (req, res) =>
-  addComment(req.params.id, req.session.projectId, req.body, res)
+  addComment(req.params.id, req.session.projectId, req.body, res, req)
 );
 
 // Update comment status (OPTIMIZED: persist comment status changes)
-router.patch('/comments/:id', (req, res) => {
+router.patch('/comments/:id', authenticateProjectAccess, (req, res) => {
   try {
     const commentId = parseInt(req.params.id);
     const { status } = req.body;
@@ -360,6 +424,17 @@ router.patch('/comments/:id', (req, res) => {
       return res.status(404).json({ error: 'Comment not found' });
     }
 
+    // Validate ownership via file → project relationship
+    const file = fileQueries.findById.get(comment.file_id);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if user has access to this project
+    if (!req.isAdmin && file.project_id !== req.projectId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     // Update status
     commentQueries.updateStatus.run(status, commentId);
 
@@ -370,7 +445,7 @@ router.patch('/comments/:id', (req, res) => {
 });
 
 // Delete comment (OPTIMIZED: persist comment deletions)
-router.delete('/comments/:id', (req, res) => {
+router.delete('/comments/:id', authenticateProjectAccess, (req, res) => {
   try {
     const commentId = parseInt(req.params.id);
 
@@ -378,6 +453,17 @@ router.delete('/comments/:id', (req, res) => {
     const comment = commentQueries.findById.get(commentId);
     if (!comment) {
       return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Validate ownership via file → project relationship
+    const file = fileQueries.findById.get(comment.file_id);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if user has access to this project
+    if (!req.isAdmin && file.project_id !== req.projectId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     // Delete comment

@@ -84,20 +84,15 @@ router.post('/mark-invoice-paid', (req, res) => {
   try {
     // Use database transaction for atomicity
     const result = db.transaction(() => {
-      // Update invoice status
-      invoiceQueries.update.run(
-        invoiceQueries.findById.get(invoice_id).project_id,
-        invoiceQueries.findById.get(invoice_id).invoice_number,
-        invoiceQueries.findById.get(invoice_id).amount,
-        invoiceQueries.findById.get(invoice_id).deposit_amount,
-        invoiceQueries.findById.get(invoice_id).deposit_percentage,
-        invoiceQueries.findById.get(invoice_id).final_amount,
-        'paid',  // status
-        invoiceQueries.findById.get(invoice_id).due_date,
-        invoiceQueries.findById.get(invoice_id).issue_date,
-        invoiceQueries.findById.get(invoice_id).line_items,
-        invoice_id
-      );
+      // OPTIMIZED: Fetch invoice once instead of 6+ times
+      const invoice = invoiceQueries.findById.get(invoice_id);
+
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+
+      // OPTIMIZED: Update only status field instead of all fields
+      invoiceQueries.updateStatus.run('paid', invoice_id);
 
       // Create payment record
       const paymentResult = paymentQueries.create.run(
@@ -109,9 +104,6 @@ router.post('/mark-invoice-paid', (req, res) => {
         payment.payment_type || payment.payment_method,
         payment.notes || ''
       );
-
-      // Get invoice to check deposit_percentage
-      const invoice = invoiceQueries.findById.get(invoice_id);
 
       // Update project status based on deposit
       const newProjectStatus = invoice.deposit_percentage === 100 ? 'completed' : 'active';
