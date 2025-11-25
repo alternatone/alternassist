@@ -129,6 +129,52 @@ function initDatabase() {
     console.log('Added password_plaintext column to projects table');
   }
 
+  // PHASE 2: Performance - Add denormalized stats columns
+  const hasFileCount = projectColumns.some(col => col.name === 'file_count');
+  if (!hasFileCount) {
+    db.exec('ALTER TABLE projects ADD COLUMN file_count INTEGER DEFAULT 0');
+    console.log('Added file_count column to projects table');
+  }
+
+  const hasTotalSize = projectColumns.some(col => col.name === 'total_size');
+  if (!hasTotalSize) {
+    db.exec('ALTER TABLE projects ADD COLUMN total_size INTEGER DEFAULT 0');
+    console.log('Added total_size column to projects table');
+  }
+
+  // PHASE 3: Data Integrity - Add archived flag for soft delete
+  const hasArchived = projectColumns.some(col => col.name === 'archived');
+  if (!hasArchived) {
+    db.exec('ALTER TABLE projects ADD COLUMN archived BOOLEAN DEFAULT 0');
+    console.log('Added archived column to projects table');
+  }
+
+  const hasArchivedAt = projectColumns.some(col => col.name === 'archived_at');
+  if (!hasArchivedAt) {
+    db.exec('ALTER TABLE projects ADD COLUMN archived_at DATETIME');
+    console.log('Added archived_at column to projects table');
+  }
+
+  // PHASE 3: Add transcoding status tracking to files
+  const hasTranscodingStatus = fileColumns.some(col => col.name === 'transcoding_status');
+  if (!hasTranscodingStatus) {
+    db.exec("ALTER TABLE files ADD COLUMN transcoding_status TEXT DEFAULT 'pending'");
+    console.log('Added transcoding_status column to files table');
+  }
+
+  const hasTranscodingError = fileColumns.some(col => col.name === 'transcoding_error');
+  if (!hasTranscodingError) {
+    db.exec('ALTER TABLE files ADD COLUMN transcoding_error TEXT');
+    console.log('Added transcoding_error column to files table');
+  }
+
+  const hasTranscodingAttempts = fileColumns.some(col => col.name === 'transcoding_attempts');
+  if (!hasTranscodingAttempts) {
+    db.exec('ALTER TABLE files ADD COLUMN transcoding_attempts INTEGER DEFAULT 0');
+    console.log('Added transcoding_attempts column to files table');
+  }
+
+
   // Comments table (for future use)
   db.exec(`
     CREATE TABLE IF NOT EXISTS comments (
@@ -141,6 +187,57 @@ function initDatabase() {
       FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
     )
   `);
+
+  // PHASE 3: Add billing linkage to comments
+  const commentColumns = db.prepare("PRAGMA table_info(comments)").all();
+
+  const hasStatus = commentColumns.some(col => col.name === 'status');
+  if (!hasStatus) {
+    db.exec("ALTER TABLE comments ADD COLUMN status TEXT DEFAULT 'open'");
+    console.log('Added status column to comments table');
+  }
+
+  const hasBillable = commentColumns.some(col => col.name === 'billable');
+  if (!hasBillable) {
+    db.exec('ALTER TABLE comments ADD COLUMN billable BOOLEAN DEFAULT 0');
+    console.log('Added billable column to comments table');
+  }
+
+  const hasBilledInInvoiceId = commentColumns.some(col => col.name === 'billed_in_invoice_id');
+  if (!hasBilledInInvoiceId) {
+    db.exec('ALTER TABLE comments ADD COLUMN billed_in_invoice_id INTEGER');
+    console.log('Added billed_in_invoice_id column to comments table');
+  }
+
+  const hasEstimatedHours = commentColumns.some(col => col.name === 'estimated_hours');
+  if (!hasEstimatedHours) {
+    db.exec('ALTER TABLE comments ADD COLUMN estimated_hours REAL');
+    console.log('Added estimated_hours column to comments table');
+  }
+
+  const hasUpdatedAt = commentColumns.some(col => col.name === 'updated_at');
+  if (!hasUpdatedAt) {
+    db.exec('ALTER TABLE comments ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
+    console.log('Added updated_at column to comments table');
+  }
+
+  // PHASE 3: Create invoice_deliverables junction table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_deliverables (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_id INTEGER NOT NULL,
+      file_id INTEGER NOT NULL,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+      FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,
+      UNIQUE(invoice_id, file_id)
+    )
+  `);
+
+  // Create indexes for invoice_deliverables
+  db.exec('CREATE INDEX IF NOT EXISTS idx_deliverables_invoice ON invoice_deliverables(invoice_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_deliverables_file ON invoice_deliverables(file_id)');
 
   // Access logs (optional, for tracking downloads/views)
   db.exec(`
@@ -312,7 +409,63 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_scope_project ON project_scope(project_id);
   `);
 
-  console.log('Database initialized successfully with performance indexes');
+  // PHASE 2: Create triggers for automatic stats updates
+  db.exec(`
+    -- Trigger on file insert
+    DROP TRIGGER IF EXISTS update_project_stats_on_file_insert;
+    CREATE TRIGGER update_project_stats_on_file_insert
+    AFTER INSERT ON files
+    BEGIN
+      UPDATE projects
+      SET file_count = file_count + 1,
+          total_size = total_size + NEW.file_size,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.project_id;
+    END;
+
+    -- Trigger on file delete
+    DROP TRIGGER IF EXISTS update_project_stats_on_file_delete;
+    CREATE TRIGGER update_project_stats_on_file_delete
+    AFTER DELETE ON files
+    BEGIN
+      UPDATE projects
+      SET file_count = file_count - 1,
+          total_size = total_size - OLD.file_size,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = OLD.project_id;
+    END;
+
+    -- Trigger on file size update
+    DROP TRIGGER IF EXISTS update_project_stats_on_file_update;
+    CREATE TRIGGER update_project_stats_on_file_update
+    AFTER UPDATE OF file_size ON files
+    BEGIN
+      UPDATE projects
+      SET total_size = total_size - OLD.file_size + NEW.file_size,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.project_id;
+    END;
+  `);
+
+  // PHASE 2: Backfill existing project stats
+  if (hasFileCount || hasTotalSize) {
+    const backfillStats = db.prepare(`
+      UPDATE projects
+      SET file_count = (
+        SELECT COUNT(*) FROM files WHERE files.project_id = projects.id
+      ),
+      total_size = (
+        SELECT COALESCE(SUM(file_size), 0) FROM files WHERE files.project_id = projects.id
+      )
+      WHERE file_count = 0 OR total_size = 0
+    `);
+    const result = backfillStats.run();
+    if (result.changes > 0) {
+      console.log(`Backfilled stats for ${result.changes} projects`);
+    }
+  }
+
+  console.log('Database initialized successfully with performance indexes and triggers');
 }
 
 // Initialize database tables immediately
@@ -337,7 +490,7 @@ const projectQueries = {
   createSimple: db.prepare('INSERT INTO projects (name, password) VALUES (?, ?)'),
   findByName: db.prepare('SELECT * FROM projects WHERE name = ?'),
   findById: db.prepare('SELECT * FROM projects WHERE id = ?'),
-  getAll: db.prepare('SELECT * FROM projects ORDER BY updated_at DESC'),
+  getAll: db.prepare('SELECT * FROM projects WHERE (archived IS NULL OR archived = 0) ORDER BY updated_at DESC'),
   getAllWithStats: db.prepare(`
     SELECT
       p.*,
@@ -345,6 +498,7 @@ const projectQueries = {
       COALESCE(SUM(f.file_size), 0) as total_size
     FROM projects p
     LEFT JOIN files f ON p.id = f.project_id
+    WHERE (p.archived IS NULL OR p.archived = 0)
     GROUP BY p.id
     ORDER BY p.updated_at DESC
   `),
@@ -366,7 +520,8 @@ const projectQueries = {
       COALESCE(p.music_coverage, ps.music_minutes, 0) as music_minutes
     FROM projects p
     LEFT JOIN project_scope ps ON ps.project_id = p.id
-    WHERE COALESCE(p.music_coverage, ps.music_minutes, 0) > 0
+    WHERE (p.archived IS NULL OR p.archived = 0)
+      AND COALESCE(p.music_coverage, ps.music_minutes, 0) > 0
     ORDER BY p.updated_at DESC
   `),
   getAllWithScope: db.prepare(`
@@ -387,6 +542,7 @@ const projectQueries = {
       ps.revision_hours
     FROM projects p
     LEFT JOIN project_scope ps ON ps.project_id = p.id
+    WHERE (p.archived IS NULL OR p.archived = 0)
     ORDER BY p.updated_at DESC
   `),
   getKanbanData: db.prepare(`
@@ -428,6 +584,10 @@ const projectQueries = {
   updatePasswordProtection: db.prepare('UPDATE projects SET password_protected = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   updatePassword: db.prepare('UPDATE projects SET password = ?, password_plaintext = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   delete: db.prepare('DELETE FROM projects WHERE id = ?'),
+  // PHASE 3: Soft delete methods
+  archive: db.prepare('UPDATE projects SET archived = 1, archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  unarchive: db.prepare('UPDATE projects SET archived = 0, archived_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  getArchived: db.prepare('SELECT * FROM projects WHERE archived = 1 ORDER BY archived_at DESC'),
   updateTimestamp: db.prepare('UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?')
 };
 
@@ -448,7 +608,20 @@ const fileQueries = {
       SUM(file_size) as total_size
     FROM files
     WHERE project_id = ?
-  `)
+  `),
+  // PHASE 3: Transcoding status management
+  updateTranscodingStatus: db.prepare('UPDATE files SET transcoding_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  updateTranscodingError: db.prepare('UPDATE files SET transcoding_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  updateTranscodingAttempts: db.prepare('UPDATE files SET transcoding_attempts = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  updateTranscodingComplete: db.prepare(`
+    UPDATE files
+    SET transcoded_file_path = ?,
+        duration = ?,
+        transcoding_status = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `),
+  findByTranscodingStatus: db.prepare('SELECT * FROM files WHERE transcoding_status = ? ORDER BY uploaded_at DESC')
 };
 
 // Comment queries
@@ -457,7 +630,19 @@ const commentQueries = {
   findByFile: db.prepare('SELECT * FROM comments WHERE file_id = ? ORDER BY created_at ASC'),
   findById: db.prepare('SELECT * FROM comments WHERE id = ?'),
   updateStatus: db.prepare('UPDATE comments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
-  delete: db.prepare('DELETE FROM comments WHERE id = ?')
+  delete: db.prepare('DELETE FROM comments WHERE id = ?'),
+  // PHASE 3: Billable comments management
+  updateBillable: db.prepare('UPDATE comments SET billable = ?, estimated_hours = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  linkToInvoice: db.prepare('UPDATE comments SET billed_in_invoice_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  getBillableByProject: db.prepare(`
+    SELECT c.*, f.original_name as file_name, f.project_id
+    FROM comments c
+    JOIN files f ON f.id = c.file_id
+    WHERE f.project_id = ?
+      AND c.billable = 1
+      AND c.billed_in_invoice_id IS NULL
+    ORDER BY c.created_at DESC
+  `)
 };
 
 // Access log queries
@@ -681,6 +866,37 @@ const paymentQueries = {
   `)
 };
 
+// PHASE 3: Invoice deliverables queries
+const deliverableQueries = {
+  create: db.prepare(`
+    INSERT INTO invoice_deliverables (invoice_id, file_id, description)
+    VALUES (?, ?, ?)
+  `),
+  findByInvoice: db.prepare(`
+    SELECT d.*, f.original_name, f.file_size, f.mime_type, f.folder
+    FROM invoice_deliverables d
+    JOIN files f ON f.id = d.file_id
+    WHERE d.invoice_id = ?
+    ORDER BY d.created_at DESC
+  `),
+  findByFile: db.prepare(`
+    SELECT d.*, i.invoice_number, i.amount, i.status
+    FROM invoice_deliverables d
+    JOIN invoices i ON i.id = d.invoice_id
+    WHERE d.file_id = ?
+    ORDER BY d.created_at DESC
+  `),
+  getUnbilledFiles: db.prepare(`
+    SELECT f.*
+    FROM files f
+    WHERE f.project_id = ?
+      AND f.folder = 'FROM AA'
+      AND f.id NOT IN (SELECT file_id FROM invoice_deliverables)
+    ORDER BY f.uploaded_at DESC
+  `),
+  delete: db.prepare('DELETE FROM invoice_deliverables WHERE id = ?')
+};
+
 // Accounting queries
 const accountingQueries = {
   create: db.prepare('INSERT INTO accounting_records (project_id, transaction_type, category, amount, transaction_date, description) VALUES (?, ?, ?, ?, ?, ?)'),
@@ -726,6 +942,7 @@ module.exports = {
   cueQueries,
   invoiceQueries,
   paymentQueries,
+  deliverableQueries,
   accountingQueries,
   hoursLogQueries
 };

@@ -475,4 +475,84 @@ router.delete('/comments/:id', authenticateProjectAccess, (req, res) => {
   }
 });
 
+// PHASE 2: File activity endpoint
+router.get('/:id/activity', authenticateProjectAccess, (req, res) => {
+  try {
+    const fileId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit) || 50;
+
+    // Validate file access
+    const file = fileQueries.findById.get(fileId);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const hasAccess = req.isAdmin || req.projectId === file.project_id;
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const activities = ActivityTracker.getFileActivity(fileId, limit);
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PHASE 3: Billable comments endpoints
+
+// Mark comment as billable
+router.patch('/comments/:id/billable', authenticateProjectAccess, (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+    const { billable, estimated_hours } = req.body;
+
+    const comment = commentQueries.findById.get(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Validate project access
+    const file = fileQueries.findById.get(comment.file_id);
+    if (!req.isAdmin && file.project_id !== req.projectId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    commentQueries.updateBillable.run(
+      billable ? 1 : 0,
+      estimated_hours || null,
+      commentId
+    );
+
+    res.json({ success: true, id: commentId, billable, estimated_hours });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Link comment to invoice
+router.patch('/comments/:id/link-invoice', authenticateProjectAccess, (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+    const { invoiceId } = req.body;
+
+    const comment = commentQueries.findById.get(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Validate project access
+    const file = fileQueries.findById.get(comment.file_id);
+    if (!req.isAdmin && file.project_id !== req.projectId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    commentQueries.linkToInvoice.run(invoiceId || null, commentId);
+
+    res.json({ success: true, id: commentId, invoiceId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

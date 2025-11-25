@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { invoiceQueries, paymentQueries, projectQueries, db } = require('../models/database');
+const { invoiceQueries, paymentQueries, projectQueries, deliverableQueries, db } = require('../models/database');
+const { requireAdmin } = require('../middleware/auth');
 const cache = require('../utils/cache');
 
 // Get all invoices with project info (optimized - single query with JOIN)
@@ -211,6 +212,60 @@ router.delete('/:id', (req, res) => {
     cache.invalidatePattern('invoices:with-projects:');
 
     res.json({ success: true, message: 'Invoice deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PHASE 3: Invoice deliverables endpoints
+
+// Get deliverables for an invoice
+router.get('/:invoiceId/deliverables', (req, res) => {
+  try {
+    const invoiceId = parseInt(req.params.invoiceId);
+    const deliverables = deliverableQueries.findByInvoice.all(invoiceId);
+    res.json(deliverables);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Link file to invoice as deliverable
+router.post('/:invoiceId/deliverables', requireAdmin, (req, res) => {
+  try {
+    const invoiceId = parseInt(req.params.invoiceId);
+    const { fileId, description } = req.body;
+
+    if (!fileId) {
+      return res.status(400).json({ error: 'fileId required' });
+    }
+
+    const result = deliverableQueries.create.run(
+      invoiceId,
+      fileId,
+      description || null
+    );
+
+    res.json({
+      success: true,
+      id: result.lastInsertRowid,
+      invoiceId,
+      fileId
+    });
+  } catch (error) {
+    if (error.code === 'SQLITE_CONSTRAINT') {
+      return res.status(400).json({ error: 'File already linked to this invoice' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove deliverable link
+router.delete('/deliverables/:id', requireAdmin, (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    deliverableQueries.delete.run(id);
+    res.json({ success: true, message: 'Deliverable link removed' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

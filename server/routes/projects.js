@@ -601,4 +601,47 @@ router.post('/:id/regenerate-password', (req, res) => {
   }
 });
 
+// PHASE 2: Activity logging endpoints
+
+// Get activity log for a project
+router.get('/:id/activity', requireAdmin, (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit) || 100;
+
+    const ActivityTracker = require('../services/activity-tracker');
+    const activities = ActivityTracker.getProjectActivity(projectId, limit);
+
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PHASE 3: Get unbilled files for a project
+router.get('/:id/unbilled-files', requireAdmin, (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const { deliverableQueries } = require('../models/database');
+    const unbilledFiles = deliverableQueries.getUnbilledFiles.all(projectId);
+
+    res.json(unbilledFiles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get billable comments for a project
+router.get('/:id/billable-comments', requireAdmin, (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const { commentQueries } = require('../models/database');
+    const billableComments = commentQueries.getBillableByProject.all(projectId);
+
+    res.json(billableComments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
