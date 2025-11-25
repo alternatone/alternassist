@@ -1,6 +1,8 @@
 let expandedProjects = new Set();
 let expandedFolders = new Set(); // Folders per project like "123-FROM AA"
 let projectFiles = {}; // Cache files by project ID
+let projectsCache = []; // OPTIMIZED: Cache projects globally to eliminate duplicate fetches
+let projectAbortControllers = {}; // OPTIMIZED: Track abort controllers for request cancellation
 
 // Load projects when DOM is ready
 if (document.readyState === 'loading') {
@@ -14,11 +16,12 @@ async function loadProjects() {
         const response = await fetch('http://localhost:3000/api/projects');
         if (!response.ok) throw new Error('Failed to load projects');
 
-        const projects = await response.json();
+        // OPTIMIZED: Cache projects globally
+        projectsCache = await response.json();
 
         const tbody = document.getElementById('projectsTableBody');
 
-        if (projects.length === 0) {
+        if (projectsCache.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="5" class="empty-state">No projects yet.</td>
@@ -27,10 +30,8 @@ async function loadProjects() {
             return;
         }
 
-        let html = '';
-        for (const project of projects) {
-            html += await createProjectRow(project);
-        }
+        // OPTIMIZED: Removed blocking await - createProjectRow is now sync
+        const html = projectsCache.map(project => createProjectRow(project)).join('');
         tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading projects:', error);
@@ -40,7 +41,8 @@ async function loadProjects() {
     }
 }
 
-async function createProjectRow(project) {
+// OPTIMIZED: Changed from async to sync - no await needed
+function createProjectRow(project) {
     const isExpanded = expandedProjects.has(project.id);
 
     let html = `
@@ -102,16 +104,36 @@ async function createProjectRow(project) {
 async function toggleProject(projectId) {
     if (expandedProjects.has(projectId)) {
         expandedProjects.delete(projectId);
+
+        // OPTIMIZED: Cancel any in-flight request for this project
+        if (projectAbortControllers[projectId]) {
+            projectAbortControllers[projectId].abort();
+            delete projectAbortControllers[projectId];
+        }
     } else {
         expandedProjects.add(projectId);
         // Load files if not already loaded
         if (!projectFiles[projectId]) {
             try {
-                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+                // OPTIMIZED: Create abort controller for this request
+                const controller = new AbortController();
+                projectAbortControllers[projectId] = controller;
+
+                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`, {
+                    signal: controller.signal
+                });
+
                 if (response.ok) {
                     projectFiles[projectId] = await response.json();
                 }
+
+                // Clean up
+                delete projectAbortControllers[projectId];
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    // Request was cancelled - this is expected
+                    return;
+                }
                 console.error('Error loading files:', error);
                 projectFiles[projectId] = [];
             }
@@ -214,13 +236,29 @@ function copyClientPortalLinkForProject(projectId, projectName) {
     });
 }
 
-// Delete project
+// Delete project (OPTIMIZED: optimistic UI update)
 async function deleteProject(projectId, projectName) {
     if (!confirm(`Are you sure you want to delete the project "${projectName}"?\n\nThis will delete all files and cannot be undone.`)) {
         return;
     }
 
+    // Store for rollback
+    const projectIndex = projectsCache.findIndex(p => p.id === projectId);
+    const deletedProject = projectsCache[projectIndex];
+    const savedFiles = projectFiles[projectId];
+
     try {
+        // OPTIMIZED: Optimistic update - remove from cache immediately
+        projectsCache.splice(projectIndex, 1);
+        delete projectFiles[projectId];
+        expandedProjects.delete(projectId);
+
+        // Update UI immediately
+        const tbody = document.getElementById('projectsTableBody');
+        const html = projectsCache.map(project => createProjectRow(project)).join('');
+        tbody.innerHTML = html || '<tr><td colspan="5" class="empty-state">No projects yet.</td></tr>';
+
+        // Background delete
         const response = await fetch(`http://localhost:3000/api/projects/${projectId}`, {
             method: 'DELETE'
         });
@@ -228,21 +266,30 @@ async function deleteProject(projectId, projectName) {
         if (!response.ok) {
             throw new Error('Failed to delete project');
         }
-
-        delete projectFiles[projectId];
-        expandedProjects.delete(projectId);
-        await loadProjects();
     } catch (error) {
         console.error('Error deleting project:', error);
+
+        // OPTIMIZED: Rollback optimistic update on error
+        projectsCache.splice(projectIndex, 0, deletedProject);
+        if (savedFiles) {
+            projectFiles[projectId] = savedFiles;
+        }
+        await loadProjects();
+
         alert('Failed to delete project');
     }
 }
 
 async function openFtpSetup(projectId, projectName, status) {
     try {
-        // Get fresh project data
-        const response = await fetch(`http://localhost:3000/api/projects/${projectId}`);
-        const project = await response.json();
+        // OPTIMIZED: Use cached project data instead of fetching again
+        let project = projectsCache.find(p => p.id === projectId);
+
+        if (!project) {
+            // Fallback: fetch if not in cache
+            const response = await fetch(`http://localhost:3000/api/projects/${projectId}`);
+            project = await response.json();
+        }
 
         // Build modal content HTML
         const modalContent = `
@@ -342,21 +389,36 @@ async function deleteFile(projectId, fileId, fileName) {
         return;
     }
 
+    // Store for rollback
+    const files = projectFiles[projectId] || [];
+    const fileIndex = files.findIndex(f => f.id === fileId);
+    const deletedFile = files[fileIndex];
+
     try {
+        // OPTIMIZED: Optimistic update - remove from cache immediately
+        if (projectFiles[projectId]) {
+            projectFiles[projectId] = projectFiles[projectId].filter(f => f.id !== fileId);
+        }
+
+        // Update UI immediately
+        await loadProjects();
+
+        // Background delete
         const response = await fetch(`http://localhost:3000/api/files/${fileId}`, {
             method: 'DELETE'
         });
 
         if (!response.ok) throw new Error('Delete failed');
 
-        // Refresh files for this project
-        const filesResponse = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
-        if (filesResponse.ok) {
-            projectFiles[projectId] = await filesResponse.json();
-        }
-        await loadProjects();
     } catch (error) {
         console.error('Error deleting file:', error);
+
+        // OPTIMIZED: Rollback optimistic update on error
+        if (projectFiles[projectId] && deletedFile) {
+            projectFiles[projectId].splice(fileIndex, 0, deletedFile);
+        }
+        await loadProjects();
+
         alert('Failed to delete file');
     }
 }
@@ -400,56 +462,68 @@ document.addEventListener('DOMContentLoaded', () => {
             folderRow.classList.remove('drag-over');
             const projectId = folderRow.dataset.project;
             const folder = folderRow.dataset.folder;
-            const files = e.dataTransfer.files;
+            const files = Array.from(e.dataTransfer.files);
 
             if (files.length > 0) {
-                for (const file of files) {
-                    await uploadFile(file, projectId, folder);
+                // OPTIMIZED: Upload all files in parallel!
+                try {
+                    const uploadPromises = files.map(file =>
+                        uploadFile(file, projectId, folder)
+                    );
+
+                    // Wait for all uploads to complete
+                    await Promise.all(uploadPromises);
+
+                    // Refresh the project after all uploads complete
+                    const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+                    if (response.ok) {
+                        projectFiles[projectId] = await response.json();
+                    }
+                    await loadProjects();
+                } catch (error) {
+                    console.error('Error uploading files:', error);
+                    alert('Some files failed to upload');
                 }
             }
         }
     });
 });
 
-async function uploadFile(file, projectId, folder) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', folder);
-    formData.append('projectId', projectId);
+// OPTIMIZED: Returns Promise for parallel upload support
+function uploadFile(file, projectId, folder) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', folder);
+        formData.append('projectId', projectId);
 
-    try {
         const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
                 const percentage = ((e.loaded / e.total) * 100).toFixed(2);
-                console.log(`Upload progress: ${percentage}%`);
+                console.log(`${file.name}: ${percentage}%`);
             }
         });
 
-        xhr.addEventListener('load', async () => {
+        xhr.addEventListener('load', () => {
             if (xhr.status === 200) {
-                // Refresh files for this project
-                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
-                if (response.ok) {
-                    projectFiles[projectId] = await response.json();
-                }
-                await loadProjects();
+                console.log(`✓ Uploaded: ${file.name}`);
+                resolve();
             } else {
-                alert(`Upload failed: ${file.name}`);
+                console.error(`✗ Failed: ${file.name}`);
+                reject(new Error(`Upload failed: ${file.name}`));
             }
         });
 
         xhr.addEventListener('error', () => {
-            alert(`Upload failed: ${file.name} - Network error`);
+            console.error(`✗ Network error: ${file.name}`);
+            reject(new Error(`Network error: ${file.name}`));
         });
 
         xhr.open('POST', `http://localhost:3000/api/projects/${projectId}/upload`, true);
         xhr.send(formData);
-    } catch (error) {
-        console.error('Error uploading file:', error);
-        alert(`Failed to upload ${file.name}`);
-    }
+    });
 }
 
 // Helper functions
