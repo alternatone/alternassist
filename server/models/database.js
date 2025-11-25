@@ -174,6 +174,13 @@ function initDatabase() {
     console.log('Added transcoding_attempts column to files table');
   }
 
+  const hasFilesUpdatedAt = fileColumns.some(col => col.name === 'updated_at');
+  if (!hasFilesUpdatedAt) {
+    db.exec('ALTER TABLE files ADD COLUMN updated_at DATETIME');
+    db.exec('UPDATE files SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+    console.log('Added updated_at column to files table');
+  }
+
 
   // Comments table (for future use)
   db.exec(`
