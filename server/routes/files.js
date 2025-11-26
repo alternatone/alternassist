@@ -242,6 +242,7 @@ router.get('/:id/download', requireAuth, (req, res) => {
 
 // Unified streaming handler (eliminates 108 → 32 line duplication)
 function streamFile(fileId, projectId, req, res) {
+  console.log(`Stream request: projectId=${projectId}, fileId=${fileId}, range=${req.headers.range}`);
   try {
     const result = getAuthorizedFile(fileId, projectId);
     if (result.error) {
@@ -261,9 +262,15 @@ function streamFile(fileId, projectId, req, res) {
 
     const { size } = fs.statSync(streamPath);
     const range = req.headers.range;
-    const [start, end = size - 1] = range
-      ? range.replace(/bytes=/, "").split("-").map(Number)
-      : [0, size - 1];
+
+    let start = 0;
+    let end = size - 1;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      start = parseInt(parts[0], 10);
+      end = parts[1] ? parseInt(parts[1], 10) : size - 1;
+    }
 
     // Track stream activity (only on first request, not ranges)
     if (!range || start === 0) {
@@ -277,16 +284,30 @@ function streamFile(fileId, projectId, req, res) {
       }, req);
     }
 
-    res.writeHead(range ? 206 : 200, {
-      'Content-Range': range ? `bytes ${start}-${end}/${size}` : undefined,
+    const headers = {
       'Accept-Ranges': 'bytes',
       'Content-Length': end - start + 1,
       'Content-Type': file.transcoded_file_path ? 'video/mp4' : file.mime_type
-    });
+    };
 
-    fs.createReadStream(streamPath, { start, end }).pipe(res);
+    if (range) {
+      headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
+    }
+
+    res.writeHead(range ? 206 : 200, headers);
+
+    const stream = fs.createReadStream(streamPath, { start, end });
+    stream.on('error', (streamError) => {
+      console.error('Stream read error:', streamError);
+    });
+    stream.pipe(res);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    } else {
+      console.error('Headers already sent, cannot send error response');
+    }
   }
 }
 
@@ -371,6 +392,10 @@ function addComment(fileId, projectId, body, res, req) {
     }
 
     const insertResult = commentQueries.create.run(fileId, author_name, timecode || null, comment_text);
+    const commentId = insertResult.lastInsertRowid;
+
+    // Fetch the newly created comment to get the auto-generated created_at timestamp
+    const newComment = commentQueries.findById.get(commentId);
 
     // Track comment addition activity
     ActivityTracker.log('comment_added', {
@@ -378,11 +403,17 @@ function addComment(fileId, projectId, body, res, req) {
       fileId: fileId,
       metadata: {
         author: author_name,
-        commentId: insertResult.lastInsertRowid
+        commentId: commentId
       }
     }, req);
 
-    res.json({ id: insertResult.lastInsertRowid, author: author_name, timecode, text: comment_text });
+    res.json({
+      id: newComment.id,
+      author: newComment.author_name,
+      timecode: newComment.timecode,
+      text: newComment.comment_text,
+      createdAt: newComment.created_at
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -444,7 +475,39 @@ router.patch('/comments/:id', authenticateProjectAccess, (req, res) => {
   }
 });
 
-// Delete comment (OPTIMIZED: persist comment deletions)
+// Delete comment - Electron/unauthenticated version (with project ID)
+router.delete('/:projectId/comments/:id', (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+    const projectId = parseInt(req.params.projectId);
+
+    // Check if comment exists
+    const comment = commentQueries.findById.get(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Validate ownership via file → project relationship
+    const file = fileQueries.findById.get(comment.file_id);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if comment belongs to this project
+    if (file.project_id !== projectId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Delete comment
+    commentQueries.delete.run(commentId);
+
+    res.json({ success: true, id: commentId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete comment - Web/authenticated version
 router.delete('/comments/:id', authenticateProjectAccess, (req, res) => {
   try {
     const commentId = parseInt(req.params.id);

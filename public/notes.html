@@ -203,22 +203,26 @@ h1.notemarker-title {
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
 body {
     font-family: var(--font-primary);
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
     line-height: var(--line-height-normal);
-    min-height: 100vh;
 }
 
 .container {
     max-width: 100%;
     margin: 0 auto;
     padding: var(--spacing-base);
-    min-height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 .header {
@@ -1777,15 +1781,36 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupGlobalErrorHandling();
     createToastContainer();
     setupGlobalKeyboardShortcuts();
-    
+
     // Load connection state first, then update UI to prevent flashing
     setupLiveConnectionMonitoring();
     await loadInitialConnectionStateAndUI();
-    
+
     // Start periodic connection monitoring for launch order independence
     setTimeout(() => {
         startConnectionMonitoring();
     }, 1000); // Start monitoring 1 second after startup
+});
+
+// Listen for messages from parent window (like exported comments from media review)
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'exportToNotes') {
+        logger.info('Received exported comments from media review', {
+            commentCount: event.data.comments?.length || 0,
+            fileName: event.data.fileName
+        });
+
+        // Add comments to queue using the existing queue system
+        if (event.data.comments && event.data.comments.length > 0) {
+            addFileToQueue({
+                fileName: event.data.fileName || 'Media Review Comments',
+                filePath: null
+            }, event.data.comments);
+
+            // Show success toast
+            showToast('success', `Imported ${event.data.comments.length} comment${event.data.comments.length !== 1 ? 's' : ''} from media review`);
+        }
+    }
 });
 
 function initializeEventListeners() {

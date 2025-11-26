@@ -252,7 +252,7 @@
                     <li class="nav-item">
                         <a href="#" class="nav-link" onclick="event.preventDefault();">projects</a>
                         <div class="nav-dropdown">
-                            <a href="#" class="nav-dropdown-item" data-module="projects">project board</a>
+                            <a href="#" class="nav-dropdown-item" data-module="projects">kanban</a>
                             <a href="#" class="nav-dropdown-item" data-module="cues">cues</a>
                             <a href="#" class="nav-dropdown-item" data-module="notes" id="notes-dropdown-item" style="display: none;">notes</a>
                             <a href="#" class="nav-dropdown-item" data-module="media">media</a>
@@ -286,34 +286,34 @@
                 </div>
             </div>
 
-            <!-- Project Pipeline Module -->
+            <!-- Kanban Module -->
             <div class="module-container" id="projects-module">
-                <iframe class="module-frame" src="public/kanban_board.html"></iframe>
+                <iframe class="module-frame" src="public/kanban.html"></iframe>
             </div>
 
             <!-- Cue Tracker Module -->
             <div class="module-container" id="cues-module">
-                <iframe class="module-frame" src="public/cue_tracker_demo.html"></iframe>
+                <iframe class="module-frame" src="public/cues.html"></iframe>
             </div>
 
             <!-- Estimate Calculator Module -->
             <div class="module-container" id="estimates-module">
-                <iframe class="module-frame" src="public/estimate_calculator.html"></iframe>
+                <iframe class="module-frame" src="public/estimates.html"></iframe>
             </div>
 
             <!-- Invoice Generator Module -->
             <div class="module-container" id="invoices-module">
-                <iframe class="module-frame" src="public/invoice_generator_standalone.html"></iframe>
+                <iframe class="module-frame" src="public/invoices.html"></iframe>
             </div>
 
             <!-- Payment Dashboard Module -->
             <div class="module-container" id="payments-module">
-                <iframe class="module-frame" src="public/payment_dashboard.html"></iframe>
+                <iframe class="module-frame" src="public/payments.html"></iframe>
             </div>
 
             <!-- Accounting Module -->
             <div class="module-container" id="accounting-module">
-                <iframe class="module-frame" src="public/accounting.html"></iframe>
+                <iframe class="module-frame" src="public/books.html"></iframe>
             </div>
 
             <!-- Notes Module (NoteMarker - Electron only) -->
@@ -697,11 +697,27 @@
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
             });
+            document.querySelectorAll('.nav-dropdown-item').forEach(item => {
+                item.classList.remove('active');
+            });
 
-            const activeLink = document.querySelector(`[data-module="${moduleName}"]`);
-            if (activeLink) {
-                activeLink.classList.add('active');
-                updateNavUnderline(activeLink);
+            // Find the active link/item
+            const dropdownItem = document.querySelector(`.nav-dropdown-item[data-module="${moduleName}"]`);
+            const topLevelLink = document.querySelector(`.nav-link[data-module="${moduleName}"]`);
+
+            if (dropdownItem) {
+                // If it's a dropdown item, activate both the dropdown item and its parent nav-link
+                dropdownItem.classList.add('active');
+                const parentNavItem = dropdownItem.closest('.nav-item');
+                const parentNavLink = parentNavItem.querySelector('.nav-link');
+                if (parentNavLink) {
+                    parentNavLink.classList.add('active');
+                    updateNavUnderline(parentNavLink);
+                }
+            } else if (topLevelLink) {
+                // If it's a top-level link, just activate it
+                topLevelLink.classList.add('active');
+                updateNavUnderline(topLevelLink);
             }
         }
 
@@ -723,26 +739,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 const moduleName = item.getAttribute('data-module');
-                loadModule(moduleName);
-
-                // Update the parent nav-link to active state
-                const parentNavItem = item.closest('.nav-item');
-                const parentNavLink = parentNavItem.querySelector('.nav-link');
-
-                // Remove active from all nav-links
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    link.classList.remove('active');
-                });
-
-                // Remove active from all dropdown items
-                document.querySelectorAll('.nav-dropdown-item').forEach(dropItem => {
-                    dropItem.classList.remove('active');
-                });
-
-                // Add active to parent and current dropdown item
-                parentNavLink.classList.add('active');
-                item.classList.add('active');
-                updateNavUnderline(parentNavLink);
+                loadModule(moduleName); // This now handles all active state management
             });
         });
 
@@ -1059,6 +1056,16 @@
             } else if (event.data.type === 'navigate-to-ftp-admin') {
                 // Go back to FTP admin from media browser
                 loadModule('ftp-admin');
+            } else if (event.data.type === 'exportToNotes') {
+                // Switch to notes page and send comments
+                loadModule('notes');
+                // Forward message to notes iframe after a short delay to ensure it's loaded
+                setTimeout(() => {
+                    const notesFrame = document.querySelector('#notes-module iframe');
+                    if (notesFrame && notesFrame.contentWindow) {
+                        notesFrame.contentWindow.postMessage(event.data, '*');
+                    }
+                }, 100);
             }
         });
 

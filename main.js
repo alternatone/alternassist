@@ -43,6 +43,11 @@ function createWindow() {
     // Disable throttling when hidden
     mainWindow.webContents.setBackgroundThrottling(false);
 
+    // Forward console messages from renderer to main process
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+        console.log(`[Renderer] ${message}`);
+    });
+
     // Open DevTools in development (optional - remove for production)
     // mainWindow.webContents.openDevTools();
 }

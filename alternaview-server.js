@@ -115,10 +115,12 @@ function startServer() {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    // Default error response
-    res.status(err.status || 500).json({
-      error: err.message || 'Internal server error'
-    });
+    // Default error response (only if headers not already sent)
+    if (!res.headersSent) {
+      return res.status(err.status || 500).json({
+        error: err.message || 'Internal server error'
+      });
+    }
   });
 
   // Start server

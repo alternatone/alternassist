@@ -36,7 +36,7 @@
 
         .tracker-container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 2rem; }
         .header-left { display: flex; align-items: center; gap: 1rem; }
         .header-left h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: var(--primary-text); }
         .project-select { padding: 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; width: 200px; }
@@ -139,9 +139,6 @@
 <body>
     <div class="tracker-container">
         <div class="header">
-            <div class="header-left">
-                <h1>Cue Tracker</h1>
-            </div>
             <select class="project-select" id="projectSelect" onchange="loadProjectCues()">
                 <option value="">select project...</option>
             </select>

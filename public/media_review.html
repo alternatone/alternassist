@@ -61,7 +61,7 @@
 
         .video-header {
             padding: 1rem 1.5rem;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.7);
             display: flex;
             align-items: center;
             gap: 1rem;
@@ -69,7 +69,15 @@
             top: 0;
             left: 0;
             right: 0;
-            z-index: 10;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .video-panel:hover .video-header {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .back-btn {
@@ -97,36 +105,13 @@
         }
 
         .video-container {
-            flex: 1;
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #000;
             position: relative;
-            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
             overflow: hidden;
-            transition: background 0.3s ease, border 0.3s ease;
-        }
-
-        .video-container::before,
-        .video-container::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            right: 0;
-            height: 80px;
-            background: #000;
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        .video-container::before {
-            top: 0;
-            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        }
-
-        .video-container::after {
-            bottom: 0;
         }
 
         .video-placeholder {
@@ -199,11 +184,24 @@
         .audio-bar:nth-child(5) { height: 35%; }
 
         .video-controls {
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.7);
             padding: 1rem 1.5rem;
             display: flex;
             flex-direction: column;
             gap: 1rem;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .video-panel:hover .video-controls {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .controls-row {
@@ -372,6 +370,8 @@
             display: flex;
             flex-direction: column;
             border-left: var(--border-medium);
+            height: 100vh;
+            overflow: hidden;
         }
 
         .comments-header {
@@ -645,7 +645,7 @@
         <!-- Video Panel -->
         <div class="video-panel">
             <div class="video-header">
-                <button class="back-btn" onclick="window.location.href='/'">
+                <button class="back-btn" onclick="window.location.href='media.html'">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 12H5M12 19l-7-7 7-7"/>
                     </svg>
@@ -680,10 +680,10 @@
                         <div class="audio-bar"></div>
                     </div>
                 </div>
-                <video id="videoPlayer" style="display: none;">
+                <video id="videoPlayer">
                     Your browser does not support the video tag.
                 </video>
-                <audio id="audioPlayer" style="display: none; width: 80%; max-width: 600px;">
+                <audio id="audioPlayer">
                     Your browser does not support the audio tag.
                 </audio>
             </div>
@@ -771,7 +771,7 @@
     </div>
 
     <script>
-        console.log('Review page JavaScript loaded - v1.1');
+        console.log('Review page JavaScript loaded - v1.2 - DELETE FIX');
 
         // State
         let comments = [];
@@ -808,7 +808,7 @@
         // Get file and project ID from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         currentFileId = urlParams.get('file');
-        projectId = urlParams.get('projectId'); // FIXED: Extract projectId from URL
+        projectId = urlParams.get('project'); // Get project ID from URL
 
         // Load file from backend if specified
         if (currentFileId && projectId) {
@@ -826,32 +826,52 @@
 
         async function loadFileFromBackend() {
             try {
-                // OPTIMIZED: Fetch only the single file we need (not all files!)
-                const response = await fetch(`http://localhost:3000/api/files/${currentFileId}`);
-                if (!response.ok) {
+                // Load file metadata using project-scoped endpoint
+                const filesResponse = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+                if (!filesResponse.ok) {
                     alert('Failed to load file');
                     return;
                 }
 
-                const file = await response.json();
+                const files = await filesResponse.json();
+                const file = files.find(f => f.id == currentFileId);
+
+                if (!file) {
+                    alert('File not found');
+                    window.location.href = '/';
+                    return;
+                }
 
                 // Determine which player to use based on file type
                 const audioVisualizer = document.getElementById('audioVisualizer');
                 const isAudio = file.mime_type && file.mime_type.startsWith('audio/');
+
+                console.log('File loaded:', file);
+                console.log('Is audio:', isAudio);
+                console.log('Project ID:', projectId);
+                console.log('File ID:', currentFileId);
+
                 if (isAudio) {
                     activePlayer = audioPlayer;
-                    audioPlayer.style.display = 'block';
-                    videoPlayer.style.display = 'none';
                     audioVisualizer.style.display = 'flex';
+                    // Clear video src so CSS hides it
+                    videoPlayer.src = '';
                 } else {
                     activePlayer = videoPlayer;
-                    videoPlayer.style.display = 'block';
-                    audioPlayer.style.display = 'none';
                     audioVisualizer.style.display = 'none';
+                    // Clear audio src so CSS hides it
+                    audioPlayer.src = '';
                 }
 
                 // Set source to streaming endpoint with project ID
-                activePlayer.src = `/api/files/${projectId}/${currentFileId}/stream`;
+                // CSS will automatically show the player when src is set
+                const streamUrl = `http://localhost:3000/api/files/${projectId}/${currentFileId}/stream`;
+                console.log('Setting video src to:', streamUrl);
+                activePlayer.src = streamUrl;
+                console.log('Active player src after set:', activePlayer.src);
+                console.log('Video player element:', videoPlayer);
+                console.log('Video player display style:', window.getComputedStyle(videoPlayer).display);
+
                 videoFilename.textContent = file.original_name;
                 currentVideoFile = file.original_name;
 
@@ -861,6 +881,7 @@
 
                 // Load the media
                 activePlayer.load();
+                console.log('Load called on active player');
             } catch (error) {
                 console.error('Error loading file:', error);
                 alert('Failed to load file');
@@ -1073,6 +1094,7 @@
                 const savedComment = await saveCommentToBackend(comment);
                 if (savedComment) {
                     comment.id = savedComment.id;
+                    comment.createdAt = savedComment.createdAt;
                 }
             }
 
@@ -1238,9 +1260,11 @@
             // Delete button (OPTIMIZED: persist to backend)
             document.querySelectorAll('.icon-btn.delete').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
+                    console.log('Delete button clicked!');
                     e.stopPropagation();
                     const card = e.target.closest('.comment-card');
                     const id = card.dataset.id;
+                    console.log('Deleting comment ID:', id, 'Project ID:', projectId);
 
                     if (!confirm('Delete this comment?')) return;
 
@@ -1251,12 +1275,20 @@
                     renderComments();
 
                     try {
-                        // Delete from backend
-                        const response = await fetch(`http://localhost:3000/api/files/comments/${id}`, {
+                        // Delete from backend using project-scoped endpoint
+                        const deleteUrl = `http://localhost:3000/api/files/${projectId}/comments/${id}`;
+                        console.log('DELETE request to:', deleteUrl);
+                        const response = await fetch(deleteUrl, {
                             method: 'DELETE'
                         });
 
-                        if (!response.ok) throw new Error('Failed to delete comment');
+                        console.log('DELETE response status:', response.status);
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error('DELETE failed with response:', errorText);
+                            throw new Error('Failed to delete comment');
+                        }
+                        console.log('Comment deleted successfully');
                     } catch (error) {
                         console.error('Error deleting comment:', error);
                         // Revert optimistic update

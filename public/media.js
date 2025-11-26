@@ -1,5 +1,9 @@
-let expandedProjects = new Set();
-let expandedFolders = new Set(); // Folders per project like "123-FROM AA"
+// Restore expanded state from localStorage
+const savedExpandedProjects = localStorage.getItem('expandedProjects');
+const savedExpandedFolders = localStorage.getItem('expandedFolders');
+
+let expandedProjects = savedExpandedProjects ? new Set(JSON.parse(savedExpandedProjects)) : new Set();
+let expandedFolders = savedExpandedFolders ? new Set(JSON.parse(savedExpandedFolders)) : new Set(); // Folders per project like "123-FROM AA"
 let projectFiles = {}; // Cache files by project ID
 let projectsCache = []; // OPTIMIZED: Cache projects globally to eliminate duplicate fetches
 let projectAbortControllers = {}; // OPTIMIZED: Track abort controllers for request cancellation
@@ -89,6 +93,34 @@ async function loadProjects() {
         // OPTIMIZED: Removed blocking await - createProjectRow is now sync
         const html = projectsCache.map(project => createProjectRow(project)).join('');
         tbody.innerHTML = html;
+
+        // Load files for any expanded projects that don't have files loaded yet
+        for (const projectId of expandedProjects) {
+            if (!projectFiles[projectId]) {
+                try {
+                    const controller = new AbortController();
+                    projectAbortControllers[projectId] = controller;
+
+                    const filesResponse = await fetch(`http://localhost:3000/api/projects/${projectId}/files`, {
+                        signal: controller.signal
+                    });
+
+                    if (filesResponse.ok) {
+                        projectFiles[projectId] = await filesResponse.json();
+                        // Re-render to show the files
+                        const projectHtml = projectsCache.map(project => createProjectRow(project)).join('');
+                        tbody.innerHTML = projectHtml;
+                    }
+
+                    delete projectAbortControllers[projectId];
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.error('Error loading files for expanded project:', error);
+                        projectFiles[projectId] = [];
+                    }
+                }
+            }
+        }
     } catch (error) {
         console.error('Error loading projects:', error);
         document.getElementById('projectsTableBody').innerHTML = `
@@ -168,6 +200,11 @@ async function toggleProject(projectId) {
         }
     } else {
         expandedProjects.add(projectId);
+    }
+    // Save to localStorage
+    localStorage.setItem('expandedProjects', JSON.stringify([...expandedProjects]));
+
+    if (expandedProjects.has(projectId)) {
         // Load files if not already loaded
         if (!projectFiles[projectId]) {
             try {
@@ -215,8 +252,9 @@ function createFolderRow(projectId, folderName, files) {
                     <span>${folderName}</span>
                 </div>
             </td>
-            <td colspan="2" class="file-date">${fileCount} file${fileCount !== 1 ? 's' : ''}</td>
+            <td class="file-date">${fileCount} file${fileCount !== 1 ? 's' : ''}</td>
             <td class="file-size">${formatFileSize(totalSize)}</td>
+            <td></td>
             <td></td>
         </tr>
     `;
@@ -236,9 +274,10 @@ function createFileRow(projectId, file, folder) {
     return `
         <tr class="file-row ${isVisible ? 'visible' : ''}" data-project="${projectId}" data-folder="${folder}">
             <td><div class="file-name" style="padding-left: 4rem;">${fileNameHtml}</div></td>
+            <td></td>
             <td class="file-size">${formatFileSize(file.file_size)}</td>
             <td class="file-date">${formatDate(file.uploaded_at)}</td>
-            <td colspan="2">
+            <td>
                 <div class="file-actions">
                     <button class="btn-action" onclick="copyFileLink(${file.id}, '${escapeHtml(file.original_name)}')" title="Copy Link">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -274,6 +313,8 @@ async function toggleFolder(projectId, folderName) {
     } else {
         expandedFolders.add(folderKey);
     }
+    // Save to localStorage
+    localStorage.setItem('expandedFolders', JSON.stringify([...expandedFolders]));
     await loadProjects();
 }
 
