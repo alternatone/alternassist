@@ -3,7 +3,10 @@
  * Centralized API calls for all pages to use
  */
 
-const API_BASE = 'http://localhost:3000/api';
+// Detect if running on Cloudflare Pages or localhost
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000/api'
+  : '/api';
 
 // ============================================
 // PROJECTS API
