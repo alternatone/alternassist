@@ -99,7 +99,7 @@
 
         async function loadProjects() {
             try {
-                const response = await fetch('http://localhost:3000/api/projects');
+                const response = await fetch('/api/projects');
                 if (!response.ok) throw new Error('Failed to load projects');
 
                 const projects = await response.json();
@@ -180,7 +180,7 @@
 
         async function revealPassword(projectId) {
             try {
-                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/password`);
+                const response = await fetch(`/api/projects/${projectId}/password`);
                 const data = await response.json();
 
                 if (response.ok && data.success) {
@@ -203,7 +203,7 @@
         }
 
         function copyShareLink(projectId, projectName) {
-            const link = `http://localhost:3000/client/login.html`;
+            const link = `/client/login.html`;
             navigator.clipboard.writeText(link).then(() => {
                 alert(`Client portal link copied!\n\n${link}\n\nShare this link with "${projectName}" along with their password.`);
             }).catch(err => {
@@ -217,7 +217,7 @@
             }
 
             try {
-                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/regenerate-password`, {
+                const response = await fetch(`/api/projects/${projectId}/regenerate-password`, {
                     method: 'POST'
                 });
 

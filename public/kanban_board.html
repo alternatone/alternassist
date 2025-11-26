@@ -465,7 +465,7 @@
                 // Save logged hours to database via API
                 if (currentProjectId) {
                     try {
-                        await fetch(`http://localhost:3000/api/hours-log/project/${currentProjectId}/upsert-totals`, {
+                        await fetch(`/api/hours-log/project/${currentProjectId}/upsert-totals`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(loggedHours)
@@ -488,7 +488,7 @@
                 if (currentProjectId) {
                     try {
                         // Save scope data to project_scope table
-                        await fetch('http://localhost:3000/api/estimates/scope', {
+                        await fetch('/api/estimates/scope', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -503,7 +503,7 @@
                         });
 
                         // Also update music_coverage in projects table
-                        await fetch(`http://localhost:3000/api/projects/${currentProjectId}`, {
+                        await fetch(`/api/projects/${currentProjectId}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -546,7 +546,7 @@
                 if (scopeData && (scopeData.music_minutes || scopeData.dialogue_hours || scopeData.sound_design_hours || scopeData.mix_hours || scopeData.revision_hours)) {
                     try {
                         // Save scope data to project_scope table
-                        await fetch('http://localhost:3000/api/estimates/scope', {
+                        await fetch('/api/estimates/scope', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -561,7 +561,7 @@
                         });
 
                         // Also update music_coverage in projects table
-                        await fetch(`http://localhost:3000/api/projects/${newProject.id}`, {
+                        await fetch(`/api/projects/${newProject.id}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -630,7 +630,7 @@
             // OPTIMIZED: Fetch all data in single aggregated query
             let kanbanData = {};
             try {
-                const response = await fetch(`http://localhost:3000/api/projects/${project.id}/kanban-data`);
+                const response = await fetch(`/api/projects/${project.id}/kanban-data`);
                 if (response.ok) {
                     kanbanData = await response.json();
                 }
@@ -679,7 +679,7 @@
                 // The kanbanData doesn't include approved_minutes yet
                 let approvedMinutes = 0;
                 try {
-                    const cueStats = await fetch(`http://localhost:3000/api/cues/project/${project.id}/stats`);
+                    const cueStats = await fetch(`/api/cues/project/${project.id}/stats`);
                     if (cueStats.ok) {
                         const stats = await cueStats.json();
                         approvedMinutes = stats.approved_minutes || 0;

@@ -25,7 +25,7 @@ class KanbanAPIAdapter {
   async loadProjects() {
     try {
       // Single optimized query with JOIN - eliminates N+1
-      const response = await fetch('http://localhost:3000/api/projects/with-scope');
+      const response = await fetch('/api/projects/with-scope');
       if (!response.ok) throw new Error('Failed to load projects');
 
       const apiProjects = await response.json();
@@ -111,7 +111,7 @@ class KanbanAPIAdapter {
 
         if (typeof project.id === 'string' && project.id.length > 10) {
           // This is a temporary ID from Date.now() - create new project
-          const response = await fetch('http://localhost:3000/api/projects', {
+          const response = await fetch('/api/projects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -126,7 +126,7 @@ class KanbanAPIAdapter {
           }
         } else {
           // Update existing project
-          await fetch(`http://localhost:3000/api/projects/${project.id}`, {
+          await fetch(`/api/projects/${project.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(apiData)
@@ -146,7 +146,7 @@ class KanbanAPIAdapter {
    */
   async deleteProject(projectId) {
     try {
-      const response = await fetch(`http://localhost:3000/api/projects/${projectId}`, {
+      const response = await fetch(`/api/projects/${projectId}`, {
         method: 'DELETE'
       });
 

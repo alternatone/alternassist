@@ -3,7 +3,7 @@
  * Centralized API calls for all pages to use
  */
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 // ============================================
 // PROJECTS API

@@ -69,7 +69,7 @@ if (document.readyState === 'loading') {
 
 async function loadProjects() {
     try {
-        const response = await fetch('http://localhost:3000/api/projects');
+        const response = await fetch('/api/projects');
         if (!response.ok) throw new Error('Failed to load projects');
 
         // OPTIMIZED: Cache projects globally
@@ -175,7 +175,7 @@ async function toggleProject(projectId) {
                 const controller = new AbortController();
                 projectAbortControllers[projectId] = controller;
 
-                const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`, {
+                const response = await fetch(`/api/projects/${projectId}/files`, {
                     signal: controller.signal
                 });
 
@@ -284,7 +284,7 @@ async function openFtpSetupForProject(projectId, projectName, status) {
 
 // Copy link from project list (UX Enhancement: toast notifications)
 function copyClientPortalLinkForProject(projectId, projectName) {
-    const link = `http://localhost:3000/client/login.html`;
+    const link = `/client/login.html`;
     navigator.clipboard.writeText(link).then(() => {
         showToast(`Client portal link copied for "${projectName}"`, 'success');
     }).catch(err => {
@@ -318,7 +318,7 @@ async function deleteProject(projectId, projectName) {
         tbody.innerHTML = html || '<tr><td colspan="5" class="empty-state">No projects yet.</td></tr>';
 
         // Background delete
-        const response = await fetch(`http://localhost:3000/api/projects/${projectId}`, {
+        const response = await fetch(`/api/projects/${projectId}`, {
             method: 'DELETE'
         });
 
@@ -349,7 +349,7 @@ async function openFtpSetup(projectId, projectName, status) {
 
         if (!project) {
             // Fallback: fetch if not in cache
-            const response = await fetch(`http://localhost:3000/api/projects/${projectId}`);
+            const response = await fetch(`/api/projects/${projectId}`);
             project = await response.json();
         }
 
@@ -416,7 +416,7 @@ function closeFtpSetup() {
 }
 
 async function copyFileLink(fileId, fileName) {
-    const fileUrl = `http://localhost:3000/api/files/${fileId}/download`;
+    const fileUrl = `/api/files/${fileId}/download`;
     try {
         await navigator.clipboard.writeText(fileUrl);
         showToast(`Link copied for "${fileName}"`, 'success');
@@ -430,7 +430,7 @@ async function downloadFile(fileId, fileName) {
     try {
         showToast(`Downloading "${fileName}"...`, 'info', 2000);
 
-        const response = await fetch(`http://localhost:3000/api/files/${fileId}/download`);
+        const response = await fetch(`/api/files/${fileId}/download`);
         if (!response.ok) throw new Error('Download failed');
 
         const blob = await response.blob();
@@ -473,7 +473,7 @@ async function deleteFile(projectId, fileId, fileName) {
         await loadProjects();
 
         // Background delete
-        const response = await fetch(`http://localhost:3000/api/files/${fileId}`, {
+        const response = await fetch(`/api/files/${fileId}`, {
             method: 'DELETE'
         });
 
@@ -565,7 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     progressBar.remove();
 
                     // Refresh the project after all uploads complete
-                    const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+                    const response = await fetch(`/api/projects/${projectId}/files`);
                     if (response.ok) {
                         projectFiles[projectId] = await response.json();
                     }
@@ -615,7 +615,7 @@ function uploadFile(file, projectId, folder) {
             reject(new Error(`Network error: ${file.name}`));
         });
 
-        xhr.open('POST', `http://localhost:3000/api/projects/${projectId}/upload`, true);
+        xhr.open('POST', `/api/projects/${projectId}/upload`, true);
         xhr.send(formData);
     });
 }

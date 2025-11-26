@@ -827,7 +827,7 @@
         async function loadFileFromBackend() {
             try {
                 // OPTIMIZED: Fetch only the single file we need (not all files!)
-                const response = await fetch(`http://localhost:3000/api/files/${currentFileId}`);
+                const response = await fetch(`/api/files/${currentFileId}`);
                 if (!response.ok) {
                     alert('Failed to load file');
                     return;
@@ -869,7 +869,7 @@
 
         async function loadCommentsFromBackend() {
             try {
-                const response = await fetch(`http://localhost:3000/api/files/${projectId}/${currentFileId}/comments`);
+                const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`);
                 if (response.ok) {
                     comments = await response.json();
                     renderComments();
@@ -887,7 +887,7 @@
 
         async function saveCommentToBackend(comment) {
             try {
-                const response = await fetch(`http://localhost:3000/api/files/${projectId}/${currentFileId}/comments`, {
+                const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1218,7 +1218,7 @@
 
                     try {
                         // Save to backend
-                        const response = await fetch(`http://localhost:3000/api/files/comments/${id}`, {
+                        const response = await fetch(`/api/files/comments/${id}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: newStatus })
@@ -1252,7 +1252,7 @@
 
                     try {
                         // Delete from backend
-                        const response = await fetch(`http://localhost:3000/api/files/comments/${id}`, {
+                        const response = await fetch(`/api/files/comments/${id}`, {
                             method: 'DELETE'
                         });
 

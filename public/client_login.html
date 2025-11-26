@@ -179,7 +179,7 @@
             loginBtn.textContent = 'authenticating...';
 
             try {
-                const response = await fetch('http://localhost:3000/api/projects/auth', {
+                const response = await fetch('/api/projects/auth', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -217,7 +217,7 @@
         // Check if already logged in
         async function checkExistingSession() {
             try {
-                const response = await fetch('http://localhost:3000/api/projects/current', {
+                const response = await fetch('/api/projects/current', {
                     credentials: 'include'
                 });
 
