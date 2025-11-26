@@ -771,8 +771,6 @@
     </div>
 
     <script>
-        console.log('Review page JavaScript loaded - v1.2 - DELETE FIX');
-
         // State
         let comments = [];
         let currentVideoFile = null;
@@ -846,11 +844,6 @@
                 const audioVisualizer = document.getElementById('audioVisualizer');
                 const isAudio = file.mime_type && file.mime_type.startsWith('audio/');
 
-                console.log('File loaded:', file);
-                console.log('Is audio:', isAudio);
-                console.log('Project ID:', projectId);
-                console.log('File ID:', currentFileId);
-
                 if (isAudio) {
                     activePlayer = audioPlayer;
                     audioVisualizer.style.display = 'flex';
@@ -866,11 +859,7 @@
                 // Set source to streaming endpoint with project ID
                 // CSS will automatically show the player when src is set
                 const streamUrl = `http://localhost:3000/api/files/${projectId}/${currentFileId}/stream`;
-                console.log('Setting video src to:', streamUrl);
                 activePlayer.src = streamUrl;
-                console.log('Active player src after set:', activePlayer.src);
-                console.log('Video player element:', videoPlayer);
-                console.log('Video player display style:', window.getComputedStyle(videoPlayer).display);
 
                 videoFilename.textContent = file.original_name;
                 currentVideoFile = file.original_name;
@@ -881,7 +870,6 @@
 
                 // Load the media
                 activePlayer.load();
-                console.log('Load called on active player');
             } catch (error) {
                 console.error('Error loading file:', error);
                 alert('Failed to load file');
@@ -954,19 +942,14 @@
         }
 
         // Play/Pause
-        console.log('Adding play button listener. PlayBtn:', playBtn);
         playBtn.addEventListener('click', () => {
-            console.log('Play button CLICKED! Active player:', activePlayer);
             if (!activePlayer) {
-                console.error('No active player!');
                 return;
             }
 
             if (activePlayer.paused) {
-                console.log('Attempting to play...');
                 activePlayer.play().catch(err => console.error('Play error:', err));
             } else {
-                console.log('Pausing...');
                 activePlayer.pause();
             }
         });
@@ -1277,18 +1260,13 @@
                     try {
                         // Delete from backend using project-scoped endpoint
                         const deleteUrl = `http://localhost:3000/api/files/${projectId}/comments/${id}`;
-                        console.log('DELETE request to:', deleteUrl);
                         const response = await fetch(deleteUrl, {
                             method: 'DELETE'
                         });
 
-                        console.log('DELETE response status:', response.status);
                         if (!response.ok) {
-                            const errorText = await response.text();
-                            console.error('DELETE failed with response:', errorText);
                             throw new Error('Failed to delete comment');
                         }
-                        console.log('Comment deleted successfully');
                     } catch (error) {
                         console.error('Error deleting comment:', error);
                         // Revert optimistic update

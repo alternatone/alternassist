@@ -242,7 +242,6 @@ router.get('/:id/download', requireAuth, (req, res) => {
 
 // Unified streaming handler (eliminates 108 → 32 line duplication)
 function streamFile(fileId, projectId, req, res) {
-  console.log(`Stream request: projectId=${projectId}, fileId=${fileId}, range=${req.headers.range}`);
   try {
     const result = getAuthorizedFile(fileId, projectId);
     if (result.error) {
