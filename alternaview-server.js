@@ -141,7 +141,11 @@ function startServer() {
 function stopServer() {
   if (serverInstance) {
     serverInstance.close(() => {
-      console.log('Alternaview server stopped');
+      try {
+        console.log('Alternaview server stopped');
+      } catch (err) {
+        // Ignore EPIPE errors when app is closing
+      }
       serverInstance = null;
     });
   }
