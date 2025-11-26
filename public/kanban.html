@@ -795,6 +795,7 @@
             const project = projects.find(p => p.id === id);
             if (project) {
                 project.pinned = !project.pinned;
+                window.kanbanAPI.markDirty(id); // Mark as dirty so it gets saved
                 await saveProjects();
 
                 // Reload projects from API to ensure we have the latest state
