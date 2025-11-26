@@ -1,0 +1,22 @@
+name = "alternassist"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "public"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "alternassist"
+database_id = "623697d2-559e-41f0-adf0-d385799e949c"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+
+# Preview environment settings
+[env.preview]
+vars = { ENVIRONMENT = "preview" }
+
+# KV namespace for caching (optional, for future use)
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "<YOUR_KV_ID>"
