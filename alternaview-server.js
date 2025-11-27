@@ -140,14 +140,15 @@ function startServer() {
 
 function stopServer() {
   if (serverInstance) {
-    serverInstance.close(() => {
-      try {
-        console.log('Alternaview server stopped');
-      } catch (err) {
-        // Ignore EPIPE errors when app is closing
-      }
+    try {
+      serverInstance.close(() => {
+        // Silently stop - don't log as stdout may be closed
+        serverInstance = null;
+      });
+    } catch (err) {
+      // Ignore errors during shutdown
       serverInstance = null;
-    });
+    }
   }
 }
 
