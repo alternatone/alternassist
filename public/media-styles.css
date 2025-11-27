@@ -127,13 +127,16 @@ form .btn-primary {
 }
 
 .btn-gradient {
-    background: linear-gradient(90deg, #007acc 0%, #ff6b6b 100%);
+    background: linear-gradient(135deg, #4A90E2 0%, #E74C3C 100%);
     color: white;
     justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05), 0 0 0 1px rgba(74, 144, 226, 0.1);
 }
 
 .btn-gradient:hover {
-    background: linear-gradient(90deg, #0066b3 0%, #ff5252 100%);
+    background: linear-gradient(135deg, #3a7bc8 0%, #d43f33 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(74, 144, 226, 0.2);
 }
 
 .btn-secondary {
