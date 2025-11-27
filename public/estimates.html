@@ -50,9 +50,11 @@
         .breakdown-input:focus { outline: none; border-color: var(--accent-blue); }
         .copy-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: var(--border-light); text-align: center; }
         .action-buttons { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
-        .action-btn { border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .action-btn { border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-family: var(--font-primary); }
         .action-btn { background: var(--accent-blue); color: white; }
         .action-btn:hover { background: #005999; }
+        .action-btn.btn-gradient { background: linear-gradient(135deg, #4A90E2 0%, #E74C3C 100%); box-shadow: 0 4px 20px rgba(0,0,0,0.05), 0 0 0 1px rgba(74, 144, 226, 0.1); }
+        .action-btn.btn-gradient:hover { background: linear-gradient(135deg, #3a7bc8 0%, #d43f33 100%); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(74, 144, 226, 0.2); }
         .action-btn.red { background: var(--accent-red); color: white; }
         .action-btn.red:hover { background: #e55555; }
         .logged-estimate-card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; border: var(--border-medium); }
