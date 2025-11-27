@@ -285,8 +285,8 @@ router.post('/logout', (req, res) => {
   });
 });
 
-// Update project (for Kanban board)
-router.patch('/:id', requireAdmin, (req, res) => {
+// Update project (for Kanban board) - No auth required for Electron app
+router.patch('/:id', (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const project = projectQueries.findById.get(projectId);
