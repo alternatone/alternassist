@@ -126,6 +126,16 @@ form .btn-primary {
     background: var(--accent-blue);
 }
 
+.btn-gradient {
+    background: linear-gradient(90deg, #007acc 0%, #ff6b6b 100%);
+    color: white;
+    justify-content: center;
+}
+
+.btn-gradient:hover {
+    background: linear-gradient(90deg, #0066b3 0%, #ff5252 100%);
+}
+
 .btn-secondary {
     background: white;
     color: var(--subtle-text);
