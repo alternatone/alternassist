@@ -158,7 +158,7 @@ function createProjectRow(project) {
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                         </svg>
                     </button>
-                    <button class="btn-action" onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')" title="Delete project">
+                    <button class="btn-action delete" onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')" title="Delete project">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -292,7 +292,7 @@ function createFileRow(projectId, file, folder) {
                             <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
                     </button>
-                    <button class="btn-action" onclick="deleteFile(${projectId}, ${file.id}, '${escapeHtml(file.original_name)}')" title="Delete">
+                    <button class="btn-action delete" onclick="deleteFile(${projectId}, ${file.id}, '${escapeHtml(file.original_name)}')" title="Delete">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
