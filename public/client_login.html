@@ -167,6 +167,11 @@
         const errorMessage = document.getElementById('errorMessage');
         const loginBtn = document.getElementById('loginBtn');
 
+        // Get file parameter from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileParam = urlParams.get('file');
+        const filesParam = urlParams.get('files'); // For multiple files
+
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -194,8 +199,17 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // Authentication successful - redirect to file browser
-                    window.location.href = 'client_portal.html';
+                    // Authentication successful
+                    if (fileParam) {
+                        // Single file download
+                        window.location.href = `client_portal.html?file=${encodeURIComponent(fileParam)}`;
+                    } else if (filesParam) {
+                        // Multiple files download
+                        window.location.href = `client_portal.html?files=${encodeURIComponent(filesParam)}`;
+                    } else {
+                        // Normal portal access
+                        window.location.href = 'client_portal.html';
+                    }
                 } else {
                     // Authentication failed
                     showError(data.error || 'Invalid credentials');
@@ -222,8 +236,14 @@
                 });
 
                 if (response.ok) {
-                    // Already logged in - redirect to portal
-                    window.location.href = 'client_portal.html';
+                    // Already logged in - redirect appropriately
+                    if (fileParam) {
+                        window.location.href = `client_portal.html?file=${encodeURIComponent(fileParam)}`;
+                    } else if (filesParam) {
+                        window.location.href = `client_portal.html?files=${encodeURIComponent(filesParam)}`;
+                    } else {
+                        window.location.href = 'client_portal.html';
+                    }
                 }
             } catch (error) {
                 // Not logged in, stay on login page

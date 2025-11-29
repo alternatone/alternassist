@@ -576,8 +576,107 @@
             }, 2000);
         }
 
+        // Handle direct file download links
+        async function handleFileDownload() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fileParam = urlParams.get('file');
+            const filesParam = urlParams.get('files');
+
+            if (fileParam) {
+                // Single file download
+                try {
+                    const downloadUrl = `http://localhost:3000/api/ftp/download?path=${encodeURIComponent(fileParam)}`;
+                    const filename = fileParam.split('/').pop();
+
+                    // Download the file
+                    const response = await fetch(downloadUrl, {
+                        credentials: 'include'
+                    });
+
+                    if (!response.ok) throw new Error('Download failed');
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    // Show notification
+                    showNotification(`Downloaded "${filename}"`, 'success');
+                } catch (error) {
+                    console.error('File download error:', error);
+                    showNotification('Failed to download file', 'error');
+                }
+            } else if (filesParam) {
+                // Multiple files download
+                try {
+                    const filePaths = JSON.parse(decodeURIComponent(filesParam));
+
+                    for (const filePath of filePaths) {
+                        const downloadUrl = `http://localhost:3000/api/ftp/download?path=${encodeURIComponent(filePath)}`;
+                        const filename = filePath.split('/').pop();
+
+                        const response = await fetch(downloadUrl, {
+                            credentials: 'include'
+                        });
+
+                        if (!response.ok) continue;
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        // Small delay between downloads
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+
+                    showNotification(`Downloaded ${filePaths.length} files`, 'success');
+                } catch (error) {
+                    console.error('Multiple files download error:', error);
+                    showNotification('Failed to download some files', 'error');
+                }
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                font-size: 14px;
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         // Initialize (SECURITY FIX: load authenticated project only)
-        loadCurrentProject();
+        loadCurrentProject().then(() => {
+            // Handle file downloads after authentication
+            handleFileDownload();
+        });
     </script>
 </body>
 </html>

@@ -10,6 +10,13 @@ const transcoder = require('../services/transcoder');
 const cache = require('../utils/cache');
 const ActivityTracker = require('../services/activity-tracker');
 
+// Helper function to ensure FTP drive is available
+function ensureFTPAvailable() {
+  if (!fs.existsSync(config.storagePath)) {
+    throw new Error('FTP drive not mounted. Please connect external drive.');
+  }
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -22,7 +29,15 @@ const storage = multer.diskStorage({
       return cb(new Error('Project not found'));
     }
 
-    const projectPath = path.join(config.storagePath, project.name);
+    // Ensure FTP drive is available
+    try {
+      ensureFTPAvailable();
+    } catch (error) {
+      return cb(error);
+    }
+
+    // Use folder_path field for storage location
+    const projectPath = path.join(config.storagePath, project.folder_path);
 
     // Create project folder structure if it doesn't exist
     const toAAPath = path.join(projectPath, 'TO AA');
@@ -133,7 +148,7 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
     }
 
     const project = projectQueries.findById.get(req.session.projectId);
-    const projectPath = path.join(config.storagePath, project.name);
+    const projectPath = path.join(config.storagePath, project.folder_path);
 
     // Insert file record into database first (without transcoded path)
     const result = fileQueries.create.run(
@@ -213,6 +228,16 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
 // Download file
 router.get('/:id/download', requireAuth, (req, res) => {
   try {
+    // Check FTP availability
+    try {
+      ensureFTPAvailable();
+    } catch (error) {
+      return res.status(503).json({
+        error: 'FTP drive not available',
+        suggestion: 'Please connect the external drive to access files.'
+      });
+    }
+
     const result = getAuthorizedFile(req.params.id, req.session.projectId);
     if (result.error) {
       return res.status(result.status).json({ error: result.error });
@@ -243,6 +268,16 @@ router.get('/:id/download', requireAuth, (req, res) => {
 // Unified streaming handler (eliminates 108 → 32 line duplication)
 function streamFile(fileId, projectId, req, res) {
   try {
+    // Check FTP availability
+    try {
+      ensureFTPAvailable();
+    } catch (error) {
+      return res.status(503).json({
+        error: 'FTP drive not available',
+        suggestion: 'Please connect the external drive to access media files.'
+      });
+    }
+
     const result = getAuthorizedFile(fileId, projectId);
     if (result.error) {
       return res.status(result.status).json({ error: result.error });

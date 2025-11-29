@@ -155,6 +155,37 @@ function initDatabase() {
     console.log('Added archived_at column to projects table');
   }
 
+  // PHASE 4: FTP Storage Integration - Add folder_path column
+  const hasFolderPath = projectColumns.some(col => col.name === 'folder_path');
+  if (!hasFolderPath) {
+    db.exec("ALTER TABLE projects ADD COLUMN folder_path TEXT NOT NULL DEFAULT ''");
+    console.log('Added folder_path column to projects table');
+
+    // Migrate existing projects: set folder_path = sanitized name
+    const projects = db.prepare("SELECT id, name FROM projects WHERE folder_path IS NULL OR folder_path = ''").all();
+    const updateFolderPath = db.prepare('UPDATE projects SET folder_path = ? WHERE id = ?');
+
+    projects.forEach(project => {
+      const sanitizedName = project.name.replace(/[^a-zA-Z0-9-_]/g, '_');
+      updateFolderPath.run(sanitizedName, project.id);
+    });
+
+    if (projects.length > 0) {
+      console.log(`Migrated folder_path for ${projects.length} existing projects`);
+    }
+
+    // Create unique index on folder_path
+    try {
+      db.exec('CREATE UNIQUE INDEX idx_folder_path ON projects(folder_path)');
+      console.log('Created unique index on folder_path');
+    } catch (e) {
+      // Index may already exist
+      if (!e.message.includes('already exists')) {
+        console.error('Error creating folder_path index:', e.message);
+      }
+    }
+  }
+
   // PHASE 3: Add transcoding status tracking to files
   const hasTranscodingStatus = fileColumns.some(col => col.name === 'transcoding_status');
   if (!hasTranscodingStatus) {

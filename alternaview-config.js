@@ -14,17 +14,24 @@ if (fs.existsSync(customConfigPath)) {
   }
 }
 
-// Default storage path - use local folder in development, or custom path in production
+// FTP storage path - external SSD mounted at /Volumes/FTP1
+const ftpStoragePath = '/Volumes/FTP1';
+
+// Default storage path - use FTP drive, or custom path via environment variable
 const defaultStoragePath = process.env.ALTERNAVIEW_STORAGE_PATH ||
   customConfig.storagePath ||
-  path.join(__dirname, 'ftp-storage');
+  ftpStoragePath;
+
+// Legacy storage path - old local folder (for migration reference only)
+const legacyStoragePath = path.join(__dirname, 'ftp-storage');
 
 module.exports = {
   // Server settings
   port: 3000,
 
-  // Storage paths - configurable via environment variable, custom config file, or defaults to local folder
+  // Storage paths - configurable via environment variable, custom config file, or defaults to FTP drive
   storagePath: defaultStoragePath,
+  legacyStoragePath: legacyStoragePath,
 
   // Database - place in app directory
   dbPath: path.join(__dirname, 'alternaview.db'),

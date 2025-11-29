@@ -89,6 +89,7 @@ function startServer() {
   app.use('/api/payments', require('./server/routes/payments'));
   app.use('/api/accounting', require('./server/routes/accounting'));
   app.use('/api/hours-log', require('./server/routes/hours-log'));
+  app.use('/api/ftp', require('./server/routes/ftp-browser'));
 
   // Centralized error handling middleware (Phase 2 optimization)
   app.use((err, req, res, next) => {

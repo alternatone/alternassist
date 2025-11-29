@@ -1,13 +1,18 @@
 // Restore expanded state from localStorage
 const savedExpandedProjects = localStorage.getItem('expandedProjects');
 const savedExpandedFolders = localStorage.getItem('expandedFolders');
+const savedExpandedFtpFolders = localStorage.getItem('expandedFtpFolders');
 
 let expandedProjects = savedExpandedProjects ? new Set(JSON.parse(savedExpandedProjects)) : new Set();
 let expandedFolders = savedExpandedFolders ? new Set(JSON.parse(savedExpandedFolders)) : new Set(); // Folders per project like "123-FROM AA"
+let expandedFtpFolders = savedExpandedFtpFolders ? new Set(JSON.parse(savedExpandedFtpFolders)) : new Set(); // FTP filesystem folders
 let projectFiles = {}; // Cache files by project ID
 let projectsCache = []; // OPTIMIZED: Cache projects globally to eliminate duplicate fetches
 let projectAbortControllers = {}; // OPTIMIZED: Track abort controllers for request cancellation
 let activeUploads = {}; // Track active uploads for progress display
+let ftpContentsCache = {}; // Cache FTP folder contents
+let ftpBrowserEnabled = localStorage.getItem('ftpBrowserEnabled') !== 'false'; // FTP browser toggle
+let selectedFtpFiles = new Set(); // Selected FTP files for batch operations
 
 // UX Enhancement: Toast notification system
 function showToast(message, type = 'success', duration = 3000) {
@@ -81,7 +86,14 @@ async function loadProjects() {
 
         const tbody = document.getElementById('projectsTableBody');
 
-        if (projectsCache.length === 0) {
+        let html = '';
+
+        // Add FTP Drive browser at the top if enabled
+        if (ftpBrowserEnabled) {
+            html += createFtpDriveRow();
+        }
+
+        if (projectsCache.length === 0 && !ftpBrowserEnabled) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="5" class="empty-state">No projects yet.</td>
@@ -91,7 +103,7 @@ async function loadProjects() {
         }
 
         // OPTIMIZED: Removed blocking await - createProjectRow is now sync
-        const html = projectsCache.map(project => createProjectRow(project)).join('');
+        html += projectsCache.map(project => createProjectRow(project)).join('');
         tbody.innerHTML = html;
 
         // Load files for any expanded projects that don't have files loaded yet
@@ -108,8 +120,12 @@ async function loadProjects() {
                     if (filesResponse.ok) {
                         projectFiles[projectId] = await filesResponse.json();
                         // Re-render to show the files
-                        const projectHtml = projectsCache.map(project => createProjectRow(project)).join('');
-                        tbody.innerHTML = projectHtml;
+                        let html = '';
+                        if (ftpBrowserEnabled) {
+                            html += createFtpDriveRow();
+                        }
+                        html += projectsCache.map(project => createProjectRow(project)).join('');
+                        tbody.innerHTML = html;
                     }
 
                     delete projectAbortControllers[projectId];
@@ -118,6 +134,27 @@ async function loadProjects() {
                         console.error('Error loading files for expanded project:', error);
                         projectFiles[projectId] = [];
                     }
+                }
+            }
+        }
+
+        // Load contents for any expanded FTP folders that don't have contents loaded yet
+        for (const folderPath of expandedFtpFolders) {
+            if (!ftpContentsCache[folderPath]) {
+                try {
+                    const response = await fetch(`http://localhost:3000/api/ftp/browse?path=${encodeURIComponent(folderPath)}`);
+                    if (response.ok) {
+                        ftpContentsCache[folderPath] = await response.json();
+                        // Re-render to show the contents
+                        let html = '';
+                        if (ftpBrowserEnabled) {
+                            html += createFtpDriveRow();
+                        }
+                        html += projectsCache.map(project => createProjectRow(project)).join('');
+                        tbody.innerHTML = html;
+                    }
+                } catch (error) {
+                    console.error('Error loading FTP folder contents:', error);
                 }
             }
         }
@@ -572,57 +609,63 @@ document.addEventListener('DOMContentLoaded', () => {
         const folderRow = e.target.closest('.folder-row');
         if (folderRow) {
             folderRow.classList.remove('drag-over');
-            const projectId = folderRow.dataset.project;
-            const folder = folderRow.dataset.folder;
             const files = Array.from(e.dataTransfer.files);
 
-            if (files.length > 0) {
-                // Show upload starting notification
-                showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}...`, 'info', 2000);
+            if (files.length === 0) return;
 
-                // Add progress bar
-                const progressBar = document.createElement('div');
-                progressBar.className = 'upload-progress-bar';
-                progressBar.style.transform = 'scaleX(0)';
-                document.body.appendChild(progressBar);
+            // Check if it's a project folder or FTP folder
+            const ftpPath = folderRow.dataset.ftpPath;
+            const projectId = folderRow.dataset.project;
+            const folder = folderRow.dataset.folder;
 
-                // OPTIMIZED: Upload all files in parallel!
-                try {
-                    let completedUploads = 0;
-                    const totalFiles = files.length;
-
-                    const uploadPromises = files.map(async (file) => {
-                        await uploadFile(file, projectId, folder);
-                        completedUploads++;
-                        // Update progress bar
-                        const progress = completedUploads / totalFiles;
-                        progressBar.style.transform = `scaleX(${progress})`;
-                    });
-
-                    // Wait for all uploads to complete
-                    await Promise.all(uploadPromises);
-
-                    // Remove progress bar
-                    progressBar.remove();
-
-                    // Refresh the project after all uploads complete
-                    const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
-                    if (response.ok) {
-                        projectFiles[projectId] = await response.json();
-                    }
-                    await loadProjects();
-
-                    // Success notification
-                    showToast(`Successfully uploaded ${files.length} file${files.length > 1 ? 's' : ''}`, 'success');
-                } catch (error) {
-                    console.error('Error uploading files:', error);
-                    progressBar.remove();
-                    showToast('Some files failed to upload', 'error');
-                }
+            if (ftpPath !== undefined) {
+                // FTP folder upload
+                await uploadToFtpFolder(ftpPath, files);
+            } else if (projectId && folder) {
+                // Project folder upload
+                await uploadToProjectFolder(projectId, folder, files);
             }
         }
     });
 });
+
+// Upload to project folder (existing functionality)
+async function uploadToProjectFolder(projectId, folder, files) {
+    showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}...`, 'info', 2000);
+
+    const progressBar = document.createElement('div');
+    progressBar.className = 'upload-progress-bar';
+    progressBar.style.transform = 'scaleX(0)';
+    document.body.appendChild(progressBar);
+
+    try {
+        let completedUploads = 0;
+        const totalFiles = files.length;
+
+        const uploadPromises = files.map(async (file) => {
+            await uploadFile(file, projectId, folder);
+            completedUploads++;
+            const progress = completedUploads / totalFiles;
+            progressBar.style.transform = `scaleX(${progress})`;
+        });
+
+        await Promise.all(uploadPromises);
+        progressBar.remove();
+
+        // Refresh the project after all uploads complete
+        const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+        if (response.ok) {
+            projectFiles[projectId] = await response.json();
+        }
+        await loadProjects();
+
+        showToast(`Successfully uploaded ${files.length} file${files.length > 1 ? 's' : ''}`, 'success');
+    } catch (error) {
+        console.error('Error uploading files:', error);
+        progressBar.remove();
+        showToast('Some files failed to upload', 'error');
+    }
+}
 
 // OPTIMIZED: Returns Promise for parallel upload support
 function uploadFile(file, projectId, folder) {
@@ -661,6 +704,76 @@ function uploadFile(file, projectId, folder) {
     });
 }
 
+// Upload to FTP folder
+async function uploadToFtpFolder(ftpPath, files) {
+    showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''} to FTP...`, 'info', 2000);
+
+    const progressBar = document.createElement('div');
+    progressBar.className = 'upload-progress-bar';
+    progressBar.style.transform = 'scaleX(0)';
+    document.body.appendChild(progressBar);
+
+    try {
+        let completedUploads = 0;
+        const totalFiles = files.length;
+
+        const uploadPromises = files.map(async (file) => {
+            await uploadFileToFtp(file, ftpPath);
+            completedUploads++;
+            const progress = completedUploads / totalFiles;
+            progressBar.style.transform = `scaleX(${progress})`;
+        });
+
+        await Promise.all(uploadPromises);
+        progressBar.remove();
+
+        // Clear cache and refresh
+        delete ftpContentsCache[ftpPath];
+        await loadProjects();
+
+        showToast(`Successfully uploaded ${files.length} file${files.length > 1 ? 's' : ''}`, 'success');
+    } catch (error) {
+        console.error('Error uploading files to FTP:', error);
+        progressBar.remove();
+        showToast('Some files failed to upload', 'error');
+    }
+}
+
+function uploadFileToFtp(file, ftpPath) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', ftpPath);
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentage = ((e.loaded / e.total) * 100).toFixed(2);
+                console.log(`${file.name}: ${percentage}%`);
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                console.log(`✓ Uploaded to FTP: ${file.name}`);
+                resolve();
+            } else {
+                console.error(`✗ Failed: ${file.name}`);
+                reject(new Error(`Upload failed: ${file.name}`));
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            console.error(`✗ Network error: ${file.name}`);
+            reject(new Error(`Network error: ${file.name}`));
+        });
+
+        xhr.open('POST', 'http://localhost:3000/api/ftp/upload', true);
+        xhr.send(formData);
+    });
+}
+
 // Helper functions
 function formatFileSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
@@ -689,4 +802,380 @@ function escapeHtml(unsafe) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+// ============== FTP BROWSER FUNCTIONS ==============
+
+function createFtpDriveRow() {
+    const isExpanded = expandedFtpFolders.has('');
+
+    let html = `
+        <tr class="project-row ftp-drive-row" onclick="toggleFtpFolder('')">
+            <td>
+                <div class="file-name">
+                    <span class="folder-icon ${isExpanded ? 'expanded' : ''}">▶</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    <strong>FTP Drive</strong>
+                </div>
+            </td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    `;
+
+    // If expanded, show contents
+    if (isExpanded) {
+        const contents = ftpContentsCache[''] || null;
+        if (contents) {
+            html += renderFtpContents('', contents, 1);
+        }
+    }
+
+    return html;
+}
+
+async function toggleFtpFolder(folderPath) {
+    if (expandedFtpFolders.has(folderPath)) {
+        expandedFtpFolders.delete(folderPath);
+    } else {
+        expandedFtpFolders.add(folderPath);
+
+        // Load contents if not cached
+        if (!ftpContentsCache[folderPath]) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/ftp/browse?path=${encodeURIComponent(folderPath)}`);
+                if (response.ok) {
+                    ftpContentsCache[folderPath] = await response.json();
+                } else {
+                    showToast('Failed to browse FTP folder', 'error');
+                    expandedFtpFolders.delete(folderPath);
+                }
+            } catch (error) {
+                console.error('Error browsing FTP folder:', error);
+                showToast('Error browsing FTP folder', 'error');
+                expandedFtpFolders.delete(folderPath);
+            }
+        }
+    }
+
+    // Save to localStorage
+    localStorage.setItem('expandedFtpFolders', JSON.stringify([...expandedFtpFolders]));
+
+    // Re-render
+    await loadProjects();
+}
+
+function renderFtpContents(parentPath, contents, indentLevel) {
+    let html = '';
+
+    // Sort: folders first, then files
+    const folders = contents.items.filter(item => item.isDirectory);
+    const files = contents.items.filter(item => !item.isDirectory);
+
+    // Render folders
+    for (const folder of folders) {
+        const folderPath = parentPath ? `${parentPath}/${folder.name}` : folder.name;
+        const isExpanded = expandedFtpFolders.has(folderPath);
+        const paddingLeft = (indentLevel + 1) * 2;
+
+        html += `
+            <tr class="folder-row ftp-folder-row" data-ftp-path="${escapeHtml(folderPath)}" onclick="toggleFtpFolder('${escapeHtml(folderPath)}')">
+                <td>
+                    <div class="folder-name" style="padding-left: ${paddingLeft}rem;">
+                        <span class="folder-icon ${isExpanded ? 'expanded' : ''}">▶</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span>${escapeHtml(folder.name)}</span>
+                        ${folder.projectName ? `<span style="color: var(--accent-teal); margin-left: 0.5rem; font-size: 0.85em;">(${escapeHtml(folder.projectName)})</span>` : ''}
+                    </div>
+                </td>
+                <td class="file-date">${folder.itemCount || 0} item${folder.itemCount !== 1 ? 's' : ''}</td>
+                <td class="file-size">${formatFileSize(folder.totalSize || 0)}</td>
+                <td class="file-date">${formatDate(folder.modified)}</td>
+                <td onclick="event.stopPropagation()">
+                    <div class="file-actions">
+                        <button class="btn-action delete" onclick="deleteFtpItem('${escapeHtml(folderPath)}', '${escapeHtml(folder.name)}', true)" title="Delete folder">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        // If this folder is expanded, show its contents
+        if (isExpanded && ftpContentsCache[folderPath]) {
+            html += renderFtpContents(folderPath, ftpContentsCache[folderPath], indentLevel + 1);
+        }
+    }
+
+    // Render files
+    for (const file of files) {
+        const filePath = parentPath ? `${parentPath}/${file.name}` : file.name;
+        const paddingLeft = (indentLevel + 1) * 2;
+
+        // Check if file is a media file
+        const isMediaFile = file.isMedia;
+        const fileNameHtml = isMediaFile
+            ? `<a href="#" onclick="streamFtpFile('${escapeHtml(filePath)}', '${escapeHtml(file.name)}'); return false;" style="cursor: pointer; color: var(--accent-teal); text-decoration: none;">${escapeHtml(file.name)}</a>`
+            : escapeHtml(file.name);
+
+        const isSelected = selectedFtpFiles.has(filePath);
+
+        html += `
+            <tr class="file-row ftp-file-row visible ${isSelected ? 'selected' : ''}" data-ftp-path="${escapeHtml(filePath)}">
+                <td>
+                    <div class="file-name" style="padding-left: ${paddingLeft}rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox"
+                               class="file-checkbox"
+                               ${isSelected ? 'checked' : ''}
+                               onchange="toggleFileSelection('${escapeHtml(filePath)}')"
+                               onclick="event.stopPropagation()">
+                        ${fileNameHtml}
+                    </div>
+                </td>
+                <td></td>
+                <td class="file-size">${formatFileSize(file.size)}</td>
+                <td class="file-date">${formatDate(file.modified)}</td>
+                <td>
+                    <div class="file-actions">
+                        ${isMediaFile ? `
+                            <button class="btn-action" onclick="streamFtpFile('${escapeHtml(filePath)}', '${escapeHtml(file.name)}')" title="Stream">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </button>
+                        ` : ''}
+                        <button class="btn-action" onclick="copyFtpFileLink('${escapeHtml(filePath)}', '${escapeHtml(file.name)}')" title="Copy Link">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                        </button>
+                        <button class="btn-action" onclick="downloadFtpFile('${escapeHtml(filePath)}', '${escapeHtml(file.name)}')" title="Download">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </button>
+                        <button class="btn-action delete" onclick="deleteFtpItem('${escapeHtml(filePath)}', '${escapeHtml(file.name)}', false)" title="Delete">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    return html;
+}
+
+function streamFtpFile(filePath, fileName) {
+    // Open in new window/tab to stream the file
+    const streamUrl = `http://localhost:3000/api/ftp/stream?path=${encodeURIComponent(filePath)}`;
+    window.open(streamUrl, '_blank');
+    showToast(`Streaming "${fileName}"`, 'info', 2000);
+}
+
+async function downloadFtpFile(filePath, fileName) {
+    try {
+        showToast(`Downloading "${fileName}"...`, 'info', 2000);
+
+        const response = await fetch(`http://localhost:3000/api/ftp/download?path=${encodeURIComponent(filePath)}`);
+        if (!response.ok) throw new Error('Download failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showToast(`Downloaded "${fileName}" successfully`, 'success');
+    } catch (error) {
+        console.error('Error downloading FTP file:', error);
+        showToast('Failed to download file', 'error');
+    }
+}
+
+async function deleteFtpItem(itemPath, itemName, isFolder) {
+    const itemType = isFolder ? 'folder' : 'file';
+    const confirmMessage = isFolder
+        ? `Are you sure you want to delete the folder "${itemName}" and all its contents?\n\nThis cannot be undone.`
+        : `Are you sure you want to delete "${itemName}"?\n\nThis cannot be undone.`;
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    try {
+        showToast(`Deleting ${itemType} "${itemName}"...`, 'info', 2000);
+
+        const response = await fetch(`http://localhost:3000/api/ftp/delete?path=${encodeURIComponent(itemPath)}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Delete failed');
+        }
+
+        // Clear cache for parent folder
+        const parentPath = itemPath.split('/').slice(0, -1).join('/');
+        delete ftpContentsCache[parentPath];
+
+        // If deleting a folder, clear its cache and all child caches
+        if (isFolder) {
+            Object.keys(ftpContentsCache).forEach(key => {
+                if (key.startsWith(itemPath)) {
+                    delete ftpContentsCache[key];
+                }
+            });
+            expandedFtpFolders.delete(itemPath);
+        }
+
+        // Re-render
+        await loadProjects();
+
+        showToast(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} "${itemName}" deleted successfully`, 'success');
+    } catch (error) {
+        console.error('Error deleting FTP item:', error);
+        showToast(`Failed to delete ${itemType}: ${error.message}`, 'error');
+    }
+}
+
+async function copyFtpFileLink(filePath, fileName) {
+    try {
+        // Generate shareable link that goes to client login with file path as parameter
+        const baseUrl = window.location.origin;
+        const shareUrl = `${baseUrl}/client_login.html?file=${encodeURIComponent(filePath)}`;
+
+        await navigator.clipboard.writeText(shareUrl);
+        showToast(`Share link copied for "${fileName}"`, 'success');
+    } catch (error) {
+        console.error('Error copying FTP file link:', error);
+        showToast('Failed to copy link', 'error');
+    }
+}
+
+function toggleFileSelection(filePath) {
+    if (selectedFtpFiles.has(filePath)) {
+        selectedFtpFiles.delete(filePath);
+    } else {
+        selectedFtpFiles.add(filePath);
+    }
+
+    // Update selection UI
+    updateSelectionUI();
+
+    // Re-render to update checkboxes
+    loadProjects();
+}
+
+function updateSelectionUI() {
+    const selectionBar = document.getElementById('selectionBar');
+    const selectedCount = selectedFtpFiles.size;
+
+    if (selectedCount > 0) {
+        if (!selectionBar) {
+            createSelectionBar();
+        } else {
+            document.getElementById('selectedCount').textContent = selectedCount;
+        }
+    } else {
+        if (selectionBar) {
+            selectionBar.remove();
+        }
+    }
+}
+
+function createSelectionBar() {
+    const bar = document.createElement('div');
+    bar.id = 'selectionBar';
+    bar.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        z-index: 1000;
+        font-family: var(--font-primary);
+    `;
+
+    bar.innerHTML = `
+        <span id="selectedCount" style="font-weight: 500;">${selectedFtpFiles.size}</span>
+        <span style="color: var(--subtle-text);">file${selectedFtpFiles.size !== 1 ? 's' : ''} selected</span>
+        <button onclick="shareSelectedFiles()" style="
+            background: var(--accent-teal);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-family: var(--font-primary);
+        ">Share Selected</button>
+        <button onclick="clearSelection()" style="
+            background: #f0f0f0;
+            color: var(--primary-text);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-primary);
+        ">Clear</button>
+    `;
+
+    document.body.appendChild(bar);
+}
+
+async function shareSelectedFiles() {
+    if (selectedFtpFiles.size === 0) {
+        showToast('No files selected', 'error');
+        return;
+    }
+
+    try {
+        const filePaths = Array.from(selectedFtpFiles);
+        const baseUrl = window.location.origin;
+        const shareUrl = `${baseUrl}/client_login.html?files=${encodeURIComponent(JSON.stringify(filePaths))}`;
+
+        await navigator.clipboard.writeText(shareUrl);
+        showToast(`Share link copied for ${filePaths.length} file${filePaths.length !== 1 ? 's' : ''}`, 'success');
+    } catch (error) {
+        console.error('Error sharing selected files:', error);
+        showToast('Failed to copy share link', 'error');
+    }
+}
+
+function clearSelection() {
+    selectedFtpFiles.clear();
+    updateSelectionUI();
+    loadProjects();
 }

@@ -88,15 +88,50 @@ router.get('/:id', (req, res) => {
   }
 });
 
+// Helper function to sanitize folder names
+function sanitizeFolderName(name) {
+  return name.replace(/[^a-zA-Z0-9-_]/g, '_');
+}
+
+// Helper function to ensure FTP drive is available
+function ensureFTPAvailable() {
+  if (!fs.existsSync(config.storagePath)) {
+    throw new Error('FTP drive not mounted. Please connect external drive.');
+  }
+}
+
 // Create new project
 router.post('/', requireAdmin, (req, res) => {
   try {
     const { name, password, client_name, contact_email, status = 'prospects',
             notes, pinned = 0, media_folder_path, password_protected = 0,
             trt, music_coverage = 0, timeline_start, timeline_end,
-            estimated_total = 0, estimated_taxes = 0, net_after_taxes = 0 } = req.body;
+            estimated_total = 0, estimated_taxes = 0, net_after_taxes = 0,
+            folder_path } = req.body;
 
     if (!name) return res.status(400).json({ error: 'Project name is required' });
+
+    // Ensure FTP drive is available
+    try {
+      ensureFTPAvailable();
+    } catch (error) {
+      return res.status(503).json({
+        error: 'FTP drive not available',
+        suggestion: 'Please connect the FTP1 external drive and try again.'
+      });
+    }
+
+    // Use folder_path if provided, otherwise sanitize name
+    const safeFolderPath = folder_path ? path.basename(folder_path) : sanitizeFolderName(name);
+
+    // Check if folder already in use
+    const existing = db.prepare(
+      'SELECT id FROM projects WHERE folder_path = ?'
+    ).get(safeFolderPath);
+
+    if (existing) {
+      return res.status(400).json({ error: 'Folder path already in use by another project' });
+    }
 
     const plainPassword = password || generateSecurePassword();
     const hashedPassword = bcrypt.hashSync(plainPassword, 10);
@@ -109,17 +144,24 @@ router.post('/', requireAdmin, (req, res) => {
       estimated_total, estimated_taxes, net_after_taxes
     );
 
-    // Async filesystem operation - don't block response
-    const projectPath = path.join(config.storagePath, name);
-    fs.mkdir(projectPath, { recursive: true }, () => {});
+    const projectId = result.lastInsertRowid;
+
+    // Update folder_path in database
+    db.prepare('UPDATE projects SET folder_path = ? WHERE id = ?').run(safeFolderPath, projectId);
+
+    // Create folder structure on FTP drive
+    const ftpPath = path.join(config.storagePath, safeFolderPath);
+    fs.mkdirSync(path.join(ftpPath, 'TO AA'), { recursive: true });
+    fs.mkdirSync(path.join(ftpPath, 'FROM AA'), { recursive: true });
 
     // Invalidate cache
     cache.invalidate('projects:all');
     cache.invalidate('projects:with-scope');
 
     res.json({
-      id: result.lastInsertRowid,
+      id: projectId,
       name,
+      folder_path: safeFolderPath,
       password: plainPassword
     });
   } catch (error) {
@@ -134,6 +176,28 @@ router.post('/with-estimate', (req, res) => {
 
     if (!project || !project.name) {
       return res.status(400).json({ error: 'Project data with name is required' });
+    }
+
+    // Ensure FTP drive is available
+    try {
+      ensureFTPAvailable();
+    } catch (error) {
+      return res.status(503).json({
+        error: 'FTP drive not available',
+        suggestion: 'Please connect the FTP1 external drive and try again.'
+      });
+    }
+
+    // Generate folder path
+    const safeFolderPath = project.folder_path ? path.basename(project.folder_path) : sanitizeFolderName(project.name);
+
+    // Check if folder already in use
+    const existing = db.prepare(
+      'SELECT id FROM projects WHERE folder_path = ?'
+    ).get(safeFolderPath);
+
+    if (existing) {
+      return res.status(400).json({ error: 'Folder path already in use by another project' });
     }
 
     // Use transaction for atomicity
@@ -163,6 +227,9 @@ router.post('/with-estimate', (req, res) => {
       );
 
       const projectId = result.lastInsertRowid;
+
+      // Update folder_path in database
+      db.prepare('UPDATE projects SET folder_path = ? WHERE id = ?').run(safeFolderPath, projectId);
 
       // 2. Create scope if provided
       if (scope) {
@@ -201,9 +268,10 @@ router.post('/with-estimate', (req, res) => {
 
     const projectId = createProject();
 
-    // Async filesystem operation
-    const projectPath = path.join(config.storagePath, project.name);
-    fs.mkdir(projectPath, { recursive: true }, () => {});
+    // Create folder structure on FTP drive
+    const ftpPath = path.join(config.storagePath, safeFolderPath);
+    fs.mkdirSync(path.join(ftpPath, 'TO AA'), { recursive: true });
+    fs.mkdirSync(path.join(ftpPath, 'FROM AA'), { recursive: true });
 
     // Invalidate cache
     cache.invalidate('projects:all');
@@ -211,6 +279,7 @@ router.post('/with-estimate', (req, res) => {
     res.json({
       success: true,
       project_id: projectId,
+      folder_path: safeFolderPath,
       message: 'Project, scope, and estimate created successfully'
     });
   } catch (error) {
@@ -297,7 +366,9 @@ router.patch('/:id', (req, res) => {
                                 ['in-process', 'in-review'].includes(updates.status);
 
     if (movingToProduction) {
-      const projectPath = path.join(config.storagePath, project.name);
+      // Use folder_path if available, otherwise sanitize name
+      const folderPath = project.folder_path || sanitizeFolderName(project.name);
+      const projectPath = path.join(config.storagePath, folderPath);
       updates.media_folder_path = projectPath;
 
       if (!project.password) {
@@ -307,7 +378,8 @@ router.patch('/:id', (req, res) => {
 
       // Non-blocking operations
       setImmediate(() => {
-        fs.mkdir(projectPath, { recursive: true }, () =>
+        fs.mkdir(path.join(projectPath, 'TO AA'), { recursive: true }, () => {});
+        fs.mkdir(path.join(projectPath, 'FROM AA'), { recursive: true }, () =>
           folderSync.startWatching(projectId, projectPath).catch(() => {})
         );
       });
@@ -342,8 +414,9 @@ router.delete('/:id', requireAdmin, (req, res) => {
 
     projectQueries.delete.run(req.params.id);
 
-    // Non-blocking filesystem cleanup
-    fs.rm(path.join(config.storagePath, project.name),
+    // Non-blocking filesystem cleanup - use folder_path if available
+    const folderPath = project.folder_path || sanitizeFolderName(project.name);
+    fs.rm(path.join(config.storagePath, folderPath),
           { recursive: true, force: true }, () => {});
 
     // Invalidate cache
@@ -452,16 +525,24 @@ const projectUploadStorage = multer.diskStorage({
       return cb(new Error('Project not found'));
     }
 
-    const folder = req.body.folder || 'TO AA';
-    const projectPath = path.join(config.storagePath, project.name);
-    const folderPath = path.join(projectPath, folder);
-
-    // Create folder structure if it doesn't exist
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath, { recursive: true });
+    // Ensure FTP drive is available
+    try {
+      ensureFTPAvailable();
+    } catch (error) {
+      return cb(error);
     }
 
-    cb(null, folderPath);
+    const folder = req.body.folder || 'TO AA';
+    const folderPath = project.folder_path || sanitizeFolderName(project.name);
+    const projectPath = path.join(config.storagePath, folderPath);
+    const uploadPath = path.join(projectPath, folder);
+
+    // Create folder structure if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -508,7 +589,8 @@ router.post('/:id/upload', projectUpload.single('file'), async (req, res) => {
     }
 
     const folder = req.body.folder || 'TO AA';
-    const projectPath = path.join(config.storagePath, project.name);
+    const folderPath = project.folder_path || sanitizeFolderName(project.name);
+    const projectPath = path.join(config.storagePath, folderPath);
 
     // Insert file record into database
     const result = fileQueries.create.run(
