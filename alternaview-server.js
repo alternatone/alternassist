@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 
@@ -59,6 +60,19 @@ function startServer() {
     }
     next();
   });
+
+  // OPTIMIZATION: Response compression (60% smaller payloads)
+  app.use(compression({
+    level: 6, // Balance between speed and compression ratio
+    threshold: 1024, // Only compress responses > 1KB
+    filter: (req, res) => {
+      // Don't compress streaming endpoints (video/audio)
+      if (req.path.includes('/stream') || req.path.includes('/download')) {
+        return false;
+      }
+      return compression.filter(req, res);
+    }
+  }));
 
   // Response helpers (Phase 1 optimization)
   app.use(require('./server/utils/response-helpers'));

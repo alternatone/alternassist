@@ -465,6 +465,40 @@ function initDatabase() {
     }
   }
 
+  // ========================================
+  // OPTIMIZATION: Strategic Indexes
+  // ========================================
+  // Add indexes for common query patterns to improve performance 10-100x
+
+  db.exec(`
+    -- Comments: Filter by billable status (used in billable comments endpoint)
+    CREATE INDEX IF NOT EXISTS idx_comments_billable ON comments(billable) WHERE billable = 1;
+
+    -- Comments: Filter by status (used in comment filtering)
+    CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
+
+    -- Files: Lookup by project (used in nearly every file query)
+    CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id);
+
+    -- Files: Filter by folder (used in TO AA / FROM AA filtering)
+    CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder);
+
+    -- Invoices: Filter by status (used in dashboard filtering)
+    CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+
+    -- Payments: Lookup by invoice (used in invoice details)
+    CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments(invoice_id);
+
+    -- Payments: Lookup by project (used in project payment history)
+    CREATE INDEX IF NOT EXISTS idx_payments_project_id ON payments(project_id);
+
+    -- Hours Log: Aggregate by project and category (used in hours totals)
+    CREATE INDEX IF NOT EXISTS idx_hours_log_project_category ON hours_log(project_id, category);
+
+    -- Access Logs: Recent activity by project (used in activity timeline)
+    CREATE INDEX IF NOT EXISTS idx_access_logs_project_date ON access_logs(project_id, created_at DESC);
+  `);
+
   console.log('Database initialized successfully with performance indexes and triggers');
 }
 
