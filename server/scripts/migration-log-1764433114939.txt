@@ -1,0 +1,33 @@
+[2025-11-29T16:18:34.939Z] === Starting FTP Migration ===
+[2025-11-29T16:18:34.946Z] Dry run mode: true
+[2025-11-29T16:18:34.946Z] FTP Drive: /Volumes/FTP1
+[2025-11-29T16:18:34.946Z] Legacy Storage: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage
+[2025-11-29T16:18:34.947Z] 
+[2025-11-29T16:18:34.948Z] Step 1: Checking FTP drive availability...
+[2025-11-29T16:18:34.948Z] ✓ FTP drive is available
+[2025-11-29T16:18:34.948Z] 
+[2025-11-29T16:18:34.948Z] Step 2: Checking legacy storage...
+[2025-11-29T16:18:34.948Z] ✓ Legacy storage found at /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage
+[2025-11-29T16:18:34.948Z] 
+[2025-11-29T16:18:34.948Z] Step 3: Loading projects from database...
+[2025-11-29T16:18:34.948Z] ✓ Found 1 projects
+[2025-11-29T16:18:34.948Z] 
+[2025-11-29T16:18:34.948Z] --- Migrating Project: TEST (ID: 10) ---
+[2025-11-29T16:18:34.949Z]   Legacy path: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage/TEST
+[2025-11-29T16:18:34.950Z]   FTP path: /Volumes/FTP1/TEST
+[2025-11-29T16:18:34.950Z]   [DRY RUN] Would create: /Volumes/FTP1/TEST/TO AA, /Volumes/FTP1/TEST/FROM AA
+[2025-11-29T16:18:34.950Z]   Found 4 files in database for this project
+[2025-11-29T16:18:34.950Z]   [DRY RUN] Would copy: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage/TEST/TO AA/JOKW_MG Mix_v1-1764116890440-34739207.mp4 → /Volumes/FTP1/TEST/FROM AA/JOKW_MG Mix_v1-1764116890440-34739207.mp4
+[2025-11-29T16:18:34.951Z]   [DRY RUN] Would copy: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage/TEST/TO AA/Alternatone Logo Vertical-1763909485315-702469509.mov → /Volumes/FTP1/TEST/FROM AA/Alternatone Logo Vertical-1763909485315-702469509.mov
+[2025-11-29T16:18:34.951Z]   [DRY RUN] Would copy: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage/TEST/TO AA/Alternatone Logo_v2_Transparent Background-1763747612093-712394301.mov → /Volumes/FTP1/TEST/TO AA/Alternatone Logo_v2_Transparent Background-1763747612093-712394301.mov
+[2025-11-29T16:18:34.951Z]   [DRY RUN] Would copy: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage/TEST/TO AA/Alt Logo 9x16-1763747264846-812342187.mov → /Volumes/FTP1/TEST/TO AA/Alt Logo 9x16-1763747264846-812342187.mov
+[2025-11-29T16:18:34.951Z]   Summary: 4 files, 1.85 GB
+[2025-11-29T16:18:34.951Z] 
+[2025-11-29T16:18:34.951Z] === Migration Summary ===
+[2025-11-29T16:18:34.951Z] Total projects processed: 1
+[2025-11-29T16:18:34.951Z] Total files copied: 4
+[2025-11-29T16:18:34.951Z] Total data copied: 1.85 GB
+[2025-11-29T16:18:34.951Z] Errors encountered: 0
+[2025-11-29T16:18:34.951Z] 
+[2025-11-29T16:18:34.951Z] ✓ Dry run complete. No files were actually moved.
+[2025-11-29T16:18:34.951Z]   To perform the actual migration, run: node server/scripts/migrate-to-ftp.js

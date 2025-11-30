@@ -652,4 +652,37 @@ router.patch('/comments/:id/link-invoice', authenticateProjectAccess, (req, res)
   }
 });
 
+// Move file to different folder
+router.put('/:projectId/files/:fileId/move', (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const fileId = parseInt(req.params.fileId);
+    const { targetProjectId, targetFolder } = req.body;
+
+    // Validate file exists
+    const file = fileQueries.findById.get(fileId);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Validate file belongs to source project
+    if (file.project_id !== projectId) {
+      return res.status(403).json({ error: 'File does not belong to this project' });
+    }
+
+    // Update file's project and folder
+    const updateQuery = db.prepare(`
+      UPDATE files
+      SET project_id = ?, folder = ?
+      WHERE id = ?
+    `);
+
+    updateQuery.run(targetProjectId, targetFolder, fileId);
+
+    res.json({ success: true, fileId, targetProjectId, targetFolder });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

@@ -123,6 +123,29 @@
 <body>
     <div class="app-container">
         <div class="browser-container">
+            <!-- Backup Button -->
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                <button onclick="backupFTP()" style="
+                    background: var(--accent-teal);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    font-family: var(--font-primary);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                ">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    backup
+                </button>
+            </div>
             <!-- Projects and Files Browser -->
             <div class="file-table-container">
                 <table class="file-table">

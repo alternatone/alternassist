@@ -62,11 +62,11 @@
 
         /* Logged Invoices styles */
         .logged-invoice-card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; border: var(--border-medium); }
-        .logged-invoice-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .logged-invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
         .logged-invoice-title { font-weight: 600; font-size: 1rem; color: var(--primary-text); }
         .logged-invoice-date { font-size: 0.85rem; color: var(--muted-text); }
-        .logged-invoice-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: var(--secondary-text); }
-        .logged-invoice-delete { background: none; border: none; color: var(--muted-text); font-size: 1.2rem; cursor: pointer; transition: color 0.2s; }
+        .logged-invoice-info { display: flex; justify-content: flex-end; gap: 1.5rem; font-size: 0.9rem; color: var(--secondary-text); }
+        .logged-invoice-delete { background: none; border: none; color: var(--muted-text); cursor: pointer; transition: color 0.2s; padding: 0; display: flex; align-items: center; justify-content: center; }
         .logged-invoice-delete:hover { color: var(--accent-red); }
 
         /* Invoice styles */
@@ -319,9 +319,18 @@
 
             // Set today's date and get current invoice number
             document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
-            // Use timestamp-based invoice number instead of localStorage counter
-            const invoiceNumber = '25' + new Date().getFullYear().toString().slice(-2) + String(Math.floor(Date.now() / 1000) % 10000).padStart(4, '0');
-            document.getElementById('invoiceNumber').value = invoiceNumber;
+
+            // Get next invoice number from database
+            fetch('http://localhost:3000/api/invoices/next-number')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('invoiceNumber').value = data.nextNumber;
+                })
+                .catch(err => {
+                    console.error('Error fetching next invoice number:', err);
+                    // Fallback to 2601 if error
+                    document.getElementById('invoiceNumber').value = '2601';
+                });
 
             // Set project and client info
             document.getElementById('projectName').value = invoiceData.projectName || '';

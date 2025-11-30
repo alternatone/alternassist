@@ -23,8 +23,8 @@ router.get('/with-projects', (req, res) => {
 router.get('/next-number', (req, res) => {
   try {
     const result = invoiceQueries.getNextInvoiceNumber.get();
-    const maxNumber = result?.max_num || 2522;
-    const nextNumber = '25' + String(maxNumber + 1).padStart(2, '0');
+    const maxNumber = result?.max_num || 2600;
+    const nextNumber = String(maxNumber + 1);
 
     res.json({ nextNumber, currentMax: maxNumber });
   } catch (error) {

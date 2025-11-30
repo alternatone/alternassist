@@ -307,7 +307,7 @@ function createFolderRow(projectId, folderName, files) {
     const totalSize = files.reduce((sum, f) => sum + (f.file_size || 0), 0);
 
     return `
-        <tr class="folder-row" data-project="${projectId}" data-folder="${folderName}" onclick="toggleFolder(${projectId}, '${folderName}')">
+        <tr class="folder-row" data-project="${projectId}" data-folder="${folderName}" onclick="toggleFolder(${projectId}, '${folderName}')" ondragover="handleFolderDragOver(event)" ondrop="handleFolderDrop(event, ${projectId}, '${escapeHtml(folderName)}')" ondragleave="handleFolderDragLeave(event)">
             <td>
                 <div class="folder-name" style="padding-left: 2rem;">
                     <span class="folder-icon ${isExpanded ? 'expanded' : ''}">▶</span>
@@ -338,7 +338,7 @@ function createFileRow(projectId, file, folder) {
         : escapeHtml(file.original_name);
 
     return `
-        <tr class="file-row ${isVisible ? 'visible' : ''}" data-project="${projectId}" data-folder="${folder}">
+        <tr class="file-row ${isVisible ? 'visible' : ''}" data-project="${projectId}" data-folder="${folder}" data-file-id="${file.id}" draggable="true" ondragstart="handleFileDragStart(event, ${projectId}, ${file.id}, '${escapeHtml(folder)}')" ondragend="handleFileDragEnd(event)">
             <td><div class="file-name" style="padding-left: 4rem;">${fileNameHtml}</div></td>
             <td></td>
             <td></td>
@@ -1252,4 +1252,106 @@ function clearSelection() {
     selectedFtpFiles.clear();
     updateSelectionUI();
     loadProjects();
+}
+
+// ============== BACKUP FUNCTION ==============
+
+async function backupFTP() {
+    if (!confirm('This will backup the FTP drive to FTP BACKUP. This may take several minutes depending on the size of your data.\n\nContinue?')) {
+        return;
+    }
+
+    try {
+        showToast('Starting backup... This may take a while.', 'info', 5000);
+
+        const response = await fetch('http://localhost:3000/api/ftp/backup', {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast('Backup completed successfully!', 'success', 5000);
+            console.log('Backup output:', result.output);
+        } else {
+            throw new Error(result.error || 'Backup failed');
+        }
+    } catch (error) {
+        console.error('Error running backup:', error);
+        showToast(`Backup failed: ${error.message}`, 'error', 5000);
+    }
+}
+
+// ============== DRAG AND DROP FUNCTIONS ==============
+
+let draggedFileData = null;
+
+function handleFileDragStart(event, projectId, fileId, folder) {
+    draggedFileData = { projectId, fileId, folder };
+    event.currentTarget.style.opacity = '0.5';
+    event.dataTransfer.effectAllowed = 'move';
+}
+
+function handleFileDragEnd(event) {
+    event.currentTarget.style.opacity = '1';
+}
+
+function handleFolderDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    event.currentTarget.style.backgroundColor = 'rgba(70, 159, 224, 0.1)';
+}
+
+function handleFolderDragLeave(event) {
+    event.currentTarget.style.backgroundColor = '';
+}
+
+async function handleFolderDrop(event, targetProjectId, targetFolder) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.style.backgroundColor = '';
+
+    if (!draggedFileData) return;
+
+    const { projectId, fileId, folder: sourceFolder } = draggedFileData;
+
+    // Don't allow dropping on the same folder
+    if (projectId === targetProjectId && sourceFolder === targetFolder) {
+        showToast('File is already in this folder', 'info');
+        draggedFileData = null;
+        return;
+    }
+
+    try {
+        showToast('Moving file...', 'info', 2000);
+
+        const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files/${fileId}/move`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                targetProjectId,
+                targetFolder
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to move file');
+        }
+
+        showToast('File moved successfully', 'success');
+
+        // Clear cached file data for both source and target projects
+        delete projectFiles[projectId];
+        if (targetProjectId !== projectId) {
+            delete projectFiles[targetProjectId];
+        }
+
+        // Reload projects to reflect changes
+        await loadProjects();
+    } catch (error) {
+        console.error('Error moving file:', error);
+        showToast('Failed to move file', 'error');
+    }
+
+    draggedFileData = null;
 }

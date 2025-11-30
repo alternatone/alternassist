@@ -1,0 +1,38 @@
+[2025-11-29T16:18:40.685Z] === Starting FTP Migration ===
+[2025-11-29T16:18:40.686Z] Dry run mode: false
+[2025-11-29T16:18:40.686Z] FTP Drive: /Volumes/FTP1
+[2025-11-29T16:18:40.686Z] Legacy Storage: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage
+[2025-11-29T16:18:40.687Z] 
+[2025-11-29T16:18:40.687Z] Step 1: Checking FTP drive availability...
+[2025-11-29T16:18:40.687Z] ✓ FTP drive is available
+[2025-11-29T16:18:40.687Z] 
+[2025-11-29T16:18:40.687Z] Step 2: Checking legacy storage...
+[2025-11-29T16:18:40.687Z] ✓ Legacy storage found at /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage
+[2025-11-29T16:18:40.687Z] 
+[2025-11-29T16:18:40.687Z] Step 3: Loading projects from database...
+[2025-11-29T16:18:40.687Z] ✓ Found 1 projects
+[2025-11-29T16:18:40.687Z] 
+[2025-11-29T16:18:40.687Z] --- Migrating Project: TEST (ID: 10) ---
+[2025-11-29T16:18:40.687Z]   Legacy path: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/ftp-storage/TEST
+[2025-11-29T16:18:40.687Z]   FTP path: /Volumes/FTP1/TEST
+[2025-11-29T16:18:40.688Z]   ✓ Created FTP folder structure
+[2025-11-29T16:18:40.688Z]   Found 4 files in database for this project
+[2025-11-29T16:18:45.277Z]   ✓ Migrated: JOKW_MG Mix_v1-1764116890440-34739207.mp4 (1896.85 MB)
+[2025-11-29T16:18:45.281Z]   ✓ Migrated: Alternatone Logo Vertical-1763909485315-702469509.mov (0.35 MB)
+[2025-11-29T16:18:45.283Z]   ✓ Migrated: Alternatone Logo_v2_Transparent Background-1763747612093-712394301.mov (0.31 MB)
+[2025-11-29T16:18:45.288Z]   ✓ Migrated: Alt Logo 9x16-1763747264846-812342187.mov (1.70 MB)
+[2025-11-29T16:18:45.288Z]   Summary: 4 files, 1.85 GB
+[2025-11-29T16:18:45.288Z] 
+[2025-11-29T16:18:45.288Z] === Migration Summary ===
+[2025-11-29T16:18:45.288Z] Total projects processed: 1
+[2025-11-29T16:18:45.288Z] Total files copied: 4
+[2025-11-29T16:18:45.288Z] Total data copied: 1.85 GB
+[2025-11-29T16:18:45.288Z] Errors encountered: 0
+[2025-11-29T16:18:45.288Z] 
+[2025-11-29T16:18:45.288Z] ✓ Migration complete!
+[2025-11-29T16:18:45.288Z] 
+[2025-11-29T16:18:45.288Z] Next steps:
+[2025-11-29T16:18:45.288Z]   1. Verify files are accessible in the app
+[2025-11-29T16:18:45.288Z]   2. Test upload/download/streaming functionality
+[2025-11-29T16:18:45.288Z]   3. After confirming everything works, you can safely delete the legacy ftp-storage/ folder
+[2025-11-29T16:18:45.288Z]   4. Migration log saved to: /Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist/server/scripts/migration-log-1764433120685.txt

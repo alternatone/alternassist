@@ -419,4 +419,45 @@ router.post('/upload', (req, res) => {
   }
 });
 
+// Backup FTP to FTP BACKUP
+router.post('/backup', (req, res) => {
+  try {
+    ensureFTPAvailable();
+
+    const { spawn } = require('child_process');
+    const scriptPath = path.join(__dirname, '../scripts/backup-ftp.js');
+
+    const backupProcess = spawn('node', [scriptPath], {
+      stdio: 'pipe'
+    });
+
+    let output = '';
+
+    backupProcess.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    backupProcess.stderr.on('data', (data) => {
+      output += data.toString();
+    });
+
+    backupProcess.on('close', (code) => {
+      if (code === 0) {
+        res.json({ success: true, message: 'Backup completed successfully', output });
+      } else {
+        res.status(500).json({ error: 'Backup failed', output });
+      }
+    });
+
+  } catch (error) {
+    if (error.message.includes('FTP drive not mounted')) {
+      return res.status(503).json({
+        error: 'FTP drive not available',
+        suggestion: 'Please connect the external drive.'
+      });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
