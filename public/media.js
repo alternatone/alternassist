@@ -88,12 +88,34 @@ async function loadProjects() {
 
         let html = '';
 
-        // Add FTP Drive browser at the top if enabled
+        // Load FTP root folders if enabled
+        let ftpRootFolders = [];
         if (ftpBrowserEnabled) {
-            html += createFtpDriveRow();
+            if (!ftpContentsCache['']) {
+                try {
+                    const ftpResponse = await fetch('http://localhost:3000/api/ftp/browse?path=');
+                    if (ftpResponse.ok) {
+                        ftpContentsCache[''] = await ftpResponse.json();
+                    }
+                } catch (error) {
+                    console.error('Error loading FTP root:', error);
+                }
+            }
+            if (ftpContentsCache['']) {
+                // Get project folder names to avoid duplicates
+                const projectFolderNames = new Set(
+                    projectsCache
+                        .filter(p => p.folder_path)
+                        .map(p => p.folder_path)
+                );
+
+                // Only show FTP folders that don't have associated projects
+                ftpRootFolders = ftpContentsCache[''].items
+                    .filter(item => item.isDirectory && !projectFolderNames.has(item.name));
+            }
         }
 
-        if (projectsCache.length === 0 && !ftpBrowserEnabled) {
+        if (projectsCache.length === 0 && ftpRootFolders.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="5" class="empty-state">No projects yet.</td>
@@ -102,8 +124,20 @@ async function loadProjects() {
             return;
         }
 
-        // OPTIMIZED: Removed blocking await - createProjectRow is now sync
-        html += projectsCache.map(project => createProjectRow(project)).join('');
+        // Combine FTP folders and projects, then sort alphabetically
+        const allItems = [
+            ...ftpRootFolders.map(folder => ({ type: 'ftp', data: folder, sortKey: folder.name.toLowerCase() })),
+            ...projectsCache.map(project => ({ type: 'project', data: project, sortKey: project.name.toLowerCase() }))
+        ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+        // Render all items in sorted order
+        html += allItems.map(item => {
+            if (item.type === 'ftp') {
+                return createFtpFolderRow(item.data.name, item.data, 0);
+            } else {
+                return createProjectRow(item.data);
+            }
+        }).join('');
         tbody.innerHTML = html;
 
         // Load files for any expanded projects that don't have files loaded yet
@@ -120,12 +154,7 @@ async function loadProjects() {
                     if (filesResponse.ok) {
                         projectFiles[projectId] = await filesResponse.json();
                         // Re-render to show the files
-                        let html = '';
-                        if (ftpBrowserEnabled) {
-                            html += createFtpDriveRow();
-                        }
-                        html += projectsCache.map(project => createProjectRow(project)).join('');
-                        tbody.innerHTML = html;
+                        await loadProjects();
                     }
 
                     delete projectAbortControllers[projectId];
@@ -146,12 +175,7 @@ async function loadProjects() {
                     if (response.ok) {
                         ftpContentsCache[folderPath] = await response.json();
                         // Re-render to show the contents
-                        let html = '';
-                        if (ftpBrowserEnabled) {
-                            html += createFtpDriveRow();
-                        }
-                        html += projectsCache.map(project => createProjectRow(project)).join('');
-                        tbody.innerHTML = html;
+                        await loadProjects();
                     }
                 } catch (error) {
                     console.error('Error loading FTP folder contents:', error);
@@ -806,35 +830,44 @@ function escapeHtml(unsafe) {
 
 // ============== FTP BROWSER FUNCTIONS ==============
 
-function createFtpDriveRow() {
-    const isExpanded = expandedFtpFolders.has('');
+function createFtpFolderRow(folderName, folderData, indentLevel) {
+    const folderPath = folderName;
+    const isExpanded = expandedFtpFolders.has(folderPath);
+    const paddingLeft = indentLevel * 2;
 
     let html = `
-        <tr class="project-row ftp-drive-row" onclick="toggleFtpFolder('')">
+        <tr class="project-row ftp-folder-row" data-ftp-path="${escapeHtml(folderPath)}" onclick="toggleFtpFolder('${escapeHtml(folderPath)}')">
             <td>
-                <div class="file-name">
+                <div class="file-name" style="display: flex; align-items: center; gap: 0.5rem; padding-left: ${paddingLeft}rem;">
                     <span class="folder-icon ${isExpanded ? 'expanded' : ''}">▶</span>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <strong>FTP Drive</strong>
+                    <strong>${escapeHtml(folderName)}</strong>
+                    ${folderData.projectName ? `<span style="color: var(--accent-teal); margin-left: 0.5rem; font-size: 0.85em;">(${escapeHtml(folderData.projectName)})</span>` : ''}
                 </div>
             </td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
+            <td class="file-date">${folderData.itemCount || 0} item${folderData.itemCount !== 1 ? 's' : ''}</td>
+            <td class="file-size">${formatFileSize(folderData.totalSize || 0)}</td>
+            <td class="file-date">${formatDate(folderData.modified)}</td>
+            <td onclick="event.stopPropagation()">
+                <div class="file-actions">
+                    <button class="btn-action delete" onclick="deleteFtpItem('${escapeHtml(folderPath)}', '${escapeHtml(folderName)}', true)" title="Delete folder">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                </div>
+            </td>
         </tr>
     `;
 
     // If expanded, show contents
-    if (isExpanded) {
-        const contents = ftpContentsCache[''] || null;
-        if (contents) {
-            html += renderFtpContents('', contents, 1);
-        }
+    if (isExpanded && ftpContentsCache[folderPath]) {
+        html += renderFtpContents(folderPath, ftpContentsCache[folderPath], indentLevel + 1);
     }
 
     return html;
@@ -928,7 +961,7 @@ function renderFtpContents(parentPath, contents, indentLevel) {
         // Check if file is a media file
         const isMediaFile = file.isMedia;
         const fileNameHtml = isMediaFile
-            ? `<a href="#" onclick="streamFtpFile('${escapeHtml(filePath)}', '${escapeHtml(file.name)}'); return false;" style="cursor: pointer; color: var(--accent-teal); text-decoration: none;">${escapeHtml(file.name)}</a>`
+            ? `<a href="media_review.html?ftpFile=${encodeURIComponent(filePath)}" style="cursor: pointer; color: var(--accent-teal); text-decoration: none;">${escapeHtml(file.name)}</a>`
             : escapeHtml(file.name);
 
         const isSelected = selectedFtpFiles.has(filePath);
@@ -951,7 +984,7 @@ function renderFtpContents(parentPath, contents, indentLevel) {
                 <td>
                     <div class="file-actions">
                         ${isMediaFile ? `
-                            <button class="btn-action" onclick="streamFtpFile('${escapeHtml(filePath)}', '${escapeHtml(file.name)}')" title="Stream">
+                            <button class="btn-action" onclick="window.location.href='media_review.html?ftpFile=${encodeURIComponent(filePath)}'" title="Play">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
                                 </svg>
@@ -985,13 +1018,6 @@ function renderFtpContents(parentPath, contents, indentLevel) {
     }
 
     return html;
-}
-
-function streamFtpFile(filePath, fileName) {
-    // Open in new window/tab to stream the file
-    const streamUrl = `http://localhost:3000/api/ftp/stream?path=${encodeURIComponent(filePath)}`;
-    window.open(streamUrl, '_blank');
-    showToast(`Streaming "${fileName}"`, 'info', 2000);
 }
 
 async function downloadFtpFile(filePath, fileName) {

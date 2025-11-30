@@ -807,9 +807,13 @@
         const urlParams = new URLSearchParams(window.location.search);
         currentFileId = urlParams.get('file');
         projectId = urlParams.get('project'); // Get project ID from URL
+        const ftpFilePath = urlParams.get('ftpFile'); // Get FTP file path from URL
 
         // Load file from backend if specified
-        if (currentFileId && projectId) {
+        if (ftpFilePath) {
+            // FTP file - load directly from FTP stream endpoint
+            loadFtpFile(ftpFilePath);
+        } else if (currentFileId && projectId) {
             // OPTIMIZED: Load file and comments in parallel
             Promise.all([
                 loadFileFromBackend(),
@@ -818,8 +822,8 @@
                 console.error('Error loading page:', error);
                 alert('Failed to load media review page');
             });
-        } else if (!projectId) {
-            alert('Missing project ID in URL');
+        } else if (!projectId && !ftpFilePath) {
+            alert('Missing project ID or file path in URL');
         }
 
         async function loadFileFromBackend() {
@@ -873,6 +877,51 @@
             } catch (error) {
                 console.error('Error loading file:', error);
                 alert('Failed to load file');
+            }
+        }
+
+        function loadFtpFile(filePath) {
+            try {
+                // Extract filename from path
+                const fileName = filePath.split('/').pop();
+
+                // Determine file type from extension
+                const ext = fileName.split('.').pop().toLowerCase();
+                const audioExtensions = ['mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg'];
+                const isAudio = audioExtensions.includes(ext);
+
+                const audioVisualizer = document.getElementById('audioVisualizer');
+
+                if (isAudio) {
+                    activePlayer = audioPlayer;
+                    audioVisualizer.style.display = 'flex';
+                    videoPlayer.src = '';
+                } else {
+                    activePlayer = videoPlayer;
+                    audioVisualizer.style.display = 'none';
+                    audioPlayer.src = '';
+                }
+
+                // Set source to FTP stream endpoint
+                const streamUrl = `http://localhost:3000/api/ftp/stream?path=${encodeURIComponent(filePath)}`;
+                activePlayer.src = streamUrl;
+
+                videoFilename.textContent = fileName;
+                currentVideoFile = fileName;
+
+                // Hide placeholder
+                videoPlaceholder.style.display = 'none';
+                document.querySelector('.video-container').classList.add('has-video');
+
+                // Load the media
+                activePlayer.load();
+
+                // Note: FTP files don't have comment support yet
+                comments = [];
+                renderComments();
+            } catch (error) {
+                console.error('Error loading FTP file:', error);
+                alert('Failed to load FTP file');
             }
         }
 

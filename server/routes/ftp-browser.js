@@ -314,7 +314,7 @@ router.delete('/delete', (req, res) => {
   try {
     ensureFTPAvailable();
 
-    const requestedPath = req.body.path;
+    const requestedPath = req.query.path;
     if (!requestedPath) {
       return res.status(400).json({ error: 'Path parameter required' });
     }
