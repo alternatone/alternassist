@@ -18,11 +18,39 @@ router.get('/config/storage-path', (req, res) => {
   res.json({ storagePath: config.storagePath });
 });
 
-// Get all projects (admin view) - with caching
+// Get all projects (admin view) - with caching and optional pagination
 router.get('/', (req, res) => {
   try {
-    const projects = cache.wrap('projects:all', () => projectQueries.getAllWithStats.all());
-    res.json(projects);
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+
+    // OPTIMIZATION: Use pagination if requested
+    if (page && limit) {
+      const offset = (page - 1) * limit;
+      const cacheKey = `projects:all:page:${page}:limit:${limit}`;
+
+      const projects = cache.wrap(
+        cacheKey,
+        () => projectQueries.getAllWithStatsPaginated.all(limit, offset)
+      );
+
+      const countResult = projectQueries.getCount.get();
+      const total = countResult.total;
+
+      res.json({
+        data: projects,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } else {
+      // Fallback to original behavior for backward compatibility
+      const projects = cache.wrap('projects:all', () => projectQueries.getAllWithStats.all());
+      res.json(projects);
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

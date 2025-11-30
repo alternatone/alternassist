@@ -622,7 +622,23 @@ const projectQueries = {
   archive: db.prepare('UPDATE projects SET archived = 1, archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   unarchive: db.prepare('UPDATE projects SET archived = 0, archived_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   getArchived: db.prepare('SELECT * FROM projects WHERE archived = 1 ORDER BY archived_at DESC'),
-  updateTimestamp: db.prepare('UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  updateTimestamp: db.prepare('UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  // OPTIMIZATION: Pagination support
+  getAllWithStatsPaginated: db.prepare(`
+    SELECT
+      p.*,
+      COUNT(f.id) as file_count,
+      COALESCE(SUM(f.file_size), 0) as total_size
+    FROM projects p
+    LEFT JOIN files f ON p.id = f.project_id
+    WHERE (p.archived IS NULL OR p.archived = 0)
+    GROUP BY p.id
+    ORDER BY p.updated_at DESC
+    LIMIT ? OFFSET ?
+  `),
+  getCount: db.prepare(`
+    SELECT COUNT(*) as total FROM projects WHERE (archived IS NULL OR archived = 0)
+  `)
 };
 
 // File queries
