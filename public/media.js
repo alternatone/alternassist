@@ -203,8 +203,9 @@ function createProjectRow(project) {
                 </div>
             </td>
             <td>${formatStatus(project.status)}</td>
-            <td>${project.file_count || 0} files</td>
+            <td>${project.file_count || 0}</td>
             <td class="file-size">${formatFileSize(project.total_size || 0)}</td>
+            <td class="file-date">${project.created_at ? formatDate(new Date(project.created_at)) : ''}</td>
             <td onclick="event.stopPropagation()">
                 <div class="file-actions">
                     <button class="btn-action" onclick="openFtpSetupForProject(${project.id}, '${escapeHtml(project.name)}', '${project.status || ''}')" title="FTP Setup">
@@ -313,7 +314,8 @@ function createFolderRow(projectId, folderName, files) {
                     <span>${folderName}</span>
                 </div>
             </td>
-            <td class="file-date">${fileCount} file${fileCount !== 1 ? 's' : ''}</td>
+            <td></td>
+            <td>${fileCount}</td>
             <td class="file-size">${formatFileSize(totalSize)}</td>
             <td></td>
             <td></td>
@@ -335,6 +337,7 @@ function createFileRow(projectId, file, folder) {
     return `
         <tr class="file-row ${isVisible ? 'visible' : ''}" data-project="${projectId}" data-folder="${folder}">
             <td><div class="file-name" style="padding-left: 4rem;">${fileNameHtml}</div></td>
+            <td></td>
             <td></td>
             <td class="file-size">${formatFileSize(file.file_size)}</td>
             <td class="file-date">${formatDate(file.uploaded_at)}</td>
@@ -847,7 +850,8 @@ function createFtpFolderRow(folderName, folderData, indentLevel) {
                     ${folderData.projectName ? `<span style="color: var(--accent-teal); margin-left: 0.5rem; font-size: 0.85em;">(${escapeHtml(folderData.projectName)})</span>` : ''}
                 </div>
             </td>
-            <td class="file-date">${folderData.itemCount || 0} item${folderData.itemCount !== 1 ? 's' : ''}</td>
+            <td></td>
+            <td>${folderData.itemCount || 0}</td>
             <td class="file-size">${formatFileSize(folderData.totalSize || 0)}</td>
             <td class="file-date">${formatDate(folderData.modified)}</td>
             <td onclick="event.stopPropagation()">
@@ -929,7 +933,8 @@ function renderFtpContents(parentPath, contents, indentLevel) {
                         ${folder.projectName ? `<span style="color: var(--accent-teal); margin-left: 0.5rem; font-size: 0.85em;">(${escapeHtml(folder.projectName)})</span>` : ''}
                     </div>
                 </td>
-                <td class="file-date">${folder.itemCount || 0} item${folder.itemCount !== 1 ? 's' : ''}</td>
+                <td></td>
+                <td>${folder.itemCount || 0}</td>
                 <td class="file-size">${formatFileSize(folder.totalSize || 0)}</td>
                 <td class="file-date">${formatDate(folder.modified)}</td>
                 <td onclick="event.stopPropagation()">
@@ -978,6 +983,7 @@ function renderFtpContents(parentPath, contents, indentLevel) {
                         ${fileNameHtml}
                     </div>
                 </td>
+                <td></td>
                 <td></td>
                 <td class="file-size">${formatFileSize(file.size)}</td>
                 <td class="file-date">${formatDate(file.modified)}</td>

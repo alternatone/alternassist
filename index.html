@@ -917,15 +917,14 @@
                 const revisionLoggedHours = loggedHours['revisions'] || 0;
 
                 return `
-                    <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer;">
+                    <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer; position: relative;">
+                        <button onclick="event.stopPropagation(); unpinProject(${project.id})" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; cursor: pointer; padding: 0.25rem; opacity: 0.6; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Unpin project">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="17" x2="12" y2="22"></line>
+                                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+                            </svg>
+                        </button>
                         <h3 class="overview-title">${project.title}</h3>
-
-                        ${project.notes ? `
-                            <div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.35rem;">Creative Direction</div>
-                                <div style="font-size: 0.85rem; color: var(--secondary-text); line-height: 1.5; font-style: italic; overflow-wrap: break-word; word-wrap: break-word;">${project.notes}</div>
-                            </div>
-                        ` : ''}
 
                         ${project.status && (project.status.includes('deposit') || project.status.includes('invoiced') || project.status.includes('received')) ? `
                             <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: ${project.status.includes('received') ? '#d3f9d8' : project.status.includes('invoiced') ? '#fff3bf' : '#e7f5ff'}; border-left: 3px solid ${project.status.includes('received') ? 'var(--accent-green)' : project.status.includes('invoiced') ? 'var(--accent-orange)' : 'var(--accent-teal)'}; border-radius: 4px;">
@@ -938,10 +937,10 @@
                             <div style="margin-bottom: 0.75rem;">
                                 <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Music Cue Status</div>
                                 <div style="height: 20px; background: #f0f0f0; border-radius: 6px; overflow: hidden; display: flex;">
-                                    ${toWrite > 0 ? `<div style="background: #ff6b6b; width: ${(toWrite / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${toWrite}</div>` : ''}
-                                    ${written > 0 ? `<div style="background: #ff922b; width: ${(written / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${written}</div>` : ''}
-                                    ${revisions > 0 ? `<div style="background: #ffd93d; width: ${(revisions / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: #1a1a1a; font-size: 0.7rem; font-weight: 600;">${revisions}</div>` : ''}
-                                    ${approved > 0 ? `<div style="background: #51cf66; width: ${(approved / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${approved}</div>` : ''}
+                                    ${toWrite > 0 ? `<div style="background: #ff6b6b; width: ${(toWrite / totalCues) * 100}%;"></div>` : ''}
+                                    ${written > 0 ? `<div style="background: #ff922b; width: ${(written / totalCues) * 100}%;"></div>` : ''}
+                                    ${revisions > 0 ? `<div style="background: #ffd93d; width: ${(revisions / totalCues) * 100}%;"></div>` : ''}
+                                    ${approved > 0 ? `<div style="background: #51cf66; width: ${(approved / totalCues) * 100}%;"></div>` : ''}
                                 </div>
                             </div>
                         ` : ''}
@@ -953,7 +952,7 @@
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Dialogue</span>
-                                            <span>${dialogueLoggedHours.toFixed(1)} / ${scope.dialogue_hours}h</span>
+                                            <span>${Math.round(dialogueLoggedHours)} / ${scope.dialogue_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
                                             <div style="height: 100%; width: ${Math.min(100, (dialogueLoggedHours / scope.dialogue_hours) * 100)}%; background: #469FE0;"></div>
@@ -964,7 +963,7 @@
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Sound Design</span>
-                                            <span>${soundDesignLoggedHours.toFixed(1)} / ${scope.sound_design_hours}h</span>
+                                            <span>${Math.round(soundDesignLoggedHours)} / ${scope.sound_design_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
                                             <div style="height: 100%; width: ${Math.min(100, (soundDesignLoggedHours / scope.sound_design_hours) * 100)}%; background: #469FE0;"></div>
@@ -975,7 +974,7 @@
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Mix</span>
-                                            <span>${mixLoggedHours.toFixed(1)} / ${scope.mix_hours}h</span>
+                                            <span>${Math.round(mixLoggedHours)} / ${scope.mix_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
                                             <div style="height: 100%; width: ${Math.min(100, (mixLoggedHours / scope.mix_hours) * 100)}%; background: #469FE0;"></div>
@@ -986,7 +985,7 @@
                                     <div style="margin-bottom: 0.35rem;">
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
                                             <span>Revisions</span>
-                                            <span>${revisionLoggedHours.toFixed(1)} / ${scope.revision_hours}h</span>
+                                            <span>${Math.round(revisionLoggedHours)} / ${scope.revision_hours}h</span>
                                         </div>
                                         <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
                                             <div style="height: 100%; width: ${Math.min(100, (revisionLoggedHours / scope.revision_hours) * 100)}%; background: #469FE0;"></div>
@@ -998,6 +997,25 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        async function unpinProject(projectId) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/projects/${projectId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pinned: 0 })
+                });
+
+                if (response.ok) {
+                    // Re-render the dashboard
+                    await renderPinnedProjects();
+                } else {
+                    console.error('Failed to unpin project');
+                }
+            } catch (error) {
+                console.error('Error unpinning project:', error);
+            }
         }
 
         window.addEventListener('DOMContentLoaded', () => {

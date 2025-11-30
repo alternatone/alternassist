@@ -351,7 +351,6 @@ form .btn-primary {
 
 .file-size {
     color: var(--muted-text);
-    font-family: var(--font-mono);
     font-size: 0.85rem;
 }
 
