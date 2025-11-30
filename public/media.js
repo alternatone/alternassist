@@ -197,8 +197,11 @@ function createProjectRow(project) {
     let html = `
         <tr class="project-row" data-project="${project.id}" onclick="toggleProject(${project.id})">
             <td>
-                <div class="file-name">
+                <div class="file-name" style="display: flex; align-items: center; gap: 0.5rem;">
                     <span class="folder-icon ${isExpanded ? 'expanded' : ''}">▶</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
                     ${escapeHtml(project.name)}
                 </div>
             </td>
@@ -856,6 +859,19 @@ function createFtpFolderRow(folderName, folderData, indentLevel) {
             <td class="file-date">${formatDate(folderData.modified)}</td>
             <td onclick="event.stopPropagation()">
                 <div class="file-actions">
+                    <button class="btn-action" onclick="copyFtpFileLink('${escapeHtml(folderPath)}', '${escapeHtml(folderName)}')" title="Copy Link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-action" onclick="downloadFtpFolder('${escapeHtml(folderPath)}', '${escapeHtml(folderName)}')" title="Download Folder">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
                     <button class="btn-action delete" onclick="deleteFtpItem('${escapeHtml(folderPath)}', '${escapeHtml(folderName)}', true)" title="Delete folder">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
@@ -939,6 +955,19 @@ function renderFtpContents(parentPath, contents, indentLevel) {
                 <td class="file-date">${formatDate(folder.modified)}</td>
                 <td onclick="event.stopPropagation()">
                     <div class="file-actions">
+                        <button class="btn-action" onclick="copyFtpFileLink('${escapeHtml(folderPath)}', '${escapeHtml(folder.name)}')" title="Copy Link">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                        </button>
+                        <button class="btn-action" onclick="downloadFtpFolder('${escapeHtml(folderPath)}', '${escapeHtml(folder.name)}')" title="Download Folder">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </button>
                         <button class="btn-action delete" onclick="deleteFtpItem('${escapeHtml(folderPath)}', '${escapeHtml(folder.name)}', true)" title="Delete folder">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
@@ -1047,6 +1076,19 @@ async function downloadFtpFile(filePath, fileName) {
     } catch (error) {
         console.error('Error downloading FTP file:', error);
         showToast('Failed to download file', 'error');
+    }
+}
+
+async function downloadFtpFolder(folderPath, folderName) {
+    try {
+        showToast(`Preparing to download folder "${folderName}"...`, 'info', 3000);
+
+        // Note: This would require a backend endpoint to zip the folder
+        // For now, we'll show a message
+        showToast('Folder download feature coming soon', 'info');
+    } catch (error) {
+        console.error('Error downloading FTP folder:', error);
+        showToast('Failed to download folder', 'error');
     }
 }
 
@@ -1172,7 +1214,7 @@ function createSelectionBar() {
             cursor: pointer;
             font-weight: 500;
             font-family: var(--font-primary);
-        ">Share Selected</button>
+        ">share selected</button>
         <button onclick="clearSelection()" style="
             background: #f0f0f0;
             color: var(--primary-text);
@@ -1181,7 +1223,7 @@ function createSelectionBar() {
             border-radius: 6px;
             cursor: pointer;
             font-family: var(--font-primary);
-        ">Clear</button>
+        ">clear</button>
     `;
 
     document.body.appendChild(bar);
