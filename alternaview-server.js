@@ -73,11 +73,27 @@ function startServer() {
     next();
   });
 
-  // Serve static files from public directory
-  app.use('/media', express.static(path.join(__dirname, 'public')));
+  // Serve static files from public directory with no-cache headers for development
+  app.use('/media', express.static(path.join(__dirname, 'public'), {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+    }
+  }));
 
   // Serve client portal at /client
-  app.use('/client', express.static(path.join(__dirname, 'client-portal')));
+  app.use('/client', express.static(path.join(__dirname, 'client-portal'), {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+    }
+  }));
 
   // API Routes
   app.use('/api/projects', require('./server/routes/projects'));
