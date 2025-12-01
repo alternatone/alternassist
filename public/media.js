@@ -809,46 +809,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }, false);
     });
 
-    // Delegate drag events to folder rows
+    // Delegate drag events to folder rows and project rows
     tbody.addEventListener('dragenter', (e) => {
-        const folderRow = e.target.closest('.folder-row');
-        if (folderRow) {
-            folderRow.classList.add('drag-over');
+        const targetRow = e.target.closest('.folder-row, .project-row');
+        if (targetRow) {
+            targetRow.classList.add('drag-over');
         }
     });
 
     tbody.addEventListener('dragleave', (e) => {
-        const folderRow = e.target.closest('.folder-row');
-        if (folderRow) {
-            folderRow.classList.remove('drag-over');
+        const targetRow = e.target.closest('.folder-row, .project-row');
+        if (targetRow) {
+            targetRow.classList.remove('drag-over');
         }
     });
 
     tbody.addEventListener('dragover', (e) => {
-        if (e.target.closest('.folder-row')) {
+        if (e.target.closest('.folder-row, .project-row')) {
             e.preventDefault();
+            e.stopPropagation();
         }
     });
 
     tbody.addEventListener('drop', async (e) => {
-        const folderRow = e.target.closest('.folder-row');
-        if (folderRow) {
-            folderRow.classList.remove('drag-over');
+        e.preventDefault();
+        e.stopPropagation();
+
+        const targetRow = e.target.closest('.folder-row, .project-row');
+        if (targetRow) {
+            targetRow.classList.remove('drag-over');
             const files = Array.from(e.dataTransfer.files);
 
             if (files.length === 0) return;
 
             // Check if it's a project folder or FTP folder
-            const ftpPath = folderRow.dataset.ftpPath;
-            const projectId = folderRow.dataset.project;
-            const folder = folderRow.dataset.folder;
+            const ftpPath = targetRow.dataset.ftpPath;
+            const projectId = targetRow.dataset.project;
+            const folder = targetRow.dataset.folder;
 
             if (ftpPath !== undefined) {
                 // FTP folder upload
                 await uploadToFtpFolder(ftpPath, files);
             } else if (projectId && folder) {
                 // Project folder upload
-                await uploadToProjectFolder(projectId, folder, files);
+                await uploadToProjectFolder(parseInt(projectId), folder, files);
+            } else if (projectId && !folder) {
+                // Dropped on project row - default to "FROM CLIENT" folder
+                await uploadToProjectFolder(parseInt(projectId), 'FROM CLIENT', files);
             }
         }
     });
