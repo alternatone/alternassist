@@ -505,3 +505,10 @@ form .btn-primary {
         gap: 0.5rem;
     }
 }
+
+
+/* Drag and drop styles */
+.drag-over {
+    background-color: rgba(70, 159, 224, 0.1) !important;
+    border: 2px dashed var(--accent-teal) !important;
+}

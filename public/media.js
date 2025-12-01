@@ -819,7 +819,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tbody.addEventListener('dragleave', (e) => {
         const targetRow = e.target.closest('.folder-row, .project-row');
-        if (targetRow) {
+        // Only remove highlight if we're actually leaving the row (not just entering a child element)
+        if (targetRow && !targetRow.contains(e.relatedTarget)) {
             targetRow.classList.remove('drag-over');
         }
     });
@@ -836,25 +837,35 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
 
         const targetRow = e.target.closest('.folder-row, .project-row');
+        console.log('Drop event:', { targetRow, files: e.dataTransfer.files.length });
+
         if (targetRow) {
             targetRow.classList.remove('drag-over');
             const files = Array.from(e.dataTransfer.files);
 
-            if (files.length === 0) return;
+            if (files.length === 0) {
+                console.log('No files to upload');
+                return;
+            }
 
             // Check if it's a project folder or FTP folder
             const ftpPath = targetRow.dataset.ftpPath;
             const projectId = targetRow.dataset.project;
             const folder = targetRow.dataset.folder;
 
+            console.log('Upload target:', { ftpPath, projectId, folder });
+
             if (ftpPath !== undefined) {
                 // FTP folder upload
+                console.log('Uploading to FTP:', ftpPath, files.length, 'files');
                 await uploadToFtpFolder(ftpPath, files);
             } else if (projectId && folder) {
                 // Project folder upload
+                console.log('Uploading to project folder:', projectId, folder, files.length, 'files');
                 await uploadToProjectFolder(parseInt(projectId), folder, files);
             } else if (projectId && !folder) {
                 // Dropped on project row - default to "FROM CLIENT" folder
+                console.log('Uploading to project FROM CLIENT:', projectId, files.length, 'files');
                 await uploadToProjectFolder(parseInt(projectId), 'FROM CLIENT', files);
             }
         }
@@ -863,7 +874,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Upload to project folder (existing functionality)
 async function uploadToProjectFolder(projectId, folder, files) {
+    console.log('uploadToProjectFolder called:', projectId, folder, files.length);
     const uploadModal = showUploadModal(files.length);
+    console.log('Upload modal created:', uploadModal);
 
     try {
         let completedUploads = 0;
