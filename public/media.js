@@ -41,6 +41,112 @@ function showToast(message, type = 'success', duration = 3000) {
     }, duration);
 }
 
+// Upload progress modal
+function showUploadModal(fileCount) {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'upload-modal-overlay';
+    overlay.id = 'upload-modal-overlay';
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'upload-modal';
+    modal.id = 'upload-modal';
+    modal.innerHTML = `
+        <div class="upload-modal-header">
+            <div class="upload-modal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+            </div>
+            <div class="upload-modal-title">uploading files</div>
+        </div>
+        <div class="upload-modal-status" id="upload-status">starting upload of ${fileCount} file${fileCount > 1 ? 's' : ''}...</div>
+        <div class="upload-progress-container">
+            <div class="upload-progress-fill" id="upload-progress-fill"></div>
+        </div>
+        <div class="upload-progress-text" id="upload-progress-text">0%</div>
+    `;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(modal);
+
+    return {
+        updateProgress: (current, total) => {
+            const percentage = Math.round((current / total) * 100);
+            const progressFill = document.getElementById('upload-progress-fill');
+            const progressText = document.getElementById('upload-progress-text');
+            const statusText = document.getElementById('upload-status');
+
+            if (progressFill) progressFill.style.width = `${percentage}%`;
+            if (progressText) progressText.textContent = `${percentage}%`;
+            if (statusText) statusText.textContent = `uploading ${current} of ${total} file${total > 1 ? 's' : ''}...`;
+        },
+        showComplete: (totalFiles) => {
+            const modal = document.getElementById('upload-modal');
+            if (modal) {
+                modal.innerHTML = `
+                    <div class="upload-complete-icon">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    <div class="upload-modal-title" style="text-align: center; margin-bottom: 0.5rem;">upload complete!</div>
+                    <div class="upload-modal-status" style="text-align: center;">successfully uploaded ${totalFiles} file${totalFiles > 1 ? 's' : ''}</div>
+                `;
+
+                setTimeout(() => {
+                    modal.style.animation = 'modalFadeIn 0.3s ease-out reverse';
+                    const overlay = document.getElementById('upload-modal-overlay');
+                    if (overlay) overlay.style.animation = 'overlayFadeIn 0.3s ease-out reverse';
+
+                    setTimeout(() => {
+                        modal.remove();
+                        if (overlay) overlay.remove();
+                    }, 300);
+                }, 2000);
+            }
+        },
+        showError: (errorMessage) => {
+            const modal = document.getElementById('upload-modal');
+            if (modal) {
+                modal.innerHTML = `
+                    <div class="upload-modal-header">
+                        <div class="upload-modal-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        <div class="upload-modal-title">upload failed</div>
+                    </div>
+                    <div class="upload-modal-status">${errorMessage}</div>
+                `;
+
+                setTimeout(() => {
+                    modal.style.animation = 'modalFadeIn 0.3s ease-out reverse';
+                    const overlay = document.getElementById('upload-modal-overlay');
+                    if (overlay) overlay.style.animation = 'overlayFadeIn 0.3s ease-out reverse';
+
+                    setTimeout(() => {
+                        modal.remove();
+                        if (overlay) overlay.remove();
+                    }, 300);
+                }, 3000);
+            }
+        },
+        close: () => {
+            const modal = document.getElementById('upload-modal');
+            const overlay = document.getElementById('upload-modal-overlay');
+            if (modal) modal.remove();
+            if (overlay) overlay.remove();
+        }
+    };
+}
+
 // Add animation styles
 if (!document.getElementById('toast-styles')) {
     const style = document.createElement('style');
@@ -64,6 +170,95 @@ if (!document.getElementById('toast-styles')) {
             transform-origin: left;
             transition: transform 0.3s ease;
             z-index: 10001;
+        }
+        .upload-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            z-index: 10002;
+            min-width: 400px;
+            max-width: 500px;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+        .upload-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            animation: overlayFadeIn 0.3s ease-out;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translate(-50%, -45%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        @keyframes overlayFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .upload-modal-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .upload-modal-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(70, 159, 224, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-teal);
+        }
+        .upload-modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-text);
+        }
+        .upload-modal-status {
+            font-size: 0.9rem;
+            color: var(--muted-text);
+            margin-bottom: 1rem;
+        }
+        .upload-progress-container {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        .upload-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-teal) 0%, var(--accent-blue) 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .upload-progress-text {
+            font-size: 0.85rem;
+            color: var(--subtle-text);
+            text-align: center;
+        }
+        .upload-complete-icon {
+            width: 60px;
+            height: 60px;
+            margin: 1rem auto;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #10b981;
         }
     `;
     document.head.appendChild(style);
@@ -661,12 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Upload to project folder (existing functionality)
 async function uploadToProjectFolder(projectId, folder, files) {
-    showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}...`, 'info', 2000);
-
-    const progressBar = document.createElement('div');
-    progressBar.className = 'upload-progress-bar';
-    progressBar.style.transform = 'scaleX(0)';
-    document.body.appendChild(progressBar);
+    const uploadModal = showUploadModal(files.length);
 
     try {
         let completedUploads = 0;
@@ -675,12 +865,10 @@ async function uploadToProjectFolder(projectId, folder, files) {
         const uploadPromises = files.map(async (file) => {
             await uploadFile(file, projectId, folder);
             completedUploads++;
-            const progress = completedUploads / totalFiles;
-            progressBar.style.transform = `scaleX(${progress})`;
+            uploadModal.updateProgress(completedUploads, totalFiles);
         });
 
         await Promise.all(uploadPromises);
-        progressBar.remove();
 
         // Refresh the project after all uploads complete
         const response = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
@@ -689,11 +877,10 @@ async function uploadToProjectFolder(projectId, folder, files) {
         }
         await loadProjects();
 
-        showToast(`Successfully uploaded ${files.length} file${files.length > 1 ? 's' : ''}`, 'success');
+        uploadModal.showComplete(files.length);
     } catch (error) {
         console.error('Error uploading files:', error);
-        progressBar.remove();
-        showToast('Some files failed to upload', 'error');
+        uploadModal.showError('some files failed to upload. please try again.');
     }
 }
 
@@ -736,12 +923,7 @@ function uploadFile(file, projectId, folder) {
 
 // Upload to FTP folder
 async function uploadToFtpFolder(ftpPath, files) {
-    showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''} to FTP...`, 'info', 2000);
-
-    const progressBar = document.createElement('div');
-    progressBar.className = 'upload-progress-bar';
-    progressBar.style.transform = 'scaleX(0)';
-    document.body.appendChild(progressBar);
+    const uploadModal = showUploadModal(files.length);
 
     try {
         let completedUploads = 0;
@@ -750,22 +932,19 @@ async function uploadToFtpFolder(ftpPath, files) {
         const uploadPromises = files.map(async (file) => {
             await uploadFileToFtp(file, ftpPath);
             completedUploads++;
-            const progress = completedUploads / totalFiles;
-            progressBar.style.transform = `scaleX(${progress})`;
+            uploadModal.updateProgress(completedUploads, totalFiles);
         });
 
         await Promise.all(uploadPromises);
-        progressBar.remove();
 
         // Clear cache and refresh
         delete ftpContentsCache[ftpPath];
         await loadProjects();
 
-        showToast(`Successfully uploaded ${files.length} file${files.length > 1 ? 's' : ''}`, 'success');
+        uploadModal.showComplete(files.length);
     } catch (error) {
         console.error('Error uploading files to FTP:', error);
-        progressBar.remove();
-        showToast('Some files failed to upload', 'error');
+        uploadModal.showError('some files failed to upload. please try again.');
     }
 }
 
