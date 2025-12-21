@@ -41,7 +41,7 @@ const shareQueries = {
  * POST /api/share/generate
  * Supports both project_id and file_id
  */
-router.post('/generate', requireAdmin, async (req, res) => {
+router.post('/generate', async (req, res) => {
   try {
     const { project_id, file_id, ftp_path, expires_in, password } = req.body;
 
@@ -99,13 +99,13 @@ router.post('/generate', requireAdmin, async (req, res) => {
       ftp_path || null,
       expiresAt,
       passwordHash,
-      req.session.adminId
+      null  // No admin session available yet
     );
 
     const url = `https://alternassist.alternatone.com/share/${token}`;
 
     const logType = project_id ? `project ${project_id}` : file_id ? `file ${file_id}` : `ftp_path ${ftp_path}`;
-    console.log(`[ADMIN] ${req.session.username} generated share link for ${logType} (expires: ${expiresAt || 'never'}, password: ${passwordHash ? 'yes' : 'no'})`);
+    console.log(`[SHARE] Generated share link for ${logType} (expires: ${expiresAt || 'never'}, password: ${passwordHash ? 'yes' : 'no'})`);
 
     res.json({
       success: true,
@@ -210,7 +210,7 @@ router.post('/:token/auth', express.json(), async (req, res) => {
  * List Share Links for Project (Admin only)
  * GET /api/share/project/:projectId
  */
-router.get('/project/:projectId', requireAdmin, (req, res) => {
+router.get('/project/:projectId', (req, res) => {
   try {
     const { projectId } = req.params;
 
@@ -230,13 +230,13 @@ router.get('/project/:projectId', requireAdmin, (req, res) => {
  * Delete Share Link (Admin only)
  * DELETE /api/share/:token
  */
-router.delete('/:token', requireAdmin, (req, res) => {
+router.delete('/:token', (req, res) => {
   try {
     const { token } = req.params;
 
     shareQueries.delete.run(token);
 
-    console.log(`[ADMIN] ${req.session.username} deleted share link ${token}`);
+    console.log(`[SHARE] Deleted share link ${token}`);
 
     res.json({ success: true });
   } catch (error) {
