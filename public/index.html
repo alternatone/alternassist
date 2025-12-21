@@ -350,6 +350,73 @@
         </div>
     </div>
 
+    <!-- Share Link Generation Modal -->
+    <div id="shareLinkModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Generate Share Link</h2>
+                <button class="modal-close" onclick="closeShareLinkModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="shareLinkProjectName" style="color: var(--subtle-text); margin-bottom: 1.5rem;"></p>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--secondary-text);">Link Expiration</label>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="radio" name="expiry" value="7d" checked style="cursor: pointer;">
+                            <span>7 days</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="radio" name="expiry" value="never" style="cursor: pointer;">
+                            <span>Never</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="requirePassword" style="cursor: pointer;">
+                        <span style="font-weight: 500; color: var(--secondary-text);">Require password</span>
+                    </label>
+                </div>
+
+                <div id="passwordField" style="margin-bottom: 1.5rem; display: none;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--secondary-text);">Password</label>
+                    <input type="text" id="shareLinkPassword" placeholder="Enter password" style="width: 100%; padding: 0.75rem; border: 1px solid #e8e8e8; border-radius: 8px; font-family: var(--font-primary); font-size: 1rem;">
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button onclick="closeShareLinkModal()" class="btn-secondary">Cancel</button>
+                    <button onclick="generateShareLink()" class="btn-primary">Generate Link</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Link Success Modal -->
+    <div id="shareLinkSuccessModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Share Link Generated</h2>
+                <button class="modal-close" onclick="closeShareLinkSuccessModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--subtle-text); margin-bottom: 1rem;">Link copied to clipboard!</p>
+
+                <div style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; word-break: break-all; font-family: var(--font-mono); font-size: 0.9rem;">
+                    <div id="shareLinkUrl"></div>
+                </div>
+
+                <div id="shareLinkDetails" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"></div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button onclick="closeShareLinkSuccessModal()" class="btn-primary">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         /* Modal styles */
         .modal {
@@ -1108,39 +1175,79 @@
             }
         }
 
-        // Generate password-protected share link (Phase 2 Security Feature)
-        async function copyClientPortalLinkForProject(projectId, projectName) {
+        // Share Link Modal State
+        let currentShareLinkProject = null;
+
+        // Open share link modal
+        function copyClientPortalLinkForProject(projectId, projectName) {
+            currentShareLinkProject = { id: projectId, name: projectName };
+
+            const modal = document.getElementById('shareLinkModal');
+            const projectNameEl = document.getElementById('shareLinkProjectName');
+            const passwordField = document.getElementById('passwordField');
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+
+            projectNameEl.textContent = `Generate a secure share link for "${projectName}"`;
+
+            // Reset form
+            document.querySelector('input[name="expiry"][value="7d"]').checked = true;
+            requirePasswordCheckbox.checked = false;
+            passwordField.style.display = 'none';
+            document.getElementById('shareLinkPassword').value = '';
+
+            modal.classList.add('show');
+        }
+
+        // Toggle password field visibility
+        document.addEventListener('DOMContentLoaded', () => {
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+            const passwordField = document.getElementById('passwordField');
+
+            if (requirePasswordCheckbox) {
+                requirePasswordCheckbox.addEventListener('change', (e) => {
+                    passwordField.style.display = e.target.checked ? 'block' : 'none';
+                    if (e.target.checked) {
+                        document.getElementById('shareLinkPassword').focus();
+                    }
+                });
+            }
+        });
+
+        // Close share link modal
+        function closeShareLinkModal() {
+            const modal = document.getElementById('shareLinkModal');
+            modal.classList.remove('show');
+            currentShareLinkProject = null;
+        }
+
+        // Close success modal
+        function closeShareLinkSuccessModal() {
+            const modal = document.getElementById('shareLinkSuccessModal');
+            modal.classList.remove('show');
+        }
+
+        // Generate share link from modal
+        async function generateShareLink() {
+            if (!currentShareLinkProject) return;
+
             try {
-                console.log('[Share Link] Starting generation for project:', projectId, projectName);
+                const expiryRadio = document.querySelector('input[name="expiry"]:checked');
+                const requirePassword = document.getElementById('requirePassword').checked;
+                const passwordInput = document.getElementById('shareLinkPassword');
 
-                // Ask for share link options
-                const expiryChoice = confirm(
-                    `Generate a secure share link for "${projectName}"?\n\n` +
-                    `Click OK for a link that expires in 7 days\n` +
-                    `Click Cancel for a permanent link`
-                );
-                console.log('[Share Link] Expiry choice:', expiryChoice ? '7 days' : 'permanent');
-
-                const passwordChoice = confirm(
-                    `Password protect this link?\n\n` +
-                    `Click OK to require a password\n` +
-                    `Click Cancel for no password`
-                );
-                console.log('[Share Link] Password choice:', passwordChoice);
-
+                const expiresIn = expiryRadio.value;
                 let password = null;
-                if (passwordChoice) {
-                    password = prompt('Enter a password for this share link:');
-                    if (!password || password.trim() === '') {
-                        alert('Share link generation cancelled');
+
+                if (requirePassword) {
+                    password = passwordInput.value.trim();
+                    if (!password) {
+                        alert('Please enter a password');
+                        passwordInput.focus();
                         return;
                     }
-                    console.log('[Share Link] Password entered (length):', password.length);
                 }
 
-                const expiresIn = expiryChoice ? '7d' : 'never';
-
-                console.log('[Share Link] Making API request with:', { project_id: projectId, expires_in: expiresIn, has_password: !!password });
+                console.log('[Share Link] Generating for project:', currentShareLinkProject.id);
 
                 const response = await fetch('/api/share/generate', {
                     method: 'POST',
@@ -1148,14 +1255,12 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        project_id: projectId,
+                        project_id: currentShareLinkProject.id,
                         expires_in: expiresIn,
                         password: password
                     }),
                     credentials: 'include'
                 });
-
-                console.log('[Share Link] API response status:', response.status);
 
                 if (!response.ok) {
                     const error = await response.json();
@@ -1164,25 +1269,54 @@
                 }
 
                 const data = await response.json();
-                console.log('[Share Link] Generated link:', data.url);
+                console.log('[Share Link] Generated:', data);
 
                 // Copy to clipboard
                 await navigator.clipboard.writeText(data.url);
 
-                let message = `Secure share link generated and copied!\n\n${data.url}`;
+                // Close generation modal
+                closeShareLinkModal();
+
+                // Show success modal
+                const successModal = document.getElementById('shareLinkSuccessModal');
+                const urlEl = document.getElementById('shareLinkUrl');
+                const detailsEl = document.getElementById('shareLinkDetails');
+
+                urlEl.textContent = data.url;
+
+                let detailsHTML = '<div style="font-size: 0.9rem;">';
                 if (password) {
-                    message += `\n\nPassword: ${password}`;
+                    detailsHTML += `<div style="margin-bottom: 0.5rem;"><strong>Password:</strong> <code style="background: white; padding: 0.25rem 0.5rem; border-radius: 4px;">${password}</code></div>`;
                 }
                 if (expiresIn !== 'never') {
-                    message += `\n\nExpires in 7 days`;
+                    detailsHTML += `<div><strong>Expires:</strong> 7 days</div>`;
+                } else {
+                    detailsHTML += `<div><strong>Expires:</strong> Never</div>`;
                 }
+                detailsHTML += '</div>';
 
-                alert(message);
+                detailsEl.innerHTML = detailsHTML;
+
+                successModal.classList.add('show');
+
             } catch (error) {
                 console.error('[Share Link] Error:', error);
                 alert(error.message || 'Failed to generate share link');
             }
         }
+
+        // Click outside modal to close
+        document.addEventListener('click', (e) => {
+            const shareLinkModal = document.getElementById('shareLinkModal');
+            const successModal = document.getElementById('shareLinkSuccessModal');
+
+            if (e.target === shareLinkModal) {
+                closeShareLinkModal();
+            }
+            if (e.target === successModal) {
+                closeShareLinkSuccessModal();
+            }
+        });
     </script>
 </body>
 </html>
