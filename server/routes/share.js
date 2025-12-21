@@ -273,10 +273,10 @@ function redirectToProject(link, res) {
     res.redirect(`/client/login.html?share=${link.token}&project=${link.project_id}`);
   } else if (link.file_id) {
     // Database file share link - go directly to public viewer
-    res.redirect(`/public_viewer.html?fileId=${link.file_id}`);
+    res.redirect(`/media/public_viewer.html?fileId=${link.file_id}`);
   } else if (link.ftp_path) {
     // FTP browser file share link - go to public viewer
-    res.redirect(`/public_viewer.html?ftpFile=${encodeURIComponent(link.ftp_path)}`);
+    res.redirect(`/media/public_viewer.html?ftpFile=${encodeURIComponent(link.ftp_path)}`);
   } else {
     res.status(500).send('Invalid share link configuration');
   }
