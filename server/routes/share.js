@@ -275,8 +275,8 @@ function redirectToProject(link, res) {
     // Database file share link
     res.redirect(`/client/login.html?share=${link.token}&file=${link.file_id}`);
   } else if (link.ftp_path) {
-    // FTP browser file share link - go directly to media review page
-    res.redirect(`/media/media_review.html?ftpFile=${encodeURIComponent(link.ftp_path)}`);
+    // FTP browser file share link - go to public viewer
+    res.redirect(`/public_viewer.html?ftpFile=${encodeURIComponent(link.ftp_path)}`);
   } else {
     res.status(500).send('Invalid share link configuration');
   }
