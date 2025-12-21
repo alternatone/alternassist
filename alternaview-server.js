@@ -73,7 +73,7 @@ function startServer() {
   // Rate limiting
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: 500, // 500 requests per window (increased for admin use)
     message: 'Too many requests, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
@@ -81,7 +81,7 @@ function startServer() {
 
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 attempts per 15 minutes
+    max: 10, // 10 attempts per 15 minutes (increased for testing)
     skipSuccessfulRequests: true,
     message: 'Too many login attempts, please try again later',
     standardHeaders: true,
