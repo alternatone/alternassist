@@ -107,6 +107,16 @@ function startServer() {
   app.use('/api/hours-log', require('./server/routes/hours-log'));
   app.use('/api/ftp', require('./server/routes/ftp-browser'));
 
+  // Download links (both /api/downloads and /dl routes)
+  const downloadsRouter = require('./server/routes/downloads');
+  app.use('/api/downloads', downloadsRouter);
+  app.use('/dl', downloadsRouter);
+
+  // Root redirect to media interface
+  app.get('/', (req, res) => {
+    res.redirect('/media/index.html');
+  });
+
   // Centralized error handling middleware (Phase 2 optimization)
   app.use((err, req, res, next) => {
     console.error('Error:', err.message);

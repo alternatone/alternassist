@@ -541,6 +541,13 @@ function createFileRow(projectId, file, folder) {
             <td class="file-date">${formatDate(file.uploaded_at)}</td>
             <td>
                 <div class="file-actions">
+                    <button class="btn-action" onclick="generatePublicLink(${projectId}, ${file.id}, '${escapeHtml(file.original_name)}')" title="Generate Public Link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </button>
                     <button class="btn-action" onclick="copyFileLink(${file.id}, '${escapeHtml(file.original_name)}')" title="Copy Link">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
@@ -1553,4 +1560,151 @@ async function handleFolderDrop(event, targetProjectId, targetFolder) {
     }
 
     draggedFileData = null;
+}
+
+// Generate public download link
+async function generatePublicLink(projectId, fileId, fileName) {
+    try {
+        showToast('Generating public link...', 'info', 2000);
+
+        // Find file in cached project files
+        const files = projectFiles[projectId] || [];
+        const file = files.find(f => f.id === fileId);
+
+        if (!file || !file.file_path) {
+            throw new Error('File not found or missing file path');
+        }
+
+        // Generate the download token
+        const response = await fetch('http://localhost:3000/api/downloads/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                file_path: file.file_path
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to generate download link');
+        }
+
+        const { url, expires_at } = await response.json();
+
+        // Show modal with the link
+        showPublicLinkModal(fileName, url, expires_at);
+    } catch (error) {
+        console.error('Error generating public link:', error);
+        showToast('Failed to generate public link', 'error');
+    }
+}
+
+// Show modal with public link
+function showPublicLinkModal(fileName, url, expiresAt) {
+    const expiryDate = new Date(expiresAt * 1000).toLocaleString();
+
+    const modalHtml = `
+        <div class="modal show" id="publicLinkModal" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        ">
+            <div class="modal-content" style="
+                background: white;
+                padding: 2rem;
+                border-radius: 12px;
+                max-width: 600px;
+                width: 90%;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            ">
+                <h2 style="
+                    font-family: var(--font-display);
+                    font-size: 1.5rem;
+                    margin: 0 0 1rem 0;
+                    color: #333;
+                ">Public Download Link</h2>
+
+                <p style="
+                    font-family: var(--font-body);
+                    color: #666;
+                    margin-bottom: 1rem;
+                ">
+                    <strong style="color: #333;">${escapeHtml(fileName)}</strong>
+                </p>
+
+                <div style="
+                    background: #f5f5f5;
+                    padding: 1rem;
+                    border-radius: 6px;
+                    margin-bottom: 1rem;
+                    word-break: break-all;
+                    font-family: var(--font-mono);
+                    font-size: 0.9rem;
+                ">${escapeHtml(url)}</div>
+
+                <p style="
+                    font-family: var(--font-body);
+                    font-size: 0.85rem;
+                    color: #888;
+                    margin-bottom: 1.5rem;
+                ">Expires: ${expiryDate}</p>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button onclick="copyPublicLink('${url}')" style="
+                        font-family: var(--font-primary);
+                        background: var(--accent-teal);
+                        color: white;
+                        border: none;
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">Copy Link</button>
+                    <button onclick="closePublicLinkModal()" style="
+                        font-family: var(--font-primary);
+                        background: #e0e0e0;
+                        color: #333;
+                        border: none;
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('publicLinkModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// Copy public link to clipboard
+function copyPublicLink(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('Link copied to clipboard!', 'success');
+        closePublicLinkModal();
+    }).catch(err => {
+        showToast('Failed to copy link', 'error');
+    });
+}
+
+// Close public link modal
+function closePublicLinkModal() {
+    const modal = document.getElementById('publicLinkModal');
+    if (modal) {
+        modal.remove();
+    }
 }

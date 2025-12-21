@@ -967,6 +967,15 @@ const hoursLogQueries = {
   `)
 };
 
+// Download token queries
+const downloadTokenQueries = {
+  create: db.prepare('INSERT INTO download_tokens (token, file_path, expires_at) VALUES (?, ?, ?)'),
+  findByToken: db.prepare('SELECT * FROM download_tokens WHERE token = ?'),
+  incrementDownloadCount: db.prepare('UPDATE download_tokens SET download_count = download_count + 1 WHERE token = ?'),
+  deleteExpired: db.prepare('DELETE FROM download_tokens WHERE expires_at < unixepoch()'),
+  delete: db.prepare('DELETE FROM download_tokens WHERE token = ?')
+};
+
 module.exports = {
   db,
   initDatabase,
@@ -982,5 +991,6 @@ module.exports = {
   paymentQueries,
   deliverableQueries,
   accountingQueries,
-  hoursLogQueries
+  hoursLogQueries,
+  downloadTokenQueries
 };

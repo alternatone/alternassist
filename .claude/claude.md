@@ -1,231 +1,287 @@
 # Alternassist - Claude Context
 
 ## Project Overview
-Alternassist is an all-in-one accounting and project management Electron app for creative professionals. It includes modules for project management, cue tracking, estimates, invoices, payments, accounting, and notes (NoteMarker - Frame.io to Pro Tools integration).
+Alternassist is an all-in-one project management and workflow Electron app for creative professionals. It combines project tracking, financial management, media review, and Pro Tools integration into a unified desktop application.
 
-## Important: Launching & Killing Electron App
+**Tech Stack:** Electron + Node.js + Express + SQLite (better-sqlite3) + Vanilla JS
 
-**⚠️ CRITICAL - VS Code Crash Prevention:**
+**Latest Sync:** Dec 21, 2025 | Commit: `d69c710` (52 commits pulled from remote)
 
-VS Code is built on Electron! Using `killall Electron` kills BOTH Alternassist AND VS Code, causing crashes.
+---
 
-**⚠️ CRITICAL - Single Instance Only:**
+## Quick Reference
 
-**ALWAYS kill any existing Alternassist instance BEFORE launching a new one.** Running multiple instances causes conflicts and performance issues.
+### Launch & Kill (CRITICAL)
 
-### ✅ Safe Launch Method (ALWAYS kill first):
+**⚠️ ALWAYS kill existing instances before launching:**
 
 ```bash
-# Kill ALL existing instances first (force kill to ensure complete cleanup)
+# Safe kill (never use killall Electron - kills VS Code!)
 pkill -9 -f "Alternassist.*Electron"
 
-# Wait a moment, then launch
-sleep 1 && cd "/Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist" && nohup npm start > /dev/null 2>&1 & echo "Electron launched with PID: $!"
+# Safe launch (background)
+nohup npm start > /dev/null 2>&1 & echo "PID: $!"
+
+# Combined relaunch
+pkill -9 -f "Alternassist.*Electron" && sleep 1 && nohup npm start > /dev/null 2>&1 &
 ```
 
-Or use the combined command:
-
+### Development Commands
 ```bash
-pkill -9 -f "Alternassist.*Electron" && sleep 1 && cd "/Users/micah/Library/Mobile Documents/com~apple~CloudDocs/Developer/Alternassist" && nohup npm start > /dev/null 2>&1 & echo "Alternassist relaunched with PID: $!"
+npm start              # Launch Electron app
+npm run build         # Build distributable (dist/Alternassist.app)
+wrangler pages dev    # Test Cloudflare Pages locally
+wrangler pages deploy # Deploy to Cloudflare
 ```
 
-Or double-click `launch-alternassist.command` in Finder.
+---
 
-### ✅ Safe Kill Method:
+## Architecture
 
-**ALWAYS use this to kill ALL Alternassist instances (never killall Electron):**
+### Hybrid Deployment Model
+- **Desktop:** Electron app with SQLite database
+- **Web/Cloud:** Cloudflare Pages + D1 (SQLite-compatible)
+- **Media Files:** FTP storage + client portal
 
-```bash
-pkill -9 -f "Alternassist.*Electron"
+### Project Structure
+```
+alternassist/
+├── public/               # Frontend HTML modules (15 pages)
+├── server/
+│   ├── routes/          # Express API endpoints (10 routes)
+│   ├── models/          # Database layer (database.js)
+│   ├── middleware/      # Auth & session management
+│   └── services/        # Activity tracking
+├── client-portal/       # Client-facing media review
+├── functions/api/       # Cloudflare Pages Functions
+├── migrations/          # Database schema
+├── src/notemarker/      # Pro Tools PTSL integration
+├── main.js             # Electron main process
+├── alternaview-server.js # Express server
+└── wrangler.toml       # Cloudflare config
 ```
 
-The `-9` flag forces termination, and the broader pattern ensures all related processes are killed.
+---
 
-Or run the `kill-alternassist.sh` script.
+## Core Modules
 
-### ❌ Methods That Cause VS Code Crashes:
+### Frontend Pages (public/)
+- **[kanban.html](public/kanban.html)** - Project pipeline & task management
+- **[cues.html](public/cues.html)** - Music cue tracking
+- **[estimates.html](public/estimates.html)** - Project budgeting
+- **[invoices.html](public/invoices.html)** - Invoice generation
+- **[payments.html](public/payments.html)** - Payment tracking
+- **[books.html](public/books.html)** - Accounting & transactions
+- **[notes.html](public/notes.html)** - NoteMarker (Frame.io → Pro Tools)
+- **[media.html](public/media.html)** - Media management & upload
+- **[ftp_admin.html](public/ftp_admin.html)** - FTP file management
+- **[client_portal.html](public/client_portal.html)** - Client media review
 
-- `killall Electron` - **KILLS VS CODE TOO!**
-- `npm start` (in background with run_in_background flag)
-- `npx electron .` (in background)
-- Any Electron command that keeps terminal connection
+### Backend Routes (server/routes/)
+- **projects.js** - Project CRUD, archiving, activity
+- **files.js** - File upload, comments, metadata
+- **invoices.js** - Invoice generation & tracking
+- **payments.js** - Payment records & status
+- **estimates.js** - Cost estimates & scope
+- **cues.js** - Cue management
+- **accounting.js** - Financial transactions
+- **hours-log.js** - Time tracking
+- **ftp-browser.js** - FTP file operations
+- **upload.js** - Resumable uploads (tus protocol)
 
-## Project Structure
+---
 
-```
-Alternassist/
-├── index.html              # Main entry point with navigation
-├── main.js                 # Electron main process
-├── preload.js             # Electron preload script
-├── package.json           # Dependencies and scripts
-├── HTML Sketches/         # Module pages
-│   ├── kanban_board.html          # Projects/Pipeline
-│   ├── cue_tracker_demo.html      # Music cue tracking
-│   ├── estimate_calculator.html    # Cost estimates
-│   ├── invoice_generator_standalone.html  # Invoice creation
-│   ├── payment_dashboard.html      # Payment tracking
-│   ├── accounting.html             # Financial transactions
-│   └── notes.html                  # NoteMarker (Frame.io → Pro Tools)
-└── src/
-    └── notemarker/        # Pro Tools PTSL integration
-```
+## Database Schema (SQLite)
+
+**13 Tables:**
+- `projects` - Project metadata, status, dates
+- `files` - Media files (FTP-backed)
+- `comments` - File comments (timecode-based)
+- `invoices` - Invoice records
+- `payments` - Payment tracking
+- `estimates` - Cost estimates
+- `estimate_scope_items` - Estimate line items
+- `cues` - Music cue tracking
+- `hours_log` - Time entries
+- `accounting` - Financial transactions
+- `activity_log` - System activity tracking
+- `client_access` - Client portal auth
+- `kanban_state` - UI state persistence
+
+**Migration:** [migrations/0001_initial_schema.sql](migrations/0001_initial_schema.sql)
+
+---
 
 ## Design System
 
 ### Typography
-All pages use consistent CSS variables:
-
-- `--font-primary`: 'DM Sans' - Used for all buttons, body text, UI elements
-- `--font-display`: 'Bricolage Grotesque' - Headers and titles
-- `--font-body`: 'Public Sans' - Paragraphs and content
-- `--font-mono`: 'Archivo' - Code, numbers, technical data
-
-### Button Styling
-**All buttons have explicit `font-family: var(--font-primary);`**
-
-Common button classes:
-- `.btn` - Base button style
-- `.btn-primary` - Primary action (teal)
-- `.btn-secondary` - Secondary action (gray)
-- `.btn-success` - Success action (green)
-- `.btn-danger` - Destructive action (red)
-- `.action-btn` - Action buttons in tables
-- `.upload-btn` - File upload buttons
-- `.connection-button` - Connection status buttons
-
-### Color Palette
 ```css
+--font-primary: 'DM Sans'          /* Buttons, UI */
+--font-display: 'Bricolage Grotesque' /* Headers */
+--font-body: 'Public Sans'         /* Body text */
+--font-mono: 'Archivo'             /* Numbers, code */
+```
+
+### Colors
+```css
+--accent-teal: #469FE0    /* Primary actions */
 --accent-blue: #007acc
---accent-red: #ff6b6b
 --accent-green: #51cf66
---accent-orange: #ff922b
---accent-teal: #469FE0
---accent-purple: #845ec2
+--accent-red: #ff6b6b
 --bg-primary: #FDF8F0
 --bg-secondary: #FEFDFA
 ```
 
-## Key Features by Module
+**Button Rule:** All buttons must explicitly set `font-family: var(--font-primary);`
 
-### 1. Projects (kanban_board.html)
-- Kanban-style project pipeline
-- Project cards with status tracking
-- Pin projects to dashboard
-- Notes and payment status
+---
 
-### 2. Cues (cue_tracker_demo.html)
-- Music cue tracking per project
-- Status workflow: To Write → Written → Revisions → Approved
-- Timecode integration
-- Theme/style notes
+## Key Integrations
 
-### 3. Estimates (estimate_calculator.html)
-- Cost calculation with breakdown
-- Copy to clipboard functionality
-- Estimate history logging
+### NoteMarker (Pro Tools PTSL)
+- **Purpose:** Import Frame.io comments as Pro Tools markers
+- **Connection:** localhost:31416 (requires Pro Tools running)
+- **Files:** [src/notemarker/](src/notemarker/)
+- **IPC Channels:** `ptsl:connect`, `ptsl:createMarkersFromFile`
 
-### 4. Invoices (invoice_generator_standalone.html)
-- Professional invoice generation
-- Print/export functionality
-- Links to payment dashboard
+### Alternaview (Media Review)
+- **Server:** [alternaview-server.js](alternaview-server.js)
+- **Client Portal:** [client-portal/](client-portal/)
+- **Features:** Video review, timecode comments, resumable uploads
+- **Upload Protocol:** tus (chunked, resumable)
 
-### 5. Payments (payment_dashboard.html)
-- Track invoice payment status
-- Follow-up logging
-- Payment history
+### FTP Storage
+- **Location:** [ftp-storage/](ftp-storage/)
+- **Migration Scripts:** [server/scripts/migrate-to-ftp.js](server/scripts/migrate-to-ftp.js)
+- **Backup:** [server/scripts/backup-ftp.js](server/scripts/backup-ftp.js)
 
-### 6. Accounting (accounting.html)
-- Income/expense tracking
-- Transaction categorization
-- Financial overview stats
+---
 
-### 7. Notes - NoteMarker (notes.html)
-- Frame.io comment import (.txt files)
-- Pro Tools PTSL connection
-- Automated marker creation
-- Timecode offset handling
+## Deployment
 
-## NoteMarker Technical Details
+### Cloudflare Pages Setup
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for full guide.
 
-### PTSL Integration
-- Connection Manager: `src/notemarker/ptsl-connection-manager.js`
-- Marker Pipeline: `src/notemarker/marker-creation-pipeline.js`
-- Host: localhost:31416
-- Requires Pro Tools running with PTSL enabled
+**Quick deploy:**
+```bash
+# 1. Create D1 database
+wrangler d1 create alternassist
 
-### IPC Channels
-- `ptsl:connect` - Connect to Pro Tools
-- `ptsl:disconnect` - Disconnect from Pro Tools
-- `ptsl:getConnectionStatus` - Check connection status
-- `ptsl:getSessionInfo` - Get session details
-- `ptsl:createMarkersFromFile` - Create markers from parsed comments
+# 2. Update wrangler.toml with database_id
+
+# 3. Apply schema
+wrangler d1 execute alternassist --file=migrations/0001_initial_schema.sql
+
+# 4. Deploy
+wrangler pages deploy public
+```
+
+**API Functions:** [functions/api/](functions/api/) automatically map to `/api/*` routes
+
+---
 
 ## Development Notes
 
-### Recent UI Fixes
-- Removed border-top from notes.html controls section
-- Reduced spacing above "Start Over" and "Create Markers" buttons from 2rem to 1rem
-- Added explicit font-family to all button classes across all pages for consistency
+### Recent Major Changes (52 commits)
+- ✅ Complete SQLite migration (all pages migrated)
+- ✅ Cloudflare Pages + D1 deployment setup
+- ✅ FTP storage migration for media files
+- ✅ Client portal authentication
+- ✅ Activity tracking service
+- ✅ Response caching layer
+- ✅ Reorganized: `HTML Sketches/` → `public/`
 
-### localStorage Usage
-All modules use localStorage for data persistence:
-- Projects: `kanban-projects`
-- Cues: `cue-tracker-cues`
-- Estimates: `logged-estimates`
-- Invoices: `logged-invoices`
-- Payments: Payment status stored in invoice objects
-- Accounting: `accounting-transactions`
+### Data Persistence
+- **Electron:** SQLite database ([alternaview.db](alternaview.db))
+- **Cloudflare:** D1 database (serverless SQLite)
+- **Files:** FTP storage (not in git)
+- **Session:** express-session + bcryptjs auth
 
-### File Naming
-- Main module files are in `HTML Sketches/` directory
-- NoteMarker page was renamed from `notemarker.html` to `notes.html`
-- Reference updated in index.html line 263
+### Important Patterns
+1. **All API routes** return JSON with proper error handling
+2. **Database queries** use prepared statements (better-sqlite3)
+3. **File uploads** use resumable tus protocol
+4. **Activity logging** auto-tracks all project changes
+5. **Client access** secured with bcrypt password hashing
 
-## Build & Distribution
-
-### Development
-```bash
-npm start    # Start app (use detached method in VS Code!)
-```
-
-### Build
-```bash
-npm run build  # Creates distributable in /dist
-```
-
-### Build Output
-```
-dist/
-├── Alternassist-darwin-arm64/
-│   └── Alternassist.app
-```
-
-## Notes for AI Assistant
-
-1. **Always use detached launch method for Electron** - prevents VS Code crashes
-2. **All button typography is now explicit** - no reliance on inheritance
-3. **index.html is the main shell** - modules load via iframes
-4. **Notes module is Electron-only** - shows/hides based on electronAPI presence
-5. **PTSL requires Pro Tools** - graceful degradation if not connected
-6. **All changes should maintain design system consistency** - use CSS variables
-7. **Test in actual Electron app** - iframe behavior differs from standalone HTML
+---
 
 ## Common Tasks
 
-### Add a new module
-1. Create HTML file in `HTML Sketches/`
-2. Add iframe in index.html `<main>` section
-3. Add nav link in index.html with `data-module` attribute
-4. Ensure button styles use `font-family: var(--font-primary);`
+### Add a new page
+1. Create HTML in [public/](public/)
+2. Add route in [alternaview-server.js](alternaview-server.js)
+3. Add nav link in [public/index.html](public/index.html)
+4. Use CSS variables for styling
 
-### Update button styles
-All buttons must include:
-```css
-.btn {
-    font-family: var(--font-primary);
-    /* other styles */
-}
-```
+### Add API endpoint
+1. Create in [server/routes/](server/routes/) or [functions/api/](functions/api/)
+2. Import in [alternaview-server.js](alternaview-server.js)
+3. Add database queries in [server/models/database.js](server/models/database.js)
+4. Test locally before deploying
 
-### Debug PTSL issues
-Check electron console (uncomment `mainWindow.webContents.openDevTools()` in main.js line 40)
+### Database changes
+1. Create migration: `migrations/000X_description.sql`
+2. Test locally: `sqlite3 alternaview.db < migrations/000X_description.sql`
+3. Deploy to D1: `wrangler d1 execute alternassist --file=migrations/000X_description.sql`
+
+---
+
+## Testing Checklist
+
+Before deployment, verify:
+- [ ] Electron app launches without errors
+- [ ] All modules load correctly
+- [ ] Database queries work (local SQLite)
+- [ ] PTSL connection (if Pro Tools available)
+- [ ] File upload/download
+- [ ] API endpoints return expected data
+- [ ] Client portal login works
+- [ ] Cloudflare Pages builds successfully
+
+---
+
+## Troubleshooting
+
+**Electron won't launch:**
+- Kill existing instances: `pkill -9 -f "Alternassist.*Electron"`
+- Check node version: `node --version` (v18+)
+- Rebuild native modules: `npm rebuild better-sqlite3`
+
+**Database errors:**
+- Check file exists: `ls -la alternaview.db`
+- Verify schema: `sqlite3 alternaview.db ".schema"`
+- Check permissions: `chmod 644 alternaview.db`
+
+**PTSL connection fails:**
+- Ensure Pro Tools is running
+- Enable PTSL in Pro Tools preferences
+- Check port 31416 is available: `lsof -i :31416`
+
+**Cloudflare deployment issues:**
+- Verify database_id in [wrangler.toml](wrangler.toml)
+- Check function exports: `onRequestGet`, `onRequestPost`
+- Review logs: Cloudflare Pages dashboard
+
+---
+
+## File References
+
+**Core Config:**
+- [package.json](package.json) - Dependencies & scripts
+- [wrangler.toml](wrangler.toml) - Cloudflare config
+- [alternaview-config.js](alternaview-config.js) - Server settings
+
+**Entry Points:**
+- [main.js](main.js) - Electron main process
+- [alternaview-server.js](alternaview-server.js) - Express server
+- [public/index.html](public/index.html) - Main UI shell
+
+**Documentation:**
+- [README.md](README.md) - Project overview
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment guide
+- [functions/api/files/_README.md](functions/api/files/_README.md) - R2 integration guide
+
+---
+
+**Last Updated:** 2025-12-21 | Local & remote repositories synchronized ✓
