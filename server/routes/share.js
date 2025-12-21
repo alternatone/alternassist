@@ -43,6 +43,7 @@ const shareQueries = {
  */
 router.post('/generate', async (req, res) => {
   try {
+    console.log('[SHARE] POST /generate request body:', req.body);
     const { project_id, file_id, ftp_path, expires_in, password } = req.body;
 
     if (!project_id && !file_id && !ftp_path) {
@@ -115,8 +116,9 @@ router.post('/generate', async (req, res) => {
       has_password: !!passwordHash
     });
   } catch (error) {
-    console.error('Error generating share link:', error);
-    res.status(500).json({ error: 'Failed to generate share link' });
+    console.error('[SHARE] Error generating share link:', error);
+    console.error('[SHARE] Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to generate share link', details: error.message });
   }
 });
 
