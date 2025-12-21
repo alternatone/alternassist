@@ -39,19 +39,29 @@ const shareQueries = {
 /**
  * Generate Share Link (Admin only)
  * POST /api/share/generate
+ * Supports both project_id and file_id
  */
 router.post('/generate', requireAdmin, async (req, res) => {
   try {
-    const { project_id, expires_in, password } = req.body;
+    const { project_id, file_id, expires_in, password } = req.body;
 
-    if (!project_id) {
-      return res.status(400).json({ error: 'project_id is required' });
+    if (!project_id && !file_id) {
+      return res.status(400).json({ error: 'project_id or file_id is required' });
     }
 
-    // Verify project exists
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(project_id);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+    // Verify project or file exists
+    if (project_id) {
+      const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(project_id);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+    }
+
+    if (file_id) {
+      const file = db.prepare('SELECT * FROM files WHERE id = ?').get(file_id);
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
     }
 
     // Generate secure token
@@ -70,10 +80,14 @@ router.post('/generate', requireAdmin, async (req, res) => {
       passwordHash = await bcrypt.hash(password, 10);
     }
 
-    // Create share link
-    shareQueries.create.run(
+    // Create share link with project_id or file_id
+    db.prepare(`
+      INSERT INTO share_links (token, project_id, file_id, expires_at, password_hash, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
       token,
-      project_id,
+      project_id || null,
+      file_id || null,
       expiresAt,
       passwordHash,
       req.session.adminId
@@ -81,7 +95,8 @@ router.post('/generate', requireAdmin, async (req, res) => {
 
     const url = `https://alternassist.alternatone.com/share/${token}`;
 
-    console.log(`[ADMIN] ${req.session.username} generated share link for project ${project_id} (expires: ${expiresAt || 'never'}, password: ${passwordHash ? 'yes' : 'no'})`);
+    const logType = project_id ? `project ${project_id}` : `file ${file_id}`;
+    console.log(`[ADMIN] ${req.session.username} generated share link for ${logType} (expires: ${expiresAt || 'never'}, password: ${passwordHash ? 'yes' : 'no'})`);
 
     res.json({
       success: true,
