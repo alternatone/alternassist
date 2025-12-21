@@ -4,12 +4,27 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../../alternaview-config');
 const { projectQueries } = require('../models/database');
+const { requireAdmin } = require('../middleware/auth');
 
 // Helper to ensure FTP drive is available
 function ensureFTPAvailable() {
   if (!fs.existsSync(config.storagePath)) {
     throw new Error('FTP drive not mounted. Please connect external drive.');
   }
+}
+
+// Secure path sanitization to prevent directory traversal
+function sanitizePath(userPath) {
+  // Normalize and resolve against FTP base
+  const normalized = path.normalize(userPath || '');
+  const resolved = path.resolve(config.storagePath, normalized);
+
+  // Ensure result is still within FTP_BASE_PATH
+  if (!resolved.startsWith(config.storagePath)) {
+    throw new Error('Invalid path - access denied');
+  }
+
+  return resolved;
 }
 
 // Helper to get file/folder stats
@@ -64,20 +79,15 @@ function getMimeType(filename) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-// Browse FTP filesystem
-router.get('/browse', (req, res) => {
+// Browse FTP filesystem (ADMIN ONLY)
+router.get('/browse', requireAdmin, (req, res) => {
   try {
     ensureFTPAvailable();
 
     const requestedPath = req.query.path || '';
 
-    // Security: Prevent directory traversal
-    const safePath = path.join(config.storagePath, requestedPath).replace(/\.\./g, '');
-
-    // Ensure path is within FTP drive
-    if (!safePath.startsWith(config.storagePath)) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Security: Prevent directory traversal with proper sanitization
+    const safePath = sanitizePath(requestedPath);
 
     // Check if path exists
     if (!fs.existsSync(safePath)) {
@@ -200,8 +210,8 @@ router.get('/browse', (req, res) => {
   }
 });
 
-// Stream file from FTP
-router.get('/stream', (req, res) => {
+// Stream file from FTP (ADMIN ONLY)
+router.get('/stream', requireAdmin, (req, res) => {
   try {
     ensureFTPAvailable();
 
@@ -210,13 +220,8 @@ router.get('/stream', (req, res) => {
       return res.status(400).json({ error: 'Path parameter required' });
     }
 
-    // Security: Prevent directory traversal
-    const safePath = path.join(config.storagePath, requestedPath).replace(/\.\./g, '');
-
-    // Ensure path is within FTP drive
-    if (!safePath.startsWith(config.storagePath)) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Security: Prevent directory traversal with proper sanitization
+    const safePath = sanitizePath(requestedPath);
 
     if (!fs.existsSync(safePath)) {
       return res.status(404).json({ error: 'File not found' });
@@ -268,8 +273,8 @@ router.get('/stream', (req, res) => {
   }
 });
 
-// Download file from FTP
-router.get('/download', (req, res) => {
+// Download file from FTP (ADMIN ONLY)
+router.get('/download', requireAdmin, (req, res) => {
   try {
     ensureFTPAvailable();
 
@@ -278,13 +283,8 @@ router.get('/download', (req, res) => {
       return res.status(400).json({ error: 'Path parameter required' });
     }
 
-    // Security: Prevent directory traversal
-    const safePath = path.join(config.storagePath, requestedPath).replace(/\.\./g, '');
-
-    // Ensure path is within FTP drive
-    if (!safePath.startsWith(config.storagePath)) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Security: Prevent directory traversal with proper sanitization
+    const safePath = sanitizePath(requestedPath);
 
     if (!fs.existsSync(safePath)) {
       return res.status(404).json({ error: 'File not found' });
@@ -309,8 +309,8 @@ router.get('/download', (req, res) => {
   }
 });
 
-// Delete file or folder from FTP
-router.delete('/delete', (req, res) => {
+// Delete file or folder from FTP (ADMIN ONLY)
+router.delete('/delete', requireAdmin, (req, res) => {
   try {
     ensureFTPAvailable();
 
@@ -319,13 +319,8 @@ router.delete('/delete', (req, res) => {
       return res.status(400).json({ error: 'Path parameter required' });
     }
 
-    // Security: Prevent directory traversal
-    const safePath = path.join(config.storagePath, requestedPath).replace(/\.\./g, '');
-
-    // Ensure path is within FTP drive
-    if (!safePath.startsWith(config.storagePath)) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Security: Prevent directory traversal with proper sanitization
+    const safePath = sanitizePath(requestedPath);
 
     // Don't allow deleting the root FTP drive
     if (safePath === config.storagePath) {
@@ -357,8 +352,8 @@ router.delete('/delete', (req, res) => {
   }
 });
 
-// Upload file to FTP folder
-router.post('/upload', (req, res) => {
+// Upload file to FTP folder (ADMIN ONLY)
+router.post('/upload', requireAdmin, (req, res) => {
   try {
     ensureFTPAvailable();
 
@@ -369,20 +364,19 @@ router.post('/upload', (req, res) => {
       destination: (req, file, cb) => {
         const targetPath = req.body.path || '';
 
-        // Security: Prevent directory traversal
-        const safePath = path.join(config.storagePath, targetPath).replace(/\.\./g, '');
+        try {
+          // Security: Prevent directory traversal with proper sanitization
+          const safePath = sanitizePath(targetPath);
 
-        // Ensure path is within FTP drive
-        if (!safePath.startsWith(config.storagePath)) {
-          return cb(new Error('Access denied'));
+          // Create directory if it doesn't exist
+          if (!fs.existsSync(safePath)) {
+            fs.mkdirSync(safePath, { recursive: true });
+          }
+
+          cb(null, safePath);
+        } catch (error) {
+          cb(error);
         }
-
-        // Create directory if it doesn't exist
-        if (!fs.existsSync(safePath)) {
-          fs.mkdirSync(safePath, { recursive: true });
-        }
-
-        cb(null, safePath);
       },
       filename: (req, file, cb) => {
         cb(null, file.originalname);
@@ -419,8 +413,8 @@ router.post('/upload', (req, res) => {
   }
 });
 
-// Backup FTP to FTP BACKUP
-router.post('/backup', (req, res) => {
+// Backup FTP to FTP BACKUP (ADMIN ONLY)
+router.post('/backup', requireAdmin, (req, res) => {
   try {
     ensureFTPAvailable();
 

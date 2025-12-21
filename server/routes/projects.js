@@ -169,8 +169,8 @@ router.post('/', requireAdmin, (req, res) => {
   }
 });
 
-// Create project with estimate (unified transaction endpoint for estimate calculator)
-router.post('/with-estimate', (req, res) => {
+// Create project with estimate (ADMIN ONLY)
+router.post('/with-estimate', requireAdmin, (req, res) => {
   try {
     const { project, scope, estimate } = req.body;
 
@@ -308,16 +308,26 @@ router.post('/auth', (req, res) => {
       return res.status(401).json({ error: 'Invalid password' });
     }
 
-    // Store project access in session
-    req.session.projectId = project.id;
-    req.session.projectName = project.name;
-
-    res.json({
-      success: true,
-      project: {
-        id: project.id,
-        name: project.name
+    // Regenerate session to prevent session fixation
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error('Session regeneration error:', err);
+        return res.status(500).json({ error: 'Session error' });
       }
+
+      // Store project access in session
+      req.session.projectId = project.id;
+      req.session.projectName = project.name;
+
+      console.log(`[CLIENT LOGIN] Project ${project.name} authenticated from ${req.ip}`);
+
+      res.json({
+        success: true,
+        project: {
+          id: project.id,
+          name: project.name
+        }
+      });
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -354,8 +364,8 @@ router.post('/logout', (req, res) => {
   });
 });
 
-// Update project (for Kanban board) - No auth required for Electron app
-router.patch('/:id', (req, res) => {
+// Update project (ADMIN ONLY)
+router.patch('/:id', requireAdmin, (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const project = projectQueries.findById.get(projectId);
@@ -428,8 +438,8 @@ router.delete('/:id', requireAdmin, (req, res) => {
   }
 });
 
-// Assign folder to project
-router.post('/:id/assign-folder', async (req, res) => {
+// Assign folder to project (ADMIN ONLY)
+router.post('/:id/assign-folder', requireAdmin, async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const { folderPath } = req.body;
@@ -463,8 +473,8 @@ router.post('/:id/assign-folder', async (req, res) => {
   }
 });
 
-// Sync folder manually
-router.post('/:id/sync-folder', async (req, res) => {
+// Sync folder manually (ADMIN ONLY)
+router.post('/:id/sync-folder', requireAdmin, async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const project = projectQueries.findById.get(projectId);
@@ -480,8 +490,8 @@ router.post('/:id/sync-folder', async (req, res) => {
   }
 });
 
-// Generate share link for project
-router.post('/:id/generate-share-link', (req, res) => {
+// Generate share link for project (ADMIN ONLY)
+router.post('/:id/generate-share-link', requireAdmin, (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const project = projectQueries.findById.get(projectId);
@@ -641,8 +651,8 @@ router.post('/:id/upload', projectUpload.single('file'), async (req, res) => {
   }
 });
 
-// Get plaintext password for a project (admin only)
-router.get('/:id/password', (req, res) => {
+// Get plaintext password for a project (ADMIN ONLY - DEPRECATED after migration 0004)
+router.get('/:id/password', requireAdmin, (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const project = db.prepare('SELECT password_plaintext FROM projects WHERE id = ?').get(projectId);
@@ -664,8 +674,8 @@ router.get('/:id/password', (req, res) => {
   }
 });
 
-// Regenerate password for a project
-router.post('/:id/regenerate-password', (req, res) => {
+// Regenerate password for a project (ADMIN ONLY - DEPRECATED after migration 0004, use /api/admin/projects/:id/reset-password)
+router.post('/:id/regenerate-password', requireAdmin, (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     if (!projectQueries.findById.get(projectId)) {

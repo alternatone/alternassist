@@ -68,8 +68,14 @@ function authenticateProjectAccess(req, res, next) {
  */
 function requireAdmin(req, res, next) {
   if (!req.session || !req.session.isAdmin) {
+    // Log unauthorized access attempt
+    console.warn(`[SECURITY] Unauthorized admin access attempt: ${req.method} ${req.path} from ${req.ip}`);
     return res.status(403).json({ error: 'Admin access required' });
   }
+
+  // Log admin actions
+  console.info(`[ADMIN] ${req.session.username}: ${req.method} ${req.path}`);
+
   req.isAdmin = true;
   next();
 }

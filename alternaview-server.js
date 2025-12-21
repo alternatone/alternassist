@@ -1,13 +1,26 @@
 const express = require('express');
 const session = require('express-session');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+
+// Load session secret from file or environment
+let sessionSecret;
+try {
+  sessionSecret = fs.readFileSync(path.join(__dirname, '.session-secret'), 'utf8').trim();
+} catch (e) {
+  console.warn('WARNING: .session-secret file not found, using environment variable');
+  sessionSecret = process.env.SESSION_SECRET || 'INSECURE-FALLBACK-' + Math.random();
+  if (!process.env.SESSION_SECRET) {
+    console.error('CRITICAL: No secure session secret configured!');
+  }
+}
 
 // Configuration for alternaview within Electron
 const config = {
   port: 3000,
   storagePath: path.join(require('os').homedir(), 'alternaview-storage'),
-  sessionSecret: 'your-secret-key-' + Math.random(),
+  sessionSecret: sessionSecret,
   sessionMaxAge: 24 * 60 * 60 * 1000, // 24 hours
   maxFileSize: 64 * 1024 * 1024 * 1024 // 64GB
 };
@@ -22,6 +35,9 @@ function startServer() {
 
   const app = express();
 
+  // Trust Cloudflare proxy
+  app.set('trust proxy', 1);
+
   // Create storage directory if it doesn't exist
   if (!fs.existsSync(config.storagePath)) {
     fs.mkdirSync(config.storagePath, { recursive: true });
@@ -32,7 +48,15 @@ function startServer() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Session middleware
+  // HTTPS redirect (for direct non-Cloudflare access in production)
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https' && process.env.NODE_ENV === 'production') {
+      return res.redirect(`https://${req.header('host')}${req.url}`);
+    }
+    next();
+  });
+
+  // Session middleware with enhanced security
   app.use(session({
     secret: config.sessionSecret,
     resave: false,
@@ -40,23 +64,58 @@ function startServer() {
     cookie: {
       maxAge: config.sessionMaxAge,
       httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
+      secure: true,  // HTTPS only
+      sameSite: 'strict',
       path: '/'
     }
   }));
 
-  // CORS headers for tus uploads
+  // Rate limiting
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // 100 requests per window
+    message: 'Too many requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 attempts per 15 minutes
+    skipSuccessfulRequests: true,
+    message: 'Too many login attempts, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // CORS whitelist
+  const allowedOrigins = [
+    'https://alternassist.alternatone.com',
+    'http://localhost:3000',  // Development only
+  ];
+
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, Upload-Length, Upload-Offset, Tus-Resumable, Upload-Metadata, Upload-Concat, Location, Cookie');
-    res.header('Access-Control-Expose-Headers', 'Upload-Offset, Location, Upload-Length, Tus-Version, Tus-Resumable, Tus-Max-Size, Tus-Extension, Upload-Metadata, Upload-Defer-Length, Upload-Concat');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    const origin = req.headers.origin;
+
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
     if (req.method === 'OPTIONS') {
-      return res.sendStatus(204);
+      return res.sendStatus(200);
     }
+
+    next();
+  });
+
+  // Special CORS headers for tus uploads only
+  app.use('/api/upload', (req, res, next) => {
+    res.setHeader('Access-Control-Expose-Headers', 'Upload-Offset, Location, Upload-Length, Tus-Version, Tus-Resumable, Tus-Max-Size, Tus-Extension, Upload-Metadata, Upload-Defer-Length, Upload-Concat');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Upload-Length, Upload-Offset, Tus-Resumable, Upload-Metadata, Upload-Concat, Location, Cookie');
     next();
   });
 
@@ -95,7 +154,11 @@ function startServer() {
     }
   }));
 
+  // Apply rate limiting to API routes
+  app.use('/api/', apiLimiter);
+
   // API Routes
+  app.use('/api/admin', loginLimiter, require('./server/routes/admin'));
   app.use('/api/projects', require('./server/routes/projects'));
   app.use('/api/files', require('./server/routes/files'));
   app.use('/api/upload', require('./server/routes/upload'));
