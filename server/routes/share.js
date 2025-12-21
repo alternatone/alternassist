@@ -272,8 +272,8 @@ function redirectToProject(link, res) {
     // Project share link
     res.redirect(`/client/login.html?share=${link.token}&project=${link.project_id}`);
   } else if (link.file_id) {
-    // Database file share link
-    res.redirect(`/client/login.html?share=${link.token}&file=${link.file_id}`);
+    // Database file share link - go directly to public viewer
+    res.redirect(`/public_viewer.html?fileId=${link.file_id}`);
   } else if (link.ftp_path) {
     // FTP browser file share link - go to public viewer
     res.redirect(`/public_viewer.html?ftpFile=${encodeURIComponent(link.ftp_path)}`);

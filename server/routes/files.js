@@ -111,6 +111,81 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
+// Public endpoint: Get file metadata without auth (for share links)
+router.get('/public/:id', (req, res) => {
+  try {
+    const fileId = parseInt(req.params.id);
+    const file = fileQueries.findById.get(fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Return file metadata
+    res.json({
+      id: file.id,
+      filename: file.filename,
+      original_name: file.original_name,
+      file_size: file.file_size,
+      mime_type: file.mime_type,
+      duration: file.duration,
+      folder: file.folder,
+      uploaded_at: file.uploaded_at
+    });
+  } catch (error) {
+    console.error('Error fetching public file:', error);
+    res.status(500).json({ error: 'Failed to fetch file' });
+  }
+});
+
+// Public endpoint: Stream file without auth (for share links)
+router.get('/public/:id/stream', (req, res) => {
+  try {
+    const fileId = parseInt(req.params.id);
+    const file = fileQueries.findById.get(fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const filePath = file.transcoded_file_path || file.file_path;
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const fileStream = fs.createReadStream(filePath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': file.mime_type,
+      };
+      res.writeHead(206, head);
+      fileStream.pipe(res);
+    } else {
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': file.mime_type,
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(filePath).pipe(res);
+    }
+  } catch (error) {
+    console.error('Error streaming public file:', error);
+    res.status(500).json({ error: 'Failed to stream file' });
+  }
+});
+
 // Get single file by ID (with project access validation)
 router.get('/:id', authenticateProjectAccess, (req, res) => {
   try {

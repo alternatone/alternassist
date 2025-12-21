@@ -835,11 +835,15 @@
         currentFileId = urlParams.get('file');
         projectId = urlParams.get('project'); // Get project ID from URL
         const ftpFilePath = urlParams.get('ftpFile'); // Get FTP file path from URL
+        const shareFileId = urlParams.get('fileId'); // Get file ID for share links
 
         // Load file from backend if specified
         if (ftpFilePath) {
             // FTP file - load directly from FTP stream endpoint
             loadFtpFile(ftpFilePath);
+        } else if (shareFileId) {
+            // Public file share link - load without auth
+            loadPublicFile(shareFileId);
         } else if (currentFileId && projectId) {
             // OPTIMIZED: Load file and comments in parallel
             Promise.all([
@@ -849,8 +853,8 @@
                 console.error('Error loading page:', error);
                 alert('Failed to load media review page');
             });
-        } else if (!projectId && !ftpFilePath) {
-            alert('Missing project ID or file path in URL');
+        } else if (!projectId && !ftpFilePath && !shareFileId) {
+            alert('Missing project ID, file ID, or file path in URL');
         }
 
         async function loadFileFromBackend() {
@@ -949,6 +953,53 @@
             } catch (error) {
                 console.error('Error loading FTP file:', error);
                 alert('Failed to load FTP file');
+            }
+        }
+
+        async function loadPublicFile(fileId) {
+            try {
+                // Fetch file metadata from public endpoint
+                const response = await fetch(`/api/files/public/${fileId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load file metadata');
+                }
+
+                const file = await response.json();
+
+                // Determine file type
+                const isAudio = file.mime_type.startsWith('audio/');
+                const audioVisualizer = document.getElementById('audioVisualizer');
+
+                if (isAudio) {
+                    activePlayer = audioPlayer;
+                    audioVisualizer.style.display = 'flex';
+                    videoPlayer.src = '';
+                } else {
+                    activePlayer = videoPlayer;
+                    audioVisualizer.style.display = 'none';
+                    audioPlayer.src = '';
+                }
+
+                // Set source to public stream endpoint
+                const streamUrl = `/api/files/public/${fileId}/stream`;
+                activePlayer.src = streamUrl;
+
+                videoFilename.textContent = file.original_name;
+                currentVideoFile = file.original_name;
+
+                // Hide placeholder
+                videoPlaceholder.style.display = 'none';
+                document.querySelector('.video-container').classList.add('has-video');
+
+                // Load the media
+                activePlayer.load();
+
+                // Note: Public files don't have comment support
+                comments = [];
+                renderComments();
+            } catch (error) {
+                console.error('Error loading public file:', error);
+                alert('Failed to load file');
             }
         }
 
