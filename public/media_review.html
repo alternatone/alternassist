@@ -646,7 +646,7 @@
         <!-- Video Panel -->
         <div class="video-panel">
             <div class="video-header">
-                <button class="back-btn" onclick="window.location.href='media.html'">
+                <button class="back-btn" onclick="navigateBack()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 12H5M12 19l-7-7 7-7"/>
                     </svg>
@@ -772,6 +772,33 @@
     </div>
 
     <script>
+        // Fast navigation back with cleanup
+        function navigateBack() {
+            // Pause and cleanup video player if it exists
+            const videoElement = document.querySelector('video');
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.src = '';
+                videoElement.load();
+            }
+
+            // Cleanup audio player if it exists
+            const audioElement = document.querySelector('audio');
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.src = '';
+                audioElement.load();
+            }
+
+            // Use history.back() for instant navigation (no page reload)
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                // Fallback if no history (direct link access)
+                window.location.href = 'media.html';
+            }
+        }
+
         // State
         let comments = [];
         let currentVideoFile = null;
