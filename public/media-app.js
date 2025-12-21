@@ -195,7 +195,7 @@ playerModal?.addEventListener('click', (e) => {
 
 async function loadProjects() {
     try {
-        const response = await fetch('http://localhost:3000/api/projects');
+        const response = await fetch('/api/projects');
         if (!response.ok) throw new Error('Failed to load projects');
 
         const projects = await response.json();
@@ -261,7 +261,7 @@ async function createProject(e) {
     const password = document.getElementById('newProjectPassword').value;
 
     try {
-        const response = await fetch('http://localhost:3000/api/projects', {
+        const response = await fetch('/api/projects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, password: password || null })
@@ -289,7 +289,7 @@ async function deleteProject(id, name) {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/api/projects/${id}`, {
+        const response = await fetch(`/api/projects/${id}`, {
             method: 'DELETE'
         });
 
@@ -309,7 +309,7 @@ function openProject(projectId) {
     showFileBrowser(projectId);
 
     // Check if project has folder assigned
-    fetch(`http://localhost:3000/api/projects`)
+    fetch(`/api/projects`)
         .then(res => res.json())
         .then(projects => {
             const project = projects.find(p => p.id === projectId);
@@ -326,7 +326,7 @@ function openProject(projectId) {
 
 async function generateShareLinkForProject(projectId) {
     try {
-        const response = await fetch(`http://localhost:3000/api/projects/${projectId}/generate-share-link`, {
+        const response = await fetch(`/api/projects/${projectId}/generate-share-link`, {
             method: 'POST'
         });
 
@@ -406,7 +406,7 @@ async function createNewFolder() {
 
 async function assignFolder(folderPath) {
     try {
-        const response = await fetch(`http://localhost:3000/api/projects/${currentProjectId}/assign-folder`, {
+        const response = await fetch(`/api/projects/${currentProjectId}/assign-folder`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ folderPath })
@@ -436,7 +436,7 @@ async function syncFolder() {
         syncFolderBtn.disabled = true;
         syncFolderBtn.textContent = 'syncing...';
 
-        const response = await fetch(`http://localhost:3000/api/projects/${currentProjectId}/sync-folder`, {
+        const response = await fetch(`/api/projects/${currentProjectId}/sync-folder`, {
             method: 'POST'
         });
 
@@ -466,7 +466,7 @@ async function generateShareLink() {
     if (!currentProjectId) return;
 
     try {
-        const response = await fetch(`http://localhost:3000/api/projects/${currentProjectId}/generate-share-link`, {
+        const response = await fetch(`/api/projects/${currentProjectId}/generate-share-link`, {
             method: 'POST'
         });
 
@@ -576,7 +576,7 @@ async function deleteFile(fileId, fileName) {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/api/files/${fileId}`, {
+        const response = await fetch(`/api/files/${fileId}`, {
             method: 'DELETE'
         });
 

@@ -322,7 +322,7 @@
             document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
 
             // Get next invoice number from database
-            fetch('http://localhost:3000/api/invoices/next-number')
+            fetch('/api/invoices/next-number')
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('invoiceNumber').value = data.nextNumber;

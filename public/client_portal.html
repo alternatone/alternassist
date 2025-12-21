@@ -379,7 +379,7 @@
         async function loadCurrentProject() {
             try {
                 // Only returns project for authenticated session
-                const response = await fetch('http://localhost:3000/api/projects/current', {
+                const response = await fetch('/api/projects/current', {
                     credentials: 'include'
                 });
 
@@ -465,7 +465,7 @@
         }
 
         function copyShareLink() {
-            const link = `http://localhost:3000/client?project=${currentProject.id}`;
+            const link = `/client?project=${currentProject.id}`;
             navigator.clipboard.writeText(link);
             alert('Share link copied to clipboard!');
         }
@@ -585,7 +585,7 @@
             if (fileParam) {
                 // Single file download
                 try {
-                    const downloadUrl = `http://localhost:3000/api/ftp/download?path=${encodeURIComponent(fileParam)}`;
+                    const downloadUrl = `/api/ftp/download?path=${encodeURIComponent(fileParam)}`;
                     const filename = fileParam.split('/').pop();
 
                     // Download the file
@@ -617,7 +617,7 @@
                     const filePaths = JSON.parse(decodeURIComponent(filesParam));
 
                     for (const filePath of filePaths) {
-                        const downloadUrl = `http://localhost:3000/api/ftp/download?path=${encodeURIComponent(filePath)}`;
+                        const downloadUrl = `/api/ftp/download?path=${encodeURIComponent(filePath)}`;
                         const filename = filePath.split('/').pop();
 
                         const response = await fetch(downloadUrl, {

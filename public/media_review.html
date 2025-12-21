@@ -830,7 +830,7 @@
         async function loadFileFromBackend() {
             try {
                 // Load file metadata using project-scoped endpoint
-                const filesResponse = await fetch(`http://localhost:3000/api/projects/${projectId}/files`);
+                const filesResponse = await fetch(`/api/projects/${projectId}/files`);
                 if (!filesResponse.ok) {
                     alert('Failed to load file');
                     return;
@@ -863,7 +863,7 @@
 
                 // Set source to streaming endpoint with project ID
                 // CSS will automatically show the player when src is set
-                const streamUrl = `http://localhost:3000/api/files/${projectId}/${currentFileId}/stream`;
+                const streamUrl = `/api/files/${projectId}/${currentFileId}/stream`;
                 activePlayer.src = streamUrl;
 
                 videoFilename.textContent = file.original_name;
@@ -904,7 +904,7 @@
                 }
 
                 // Set source to FTP stream endpoint
-                const streamUrl = `http://localhost:3000/api/ftp/stream?path=${encodeURIComponent(filePath)}`;
+                const streamUrl = `/api/ftp/stream?path=${encodeURIComponent(filePath)}`;
                 activePlayer.src = streamUrl;
 
                 videoFilename.textContent = fileName;
@@ -928,7 +928,7 @@
 
         async function loadCommentsFromBackend() {
             try {
-                const response = await fetch(`http://localhost:3000/api/files/${projectId}/${currentFileId}/comments`);
+                const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`);
                 if (response.ok) {
                     comments = await response.json();
                     renderComments();
@@ -946,7 +946,7 @@
 
         async function saveCommentToBackend(comment) {
             try {
-                const response = await fetch(`http://localhost:3000/api/files/${projectId}/${currentFileId}/comments`, {
+                const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1275,7 +1275,7 @@
 
                     try {
                         // Save to backend
-                        const response = await fetch(`http://localhost:3000/api/files/comments/${id}`, {
+                        const response = await fetch(`/api/files/comments/${id}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: newStatus })
@@ -1311,7 +1311,7 @@
 
                     try {
                         // Delete from backend using project-scoped endpoint
-                        const deleteUrl = `http://localhost:3000/api/files/${projectId}/comments/${id}`;
+                        const deleteUrl = `/api/files/${projectId}/comments/${id}`;
                         const response = await fetch(deleteUrl, {
                             method: 'DELETE'
                         });

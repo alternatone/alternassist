@@ -380,7 +380,7 @@
 
             try {
                 // Single API call creates everything!
-                const response = await fetch('http://localhost:3000/api/projects/with-estimate', {
+                const response = await fetch('/api/projects/with-estimate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -592,7 +592,7 @@
 
             try {
                 // Single optimized query with JOIN!
-                const response = await fetch('http://localhost:3000/api/estimates/with-projects?limit=50');
+                const response = await fetch('/api/estimates/with-projects?limit=50');
                 if (!response.ok) throw new Error('Failed to load estimates');
 
                 const estimates = await response.json();
@@ -638,7 +638,7 @@
         async function loadLoggedEstimate(id) {
             try {
                 // Single optimized query!
-                const response = await fetch(`http://localhost:3000/api/estimates/${id}/with-project`);
+                const response = await fetch(`/api/estimates/${id}/with-project`);
                 if (!response.ok) throw new Error('Failed to load estimate');
 
                 const data = await response.json();
@@ -669,7 +669,7 @@
             if (!confirm(`Delete estimate for "${projectName}"?`)) return;
 
             try {
-                const response = await fetch(`http://localhost:3000/api/estimates/${id}`, {
+                const response = await fetch(`/api/estimates/${id}`, {
                     method: 'DELETE'
                 });
 

@@ -474,7 +474,7 @@
         }
 
         function copyClientPortalLink() {
-            const link = `http://localhost:3000/client/login.html`;
+            const link = `/client/login.html`;
             navigator.clipboard.writeText(link).then(() => {
                 alert(`Client portal link copied!\n\n${link}`);
             }).catch(err => {
@@ -491,7 +491,7 @@
             if (input.type === 'password') {
                 // Fetch real password
                 try {
-                    const response = await fetch(`http://localhost:3000/api/projects/${currentModalProject.id}/password`);
+                    const response = await fetch(`/api/projects/${currentModalProject.id}/password`);
                     const data = await response.json();
                     input.value = data.password;
                     input.type = 'text';
@@ -515,7 +515,7 @@
             }
 
             try {
-                const response = await fetch(`http://localhost:3000/api/projects/${currentModalProject.id}/regenerate-password`, {
+                const response = await fetch(`/api/projects/${currentModalProject.id}/regenerate-password`, {
                     method: 'POST'
                 });
 
@@ -752,14 +752,14 @@
             // Load projects from API
             let projects = [];
             try {
-                const response = await fetch('http://localhost:3000/api/projects');
+                const response = await fetch('/api/projects');
                 if (response.ok) {
                     const apiProjects = await response.json();
 
                     // Fetch scope data for all projects from project_scope table
                     const scopePromises = apiProjects.map(async (p) => {
                         try {
-                            const scopeResponse = await fetch(`http://localhost:3000/api/estimates/scope/${p.id}`);
+                            const scopeResponse = await fetch(`/api/estimates/scope/${p.id}`);
                             if (scopeResponse.ok) {
                                 const scopeData = await scopeResponse.json();
                                 return { projectId: p.id, scope: scopeData };
@@ -834,7 +834,7 @@
             // Fetch cues for all projects
             let cuesByProject = {};
             try {
-                const cuesResponse = await fetch('http://localhost:3000/api/cues');
+                const cuesResponse = await fetch('/api/cues');
                 if (cuesResponse.ok) {
                     const allCues = await cuesResponse.json();
                     // Group cues by project_id
@@ -852,7 +852,7 @@
             // Fetch hours log for all projects
             let hoursLogByProject = {};
             try {
-                const hoursResponse = await fetch('http://localhost:3000/api/hours-log');
+                const hoursResponse = await fetch('/api/hours-log');
                 if (hoursResponse.ok) {
                     const allHours = await hoursResponse.json();
                     // Group by project_id and category

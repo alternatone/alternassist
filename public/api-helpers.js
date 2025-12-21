@@ -5,7 +5,7 @@
 
 // Detect if running in Electron (file://), localhost, or Cloudflare Pages
 const API_BASE = window.location.protocol === 'file:' || window.location.hostname === 'localhost'
-  ? 'http://localhost:3000/api'
+  ? '/api'
   : '/api';
 
 // ============================================

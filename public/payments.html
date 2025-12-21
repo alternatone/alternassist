@@ -432,7 +432,7 @@
                 updateStats();
 
                 // OPTIMIZED: Single transactional API call (7 calls → 1 call)
-                const response = await fetch('http://localhost:3000/api/payments/mark-invoice-paid', {
+                const response = await fetch('/api/payments/mark-invoice-paid', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
