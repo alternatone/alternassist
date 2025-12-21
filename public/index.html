@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alternassist - Business Management</title>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="admin-auth-check.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-text: #1a1a1a;
@@ -267,6 +268,9 @@
                             <a href="#" class="nav-dropdown-item" data-module="payments">payments</a>
                             <a href="#" class="nav-dropdown-item" data-module="accounting">books</a>
                         </div>
+                    </li>
+                    <li class="nav-item" style="margin-left: auto;">
+                        <a href="#" class="nav-link" onclick="event.preventDefault(); logout();" style="color: var(--accent-red);">logout</a>
                     </li>
                 </ul>
             </div>
@@ -1078,6 +1082,29 @@
             }
             if (notesModule) {
                 notesModule.style.display = '';
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            if (!confirm('Are you sure you want to logout?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/api/admin/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    window.location.href = '/media/admin-login.html';
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('Logout failed. Please try again.');
             }
         }
     </script>

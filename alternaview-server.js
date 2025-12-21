@@ -175,9 +175,9 @@ function startServer() {
   app.use('/api/downloads', downloadsRouter);
   app.use('/dl', downloadsRouter);
 
-  // Root redirect to media interface
+  // Root redirect to admin login
   app.get('/', (req, res) => {
-    res.redirect('/media/index.html');
+    res.redirect('/media/admin-login.html');
   });
 
   // Centralized error handling middleware (Phase 2 optimization)
