@@ -595,6 +595,7 @@ async function openFtpSetupForProject(projectId, projectName, status) {
 // Generate password-protected share link (Phase 2 Security Feature)
 async function copyClientPortalLinkForProject(projectId, projectName) {
     try {
+        alert(`DEBUG: Share link function called for: ${projectName}`);
         console.log('[Share Link] Starting generation for project:', projectId, projectName);
 
         // Ask for share link options
