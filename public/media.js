@@ -594,33 +594,40 @@ async function openFtpSetupForProject(projectId, projectName, status) {
 
 // Generate password-protected share link (Phase 2 Security Feature)
 async function copyClientPortalLinkForProject(projectId, projectName) {
-    // Ask for share link options
-    const expiryChoice = confirm(
-        `Generate a secure share link for "${projectName}"?\n\n` +
-        `Click OK for a link that expires in 7 days\n` +
-        `Click Cancel for a permanent link`
-    );
-
-    const passwordChoice = confirm(
-        `Password protect this link?\n\n` +
-        `Click OK to require a password\n` +
-        `Click Cancel for no password`
-    );
-
-    let password = null;
-    if (passwordChoice) {
-        password = prompt('Enter a password for this share link:');
-        if (!password) {
-            showToast('Share link generation cancelled', 'info');
-            return;
-        }
-    }
-
-    const expiresIn = expiryChoice ? '7d' : 'never';
-
-    showToast('Generating secure share link...', 'info', 2000);
-
     try {
+        console.log('[Share Link] Starting generation for project:', projectId, projectName);
+
+        // Ask for share link options
+        const expiryChoice = confirm(
+            `Generate a secure share link for "${projectName}"?\n\n` +
+            `Click OK for a link that expires in 7 days\n` +
+            `Click Cancel for a permanent link`
+        );
+        console.log('[Share Link] Expiry choice:', expiryChoice ? '7 days' : 'permanent');
+
+        const passwordChoice = confirm(
+            `Password protect this link?\n\n` +
+            `Click OK to require a password\n` +
+            `Click Cancel for no password`
+        );
+        console.log('[Share Link] Password choice:', passwordChoice);
+
+        let password = null;
+        if (passwordChoice) {
+            password = prompt('Enter a password for this share link:');
+            if (!password || password.trim() === '') {
+                showToast('Share link generation cancelled', 'info');
+                return;
+            }
+            console.log('[Share Link] Password entered (length):', password.length);
+        }
+
+        const expiresIn = expiryChoice ? '7d' : 'never';
+
+        showToast('Generating secure share link...', 'info', 2000);
+
+        console.log('[Share Link] Making API request with:', { project_id: projectId, expires_in: expiresIn, has_password: !!password });
+
         const response = await fetch('/api/share/generate', {
             method: 'POST',
             headers: {
@@ -634,17 +641,21 @@ async function copyClientPortalLinkForProject(projectId, projectName) {
             credentials: 'include'
         });
 
+        console.log('[Share Link] API response status:', response.status);
+
         if (!response.ok) {
             const error = await response.json();
+            console.error('[Share Link] API error:', error);
             throw new Error(error.error || 'Failed to generate share link');
         }
 
         const data = await response.json();
+        console.log('[Share Link] Generated link:', data.url);
 
         // Copy to clipboard
         await navigator.clipboard.writeText(data.url);
 
-        let message = `Secure share link copied for "${projectName}"!\n\n${data.url}`;
+        let message = `Secure share link generated and copied!\n\n${data.url}`;
         if (password) {
             message += `\n\nPassword: ${password}`;
         }
@@ -655,7 +666,7 @@ async function copyClientPortalLinkForProject(projectId, projectName) {
         alert(message);
         showToast('Share link generated and copied!', 'success');
     } catch (error) {
-        console.error('Error generating share link:', error);
+        console.error('[Share Link] Error:', error);
         showToast(error.message || 'Failed to generate share link', 'error');
     }
 }
