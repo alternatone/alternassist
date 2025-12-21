@@ -958,13 +958,20 @@
 
         async function loadPublicFile(fileId) {
             try {
+                console.log('[Public Viewer] Loading file ID:', fileId);
+
                 // Fetch file metadata from public endpoint
                 const response = await fetch(`/api/files/public/${fileId}`);
+                console.log('[Public Viewer] Metadata response:', response.status);
+
                 if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('[Public Viewer] Failed to load metadata:', errorData);
                     throw new Error('Failed to load file metadata');
                 }
 
                 const file = await response.json();
+                console.log('[Public Viewer] File metadata:', file);
 
                 // Determine file type
                 const isAudio = file.mime_type.startsWith('audio/');
@@ -982,6 +989,7 @@
 
                 // Set source to public stream endpoint
                 const streamUrl = `/api/files/public/${fileId}/stream`;
+                console.log('[Public Viewer] Stream URL:', streamUrl);
                 activePlayer.src = streamUrl;
 
                 videoFilename.textContent = file.original_name;
@@ -993,6 +1001,7 @@
 
                 // Load the media
                 activePlayer.load();
+                console.log('[Public Viewer] Media load initiated');
 
                 // Note: Public files don't have comment support
                 comments = [];
