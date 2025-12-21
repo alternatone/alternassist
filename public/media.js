@@ -592,14 +592,72 @@ async function openFtpSetupForProject(projectId, projectName, status) {
     await openFtpSetup(projectId, projectName, status);
 }
 
-// Copy link from project list (UX Enhancement: toast notifications)
-function copyClientPortalLinkForProject(projectId, projectName) {
-    const link = `/client/login.html`;
-    navigator.clipboard.writeText(link).then(() => {
-        showToast(`Client portal link copied for "${projectName}"`, 'success');
-    }).catch(err => {
-        showToast(`Failed to copy link: ${err}`, 'error');
-    });
+// Generate password-protected share link (Phase 2 Security Feature)
+async function copyClientPortalLinkForProject(projectId, projectName) {
+    // Ask for share link options
+    const expiryChoice = confirm(
+        `Generate a secure share link for "${projectName}"?\n\n` +
+        `Click OK for a link that expires in 7 days\n` +
+        `Click Cancel for a permanent link`
+    );
+
+    const passwordChoice = confirm(
+        `Password protect this link?\n\n` +
+        `Click OK to require a password\n` +
+        `Click Cancel for no password`
+    );
+
+    let password = null;
+    if (passwordChoice) {
+        password = prompt('Enter a password for this share link:');
+        if (!password) {
+            showToast('Share link generation cancelled', 'info');
+            return;
+        }
+    }
+
+    const expiresIn = expiryChoice ? '7d' : 'never';
+
+    showToast('Generating secure share link...', 'info', 2000);
+
+    try {
+        const response = await fetch('/api/share/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                project_id: projectId,
+                expires_in: expiresIn,
+                password: password
+            }),
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to generate share link');
+        }
+
+        const data = await response.json();
+
+        // Copy to clipboard
+        await navigator.clipboard.writeText(data.url);
+
+        let message = `Secure share link copied for "${projectName}"!\n\n${data.url}`;
+        if (password) {
+            message += `\n\nPassword: ${password}`;
+        }
+        if (expiresIn !== 'never') {
+            message += `\n\nExpires in 7 days`;
+        }
+
+        alert(message);
+        showToast('Share link generated and copied!', 'success');
+    } catch (error) {
+        console.error('Error generating share link:', error);
+        showToast(error.message || 'Failed to generate share link', 'error');
+    }
 }
 
 // Delete project (OPTIMIZED: optimistic UI update with UX enhancements)

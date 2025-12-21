@@ -175,6 +175,11 @@ function startServer() {
   app.use('/api/downloads', downloadsRouter);
   app.use('/dl', downloadsRouter);
 
+  // Share links (both /api/share and /share routes)
+  const shareRouter = require('./server/routes/share');
+  app.use('/api/share', shareRouter);
+  app.use('/share', shareRouter);
+
   // Root redirect to admin login
   app.get('/', (req, res) => {
     res.redirect('/media/admin-login.html');

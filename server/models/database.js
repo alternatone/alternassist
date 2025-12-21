@@ -66,6 +66,24 @@ function initDatabase() {
     )
   `);
 
+  // Migration: Add password protection and expiry fields to share_links
+  const shareLinkColumns = db.prepare("PRAGMA table_info(share_links)").all();
+  const shareLinkFields = [
+    { name: 'password_hash', type: 'TEXT', default: ' DEFAULT NULL' },
+    { name: 'expires_at', type: 'INTEGER', default: ' DEFAULT NULL' },
+    { name: 'created_by', type: 'INTEGER', default: '' },
+    { name: 'access_count', type: 'INTEGER', default: ' DEFAULT 0' },
+    { name: 'last_accessed_at', type: 'INTEGER', default: ' DEFAULT NULL' }
+  ];
+
+  shareLinkFields.forEach(field => {
+    const hasField = shareLinkColumns.some(col => col.name === field.name);
+    if (!hasField) {
+      db.exec(`ALTER TABLE share_links ADD COLUMN ${field.name} ${field.type}${field.default}`);
+      console.log(`Added ${field.name} column to share_links table`);
+    }
+  });
+
   // Migration: Add transcoded_file_path column if it doesn't exist
   const fileColumns = db.prepare("PRAGMA table_info(files)").all();
   const hasTranscodedPath = fileColumns.some(col => col.name === 'transcoded_file_path');
