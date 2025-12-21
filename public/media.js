@@ -1345,17 +1345,13 @@ async function deleteFtpItem(itemPath, itemName, isFolder) {
 }
 
 async function copyFtpFileLink(filePath, fileName) {
-    try {
-        // Generate shareable link that goes to client login with file path as parameter
-        const baseUrl = window.location.origin;
-        const shareUrl = `${baseUrl}/client_login.html?file=${encodeURIComponent(filePath)}`;
-
-        await navigator.clipboard.writeText(shareUrl);
-        showToast(`Share link copied for "${fileName}"`, 'success');
-    } catch (error) {
-        console.error('Error copying FTP file link:', error);
-        showToast('Failed to copy link', 'error');
-    }
+    // Send message to parent to show share link modal for this FTP file
+    window.parent.postMessage({
+        type: 'show-share-link-modal',
+        ftpPath: filePath,
+        fileName: fileName,
+        shareType: 'ftp'
+    }, '*');
 }
 
 function toggleFileSelection(filePath) {

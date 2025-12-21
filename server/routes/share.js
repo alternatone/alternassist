@@ -43,10 +43,10 @@ const shareQueries = {
  */
 router.post('/generate', requireAdmin, async (req, res) => {
   try {
-    const { project_id, file_id, expires_in, password } = req.body;
+    const { project_id, file_id, ftp_path, expires_in, password } = req.body;
 
-    if (!project_id && !file_id) {
-      return res.status(400).json({ error: 'project_id or file_id is required' });
+    if (!project_id && !file_id && !ftp_path) {
+      return res.status(400).json({ error: 'project_id, file_id, or ftp_path is required' });
     }
 
     // Verify project or file exists
@@ -61,6 +61,14 @@ router.post('/generate', requireAdmin, async (req, res) => {
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(file_id);
       if (!file) {
         return res.status(404).json({ error: 'File not found' });
+      }
+    }
+
+    // FTP path validation (if provided)
+    if (ftp_path) {
+      // Basic validation - ensure it's a non-empty string
+      if (typeof ftp_path !== 'string' || !ftp_path.trim()) {
+        return res.status(400).json({ error: 'Invalid FTP path' });
       }
     }
 
@@ -80,14 +88,15 @@ router.post('/generate', requireAdmin, async (req, res) => {
       passwordHash = await bcrypt.hash(password, 10);
     }
 
-    // Create share link with project_id or file_id
+    // Create share link with project_id, file_id, or ftp_path
     db.prepare(`
-      INSERT INTO share_links (token, project_id, file_id, expires_at, password_hash, created_by)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO share_links (token, project_id, file_id, ftp_path, expires_at, password_hash, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       token,
       project_id || null,
       file_id || null,
+      ftp_path || null,
       expiresAt,
       passwordHash,
       req.session.adminId
@@ -95,7 +104,7 @@ router.post('/generate', requireAdmin, async (req, res) => {
 
     const url = `https://alternassist.alternatone.com/share/${token}`;
 
-    const logType = project_id ? `project ${project_id}` : `file ${file_id}`;
+    const logType = project_id ? `project ${project_id}` : file_id ? `file ${file_id}` : `ftp_path ${ftp_path}`;
     console.log(`[ADMIN] ${req.session.username} generated share link for ${logType} (expires: ${expiresAt || 'never'}, password: ${passwordHash ? 'yes' : 'no'})`);
 
     res.json({
@@ -256,8 +265,19 @@ function redirectToProject(link, res) {
   // Update access count
   shareQueries.updateAccessCount.run(link.token);
 
-  // Redirect to client portal with project auto-selected
-  res.redirect(`/client/login.html?share=${link.token}&project=${link.project_id}`);
+  // Redirect based on link type
+  if (link.project_id) {
+    // Project share link
+    res.redirect(`/client/login.html?share=${link.token}&project=${link.project_id}`);
+  } else if (link.file_id) {
+    // Database file share link
+    res.redirect(`/client/login.html?share=${link.token}&file=${link.file_id}`);
+  } else if (link.ftp_path) {
+    // FTP browser file share link
+    res.redirect(`/client/login.html?share=${link.token}&ftpFile=${encodeURIComponent(link.ftp_path)}`);
+  } else {
+    res.status(500).send('Invalid share link configuration');
+  }
 }
 
 function renderPasswordPrompt(token) {

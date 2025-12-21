@@ -615,6 +615,8 @@
                     copyClientPortalLinkForProject(event.data.projectId, event.data.projectName);
                 } else if (event.data.shareType === 'file') {
                     openShareLinkModalForFile(event.data.fileId, event.data.fileName);
+                } else if (event.data.shareType === 'ftp') {
+                    openShareLinkModalForFtpFile(event.data.ftpPath, event.data.fileName);
                 }
             }
         });
@@ -1225,6 +1227,26 @@
             modal.classList.add('show');
         }
 
+        // Open share link modal for FTP file
+        function openShareLinkModalForFtpFile(ftpPath, fileName) {
+            currentShareLinkItem = { type: 'ftp', path: ftpPath, name: fileName };
+
+            const modal = document.getElementById('shareLinkModal');
+            const projectNameEl = document.getElementById('shareLinkProjectName');
+            const passwordField = document.getElementById('passwordField');
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+
+            projectNameEl.textContent = `Generate a secure share link for file "${fileName}"`;
+
+            // Reset form
+            document.querySelector('input[name="expiry"][value="7d"]').checked = true;
+            requirePasswordCheckbox.checked = false;
+            passwordField.style.display = 'none';
+            document.getElementById('shareLinkPassword').value = '';
+
+            modal.classList.add('show');
+        }
+
         // Toggle password field visibility
         document.addEventListener('DOMContentLoaded', () => {
             const requirePasswordCheckbox = document.getElementById('requirePassword');
@@ -1286,6 +1308,8 @@
                     requestBody.project_id = currentShareLinkItem.id;
                 } else if (currentShareLinkItem.type === 'file') {
                     requestBody.file_id = currentShareLinkItem.id;
+                } else if (currentShareLinkItem.type === 'ftp') {
+                    requestBody.ftp_path = currentShareLinkItem.path;
                 }
 
                 const response = await fetch('/api/share/generate', {
