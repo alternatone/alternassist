@@ -8,7 +8,7 @@ document.documentElement.style.visibility = 'hidden';
 
 (async function() {
     try {
-        const response = await fetch('http://localhost:3000/api/admin/status', {
+        const response = await fetch('/api/admin/status', {
             credentials: 'include'
         });
 
