@@ -999,6 +999,14 @@
                 videoPlaceholder.style.display = 'none';
                 document.querySelector('.video-container').classList.add('has-video');
 
+                // Add error handler
+                activePlayer.onerror = function(e) {
+                    console.error('[Public Viewer] Media error:', e);
+                    console.error('[Public Viewer] Error code:', activePlayer.error ? activePlayer.error.code : 'unknown');
+                    console.error('[Public Viewer] Error message:', activePlayer.error ? activePlayer.error.message : 'unknown');
+                    alert(`Failed to load media file. Error code: ${activePlayer.error ? activePlayer.error.code : 'unknown'}`);
+                };
+
                 // Load the media
                 activePlayer.load();
                 console.log('[Public Viewer] Media load initiated');
