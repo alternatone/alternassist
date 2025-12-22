@@ -800,8 +800,9 @@
             if (window.history.length > 1) {
                 window.history.back();
             } else {
-                // Fallback if no history (direct link access)
-                window.location.href = 'media.html';
+                // Fallback if no history (direct link access via share link)
+                // Just reload to home or show message
+                alert('This file was accessed via a direct share link. Close this tab to exit.');
             }
         }
 
