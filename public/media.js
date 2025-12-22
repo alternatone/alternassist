@@ -541,27 +541,27 @@ function createFileRow(projectId, file, folder) {
             <td class="file-date">${formatDate(file.uploaded_at)}</td>
             <td>
                 <div class="file-actions">
-                    <button class="btn-action" onclick="generatePublicLink(${projectId}, ${file.id}, '${escapeHtml(file.original_name)}')" title="Generate Public Link">
+                    <button class="btn-action" onclick="generatePublicLink(${projectId}, ${file.id}, '${escapeJs(file.original_name)}')" title="Generate Public Link">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                             <polyline points="15 3 21 3 21 9"></polyline>
                             <line x1="10" y1="14" x2="21" y2="3"></line>
                         </svg>
                     </button>
-                    <button class="btn-action" onclick="copyFileLink(${file.id}, '${escapeHtml(file.original_name)}')" title="Copy Link">
+                    <button class="btn-action" onclick="copyFileLink(${file.id}, '${escapeJs(file.original_name)}')" title="Copy Link">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                         </svg>
                     </button>
-                    <button class="btn-action" onclick="downloadFile(${file.id}, '${escapeHtml(file.original_name)}')" title="Download">
+                    <button class="btn-action" onclick="downloadFile(${file.id}, '${escapeJs(file.original_name)}')" title="Download">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>
                             <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
                     </button>
-                    <button class="btn-action delete" onclick="deleteFile(${projectId}, ${file.id}, '${escapeHtml(file.original_name)}')" title="Delete">
+                    <button class="btn-action delete" onclick="deleteFile(${projectId}, ${file.id}, '${escapeJs(file.original_name)}')" title="Delete">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1038,6 +1038,16 @@ function escapeHtml(unsafe) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function escapeJs(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, "\\n")
+        .replace(/\r/g, "\\r");
 }
 
 // ============== FTP BROWSER FUNCTIONS ==============
