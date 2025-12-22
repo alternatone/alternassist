@@ -1513,6 +1513,21 @@ async function handleFolderDrop(event, targetProjectId, targetFolder) {
     event.stopPropagation();
     event.currentTarget.style.backgroundColor = '';
 
+    // Check if this is a file upload from computer (not a move within app)
+    if (!draggedFileData && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+        // Handle file upload
+        const files = Array.from(event.dataTransfer.files);
+        console.log(`Uploading ${files.length} file(s) to project ${targetProjectId}, folder "${targetFolder}"`);
+
+        try {
+            await uploadFiles(files, targetProjectId, targetFolder);
+        } catch (error) {
+            console.error('Error uploading files:', error);
+            showToast('Upload failed', 'error');
+        }
+        return;
+    }
+
     if (!draggedFileData) return;
 
     const { projectId, fileId, folder: sourceFolder } = draggedFileData;
