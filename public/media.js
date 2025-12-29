@@ -740,20 +740,15 @@ async function downloadFile(fileId, fileName) {
     try {
         showToast(`Downloading "${fileName}"...`, 'info', 2000);
 
-        const response = await fetch(`/api/files/${fileId}/download`);
-        if (!response.ok) throw new Error('Download failed');
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        // Use public download endpoint (works for admin without project session)
         const a = document.createElement('a');
-        a.href = url;
+        a.href = `/api/files/public/${fileId}/download`;
         a.download = fileName;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
 
-        showToast(`Downloaded "${fileName}" successfully`, 'success');
+        showToast(`Download started for "${fileName}"`, 'success');
     } catch (error) {
         console.error('Error downloading file:', error);
         showToast('Failed to download file', 'error');

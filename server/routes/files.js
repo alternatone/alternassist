@@ -138,6 +138,36 @@ router.get('/public/:id', (req, res) => {
   }
 });
 
+// Public endpoint: Download file without auth (for admin and share links)
+router.get('/public/:id/download', (req, res) => {
+  try {
+    const fileId = parseInt(req.params.id);
+    const file = fileQueries.findById.get(fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Use original file path for downloads (not transcoded)
+    const filePath = file.file_path;
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+
+    // Set headers for download
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Length', fs.statSync(filePath).size);
+
+    // Stream the file
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    console.error('Error downloading public file:', error);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
 // Public endpoint: Stream file without auth (for share links)
 router.get('/public/:id/stream', (req, res) => {
   try {
