@@ -736,23 +736,9 @@ async function copyFileLink(fileId, fileName) {
     }, '*');
 }
 
-async function downloadFile(fileId, fileName) {
-    try {
-        showToast(`Downloading "${fileName}"...`, 'info', 2000);
-
-        // Use public download endpoint (works for admin without project session)
-        const a = document.createElement('a');
-        a.href = `/api/files/public/${fileId}/download`;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        showToast(`Download started for "${fileName}"`, 'success');
-    } catch (error) {
-        console.error('Error downloading file:', error);
-        showToast('Failed to download file', 'error');
-    }
+function downloadFile(fileId, fileName) {
+    // Navigate directly to download URL - browser handles progress natively
+    window.location.href = `/api/files/public/${fileId}/download`;
 }
 
 async function deleteFile(projectId, fileId, fileName) {
