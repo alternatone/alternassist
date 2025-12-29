@@ -396,16 +396,19 @@
         }
 
         .export-to-notes-btn {
-            padding: 0.5rem 1rem;
+            padding: 0.35rem 0.65rem;
             background: var(--accent-teal);
             color: white;
             border: none;
-            border-radius: 6px;
-            font-size: 0.85rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
             font-weight: 500;
             cursor: pointer;
             transition: background 0.2s;
             font-family: var(--font-body);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
         }
 
         .export-to-notes-btn:hover {
@@ -741,9 +744,9 @@
             <div class="comments-header">
                 <div class="comments-header-row">
                     <h2>Comments</h2>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.35rem;">
                         <button class="export-to-notes-btn" id="downloadBtn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="7 10 12 15 17 10"></polyline>
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
