@@ -741,7 +741,17 @@
             <div class="comments-header">
                 <div class="comments-header-row">
                     <h2>Comments</h2>
-                    <button class="export-to-notes-btn" id="exportToNotesBtn" disabled>send to notes</button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="export-to-notes-btn" id="downloadBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            download
+                        </button>
+                        <button class="export-to-notes-btn" id="exportToNotesBtn" disabled>send to notes</button>
+                    </div>
                 </div>
                 <div class="comments-stats">
                     <div class="stat-item">
@@ -822,6 +832,7 @@
         const commentsList = document.getElementById('commentsList');
         const commentMarkers = document.getElementById('commentMarkers');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
         const videoPanel = document.querySelector('.video-panel');
         const videoPlaceholder = document.getElementById('videoPlaceholder');
         const exportToNotesBtn = document.getElementById('exportToNotesBtn');
@@ -830,6 +841,10 @@
         let wasPlayingBeforeComment = false;
         let commentTimecode = null;
         let projectId = null; // FIXED: Declare projectId variable
+
+        // Track current file info for downloads
+        let currentDownloadUrl = null;
+        let currentFileName = null;
 
         // Get file and project ID from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -893,6 +908,10 @@
                 const streamUrl = `/api/files/${projectId}/${currentFileId}/stream`;
                 activePlayer.src = streamUrl;
 
+                // Set download info
+                currentDownloadUrl = `/api/files/${currentFileId}/download`;
+                currentFileName = file.original_name;
+
                 videoFilename.textContent = file.original_name;
                 currentVideoFile = file.original_name;
 
@@ -933,6 +952,10 @@
                 // Set source to FTP stream endpoint
                 const streamUrl = `/api/ftp/stream?path=${encodeURIComponent(filePath)}`;
                 activePlayer.src = streamUrl;
+
+                // Set download info
+                currentDownloadUrl = `/api/ftp/download?path=${encodeURIComponent(filePath)}`;
+                currentFileName = fileName;
 
                 videoFilename.textContent = fileName;
                 currentVideoFile = fileName;
@@ -1093,6 +1116,22 @@
         volumeSlider.addEventListener('input', (e) => {
             if (!activePlayer) return;
             activePlayer.volume = e.target.value / 100;
+        });
+
+        // Download button
+        downloadBtn.addEventListener('click', () => {
+            if (!currentDownloadUrl || !currentFileName) {
+                alert('No file available for download');
+                return;
+            }
+
+            // Create temporary link and trigger download
+            const a = document.createElement('a');
+            a.href = currentDownloadUrl;
+            a.download = currentFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         });
 
         // Fullscreen toggle
