@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<!-- saved from url=(0080) -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micah Manaitai - Artist Guide</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com/">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link href="artist-guide-assets/css2" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #f8f6f3;
+            color: #2a2a2a;
+            line-height: 1.6;
+        }
+        
+        /* Editable elements */
+        [contenteditable="true"] {
+            outline: none;
+            transition: background 0.2s ease;
+        }
+        
+        [contenteditable="true"]:hover {
+            background: rgba(74, 144, 200, 0.05);
+        }
+        
+        [contenteditable="true"]:focus {
+            background: rgba(74, 144, 200, 0.1);
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        /* Cover */
+        .cover {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px;
+            background: white;
+            position: relative;
+            border-bottom: 8px solid transparent;
+            border-image: linear-gradient(90deg, 
+                #E8A45D 0%, 
+                #D96459 16.66%, 
+                #EE5A6F 33.33%, 
+                #9B6B9E 50%, 
+                #4A90C8 66.66%, 
+                #5B8C6E 83.33%, 
+                #7AC7C4 100%) 1;
+        }
+        
+        .cover-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #888;
+            margin-bottom: 40px;
+        }
+        
+        .cover-title {
+            font-family: 'Crimson Text', serif;
+            font-weight: 400;
+            font-size: 96px;
+            letter-spacing: -0.015em;
+            line-height: 1;
+            margin-bottom: 30px;
+            color: #2a2a2a;
+        }
+        
+        .cover-subtitle {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 36px;
+            letter-spacing: -0.01em;
+            margin-bottom: 60px;
+            color: #4A90C8;
+        }
+        
+        .cover-description {
+            font-family: 'Crimson Text', serif;
+            font-size: 18px;
+            line-height: 1.8;
+            color: #555;
+            max-width: 650px;
+        }
+        
+        /* Table of Contents */
+        .toc {
+            padding: 80px;
+            background: white;
+            border-bottom: 1px solid #e8e4de;
+        }
+        
+        .toc-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #aaa;
+            margin-bottom: 40px;
+        }
+        
+        .toc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px 60px;
+        }
+        
+        .toc-section {
+            margin-bottom: 20px;
+        }
+        
+        .toc-section-title {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: #2a2a2a;
+        }
+        
+        .toc-section-title a {
+            color: inherit;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .toc-section-title a:hover {
+            color: #4A90C8;
+        }
+        
+        .toc-items {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .toc-items li {
+            font-family: 'Crimson Text', serif;
+            font-size: 15px;
+            line-height: 1.8;
+            color: #555;
+        }
+        
+        .toc-items li a {
+            color: inherit;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .toc-items li a:hover {
+            color: #4A90C8;
+        }
+        
+        /* Section Headers */
+        .section-header {
+            margin: 0;
+            padding: 80px 80px 50px 80px;
+            background: white;
+            border-bottom: 1px solid #e8e4de;
+            position: relative;
+        }
+        
+        .section-header::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 4px;
+        }
+        
+        .section-header.intro::before { background: #E8A45D; }
+        .section-header.narrative::before { background: #D96459; }
+        .section-header.visual::before { background: #4A90C8; }
+        .section-header.consistency::before { background: #5B8C6E; }
+        
+        .section-number {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 48px;
+            letter-spacing: -0.01em;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+        
+        .intro .section-title { color: #E8A45D; }
+        .narrative .section-title { color: #D96459; }
+        .visual .section-title { color: #4A90C8; }
+        .consistency .section-title { color: #5B8C6E; }
+        
+        .section-description {
+            font-family: 'Crimson Text', serif;
+            font-size: 18px;
+            line-height: 1.7;
+            color: #555;
+            max-width: 700px;
+        }
+        
+        /* Content sections */
+        .content-section {
+            padding: 80px;
+            background: #f8f6f3;
+            border-bottom: 1px solid #e8e4de;
+        }
+        
+        .content-section.white {
+            background: white;
+        }
+        
+        .subsection-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        
+        .subsection-title {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 32px;
+            margin-bottom: 25px;
+            letter-spacing: -0.01em;
+        }
+        
+        .subsection-intro {
+            font-family: 'Crimson Text', serif;
+            font-size: 18px;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 40px;
+            font-style: italic;
+            max-width: 800px;
+        }
+        
+        .body-text {
+            font-family: 'Crimson Text', serif;
+            font-size: 16px;
+            line-height: 1.75;
+            margin-bottom: 25px;
+            color: #555;
+            max-width: 800px;
+        }
+        
+        .emphasis {
+            font-style: italic;
+        }
+        
+        /* Thesis block */
+        .thesis-block {
+            padding: 60px;
+            background: white;
+            border: 1px solid #e8e4de;
+            margin-bottom: 40px;
+        }
+        
+        .thesis-text {
+            font-family: 'Crimson Text', serif;
+            font-weight: 400;
+            font-size: 36px;
+            line-height: 1.4;
+            letter-spacing: -0.01em;
+            color: #2a2a2a;
+        }
+        
+        .thesis-note {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #888;
+            margin-top: 30px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        /* Bio block */
+        .bio-block {
+            padding: 50px;
+            background: white;
+            border: 1px solid #e8e4de;
+            margin-bottom: 30px;
+        }
+        
+        .bio-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        
+        .bio-text {
+            font-family: 'Crimson Text', serif;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #2a2a2a;
+        }
+        
+        /* Archetype display */
+        .archetype-display {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 72px;
+            letter-spacing: -0.01em;
+            line-height: 1.05;
+            color: #D96459;
+            margin-bottom: 40px;
+        }
+        
+        /* Pie chart */
+        .archetype-viz {
+            display: flex;
+            align-items: center;
+            gap: 60px;
+            margin-bottom: 50px;
+        }
+        
+        .pie-chart {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #D96459 0deg 252deg,
+                #E8A45D 252deg 360deg
+            );
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        .pie-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        
+        .legend-text {
+            font-family: 'Crimson Text', serif;
+            font-size: 18px;
+        }
+        
+        .legend-percent {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            color: #888;
+            margin-left: 8px;
+        }
+        
+        /* Principle blocks */
+        .principle {
+            margin-bottom: 40px;
+        }
+        
+        .principle-title {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: #2a2a2a;
+        }
+        
+        .principle-body {
+            font-family: 'Crimson Text', serif;
+            font-size: 16px;
+            line-height: 1.75;
+            margin-bottom: 15px;
+            color: #555;
+            max-width: 800px;
+        }
+        
+        .principle-note {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #888;
+            line-height: 1.8;
+            padding-left: 20px;
+            border-left: 2px solid #e8e4de;
+        }
+        
+        /* Narrative beats */
+        .narrative-beats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .beat {
+            padding: 25px;
+            background: white;
+            border: 1px solid #e8e4de;
+            text-align: center;
+        }
+        
+        .beat-number {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: #D96459;
+            margin-bottom: 10px;
+        }
+        
+        .beat-name {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 16px;
+            color: #2a2a2a;
+        }
+        
+        /* Enemies list */
+        .enemies-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .enemy-item {
+            font-family: 'Crimson Text', serif;
+            font-size: 16px;
+            line-height: 1.75;
+            padding: 25px;
+            background: white;
+            border: 1px solid #e8e4de;
+            position: relative;
+            padding-left: 50px;
+        }
+        
+        .enemy-item::before {
+            content: attr(data-number);
+            position: absolute;
+            left: 20px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            color: #EE5A6F;
+        }
+        
+        /* Belief list */
+        .belief-list {
+            list-style: none;
+        }
+        
+        .belief-item {
+            font-family: 'Crimson Text', serif;
+            font-size: 18px;
+            line-height: 1.8;
+            margin-bottom: 25px;
+            padding: 30px 30px 30px 45px;
+            background: white;
+            border-left: 3px solid #5B8C6E;
+            position: relative;
+            color: #2a2a2a;
+        }
+        
+        .belief-item::before {
+            content: '→';
+            position: absolute;
+            left: 18px;
+            color: #5B8C6E;
+            font-size: 18px;
+        }
+        
+        /* Summary boxes */
+        .summary-box {
+            margin-top: 40px;
+            padding: 40px;
+            background: #E8DDD0;
+            border: 1px solid #e8e4de;
+        }
+        
+        .summary-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        
+        .summary-body {
+            font-family: 'Crimson Text', serif;
+            font-size: 16px;
+            line-height: 1.75;
+        }
+        
+        /* Color swatches */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .color-card {
+            border: 1px solid #e8e4de;
+            background: white;
+        }
+        
+        .color-swatch {
+            width: 100%;
+            height: 120px;
+            border-bottom: 1px solid #e8e4de;
+        }
+        
+        .color-info {
+            padding: 15px;
+        }
+        
+        .color-name {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .color-hex {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #888;
+            letter-spacing: 0.02em;
+            margin-bottom: 8px;
+        }
+        
+        .color-usage {
+            font-family: 'Crimson Text', serif;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+            font-style: italic;
+        }
+        
+        /* Typography specimens */
+        .type-specimen {
+            margin-bottom: 40px;
+        }
+        
+        .type-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: #999;
+            margin-bottom: 12px;
+        }
+        
+        .type-display-xl {
+            font-family: 'Crimson Text', serif;
+            font-weight: 400;
+            font-size: 72px;
+            letter-spacing: -0.015em;
+            line-height: 1;
+        }
+        
+        .type-display-medium {
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            font-size: 36px;
+            letter-spacing: -0.01em;
+            line-height: 1.1;
+        }
+        
+        .type-body {
+            font-family: 'Crimson Text', serif;
+            font-weight: 400;
+            font-size: 16px;
+            line-height: 1.75;
+            max-width: 600px;
+        }
+        
+        .type-mono {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            color: #666;
+        }
+        
+        /* Two column layouts */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .column-box {
+            padding: 30px;
+            background: white;
+            border: 1px solid #e8e4de;
+        }
+        
+        .column-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 20px;
+        }
+        
+        .column-title.green { color: #5B8C6E; }
+        .column-title.red { color: #D96459; }
+        .column-title.blue { color: #4A90C8; }
+        
+        .column-list {
+            list-style: none;
+        }
+        
+        .column-list li {
+            font-family: 'Crimson Text', serif;
+            font-size: 15px;
+            line-height: 1.7;
+            margin-bottom: 12px;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .column-list li.green::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #5B8C6E;
+            font-weight: bold;
+        }
+        
+        .column-list li.red::before {
+            content: "✗";
+            position: absolute;
+            left: 0;
+            color: #D96459;
+            font-weight: bold;
+        }
+        
+        .column-list li.blue::before {
+            content: "○";
+            position: absolute;
+            left: 0;
+            color: #4A90C8;
+            font-weight: bold;
+        }
+        
+        /* Warning box */
+        .warning-box {
+            background: #fef5f5;
+            border: 2px solid #D96459;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        
+        /* Collaborators */
+        .collaborators-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .collaborator {
+            padding: 25px;
+            background: white;
+            border: 1px solid #e8e4de;
+            text-align: center;
+        }
+        
+        .collaborator-name {
+            font-family: 'Crimson Text', serif;
+            font-size: 16px;
+            color: #2a2a2a;
+        }
+        
+        /* Visual reference placeholder */
+        .visual-placeholder {
+            background: #e8e4de;
+            border: 2px dashed #ccc;
+            padding: 60px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .placeholder-text {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        @media (max-width: 1000px) {
+            .cover-title { font-size: 64px; }
+            .section-title { font-size: 36px; }
+            .archetype-display { font-size: 48px; }
+            .thesis-text { font-size: 28px; }
+            .color-grid { grid-template-columns: repeat(2, 1fr); }
+            .narrative-beats { grid-template-columns: repeat(3, 1fr); }
+            .enemies-grid { grid-template-columns: 1fr; }
+            .two-column { grid-template-columns: 1fr; }
+            .collaborators-grid { grid-template-columns: repeat(3, 1fr); }
+            .cover, .section-header, .content-section, .toc { padding: 40px; }
+        }
+        
+        /* Page numbering */
+        body {
+            counter-reset: page-counter;
+        }
+        
+        .page-break {
+            page-break-after: always;
+            break-after: page;
+            position: relative;
+            padding-bottom: 60px;
+        }
+        
+        .page-break::after {
+            counter-increment: page-counter;
+            content: "Page " counter(page-counter);
+            position: absolute;
+            bottom: 20px;
+            right: 40px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: #aaa;
+            letter-spacing: 0.1em;
+        }
+        
+        /* Print styles for landscape letter */
+        @media print {
+            @page {
+                size: letter landscape;
+                margin: 0.4in;
+            }
+            
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            .page-break {
+                page-break-after: always;
+                break-after: page;
+            }
+            
+            /* Prevent orphan breaks */
+            .principle,
+            .column-box,
+            .summary-box,
+            .type-specimen,
+            [style*="background: #f8f6f3"],
+            [style*="background: #fff5f5"] {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            /* Keep headings with content */
+            .subsection-label,
+            .subsection-title,
+            .principle-title {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+            
+            /* Grids should not break */
+            .two-column,
+            [style*="display: grid"] {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            /* Images stay with their containers */
+            img {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            
+            /* Force page breaks where needed */
+            .force-break {
+                page-break-before: always !important;
+                break-before: page !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <!-- ==================== COVER ==================== -->
+        <div class="cover page-break" style="min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;">
+            <div>
+                <div class="cover-label" contenteditable="true">Artist Guide / Jan 2026</div>
+                <div class="cover-title" contenteditable="true">Micah Manaitai</div>
+                <div class="cover-subtitle" contenteditable="true">Narrative, Creative &amp; Art Direction</div>
+                <div class="cover-description" contenteditable="true">
+                    A comprehensive guide for collaborators. Everything you need to understand the vision, aesthetics, and approach of the Micah Manaitai artist project.
+                </div>
+            </div>
+            
+            <div style="height: 100%; display: flex; align-items: center;">
+                <img src="./Micah Manaitai - Artist Guide_files/cover.jpg" alt="Micah Manaitai" style="width: 100%; height: auto; max-height: 80vh; object-fit: cover; border-radius: 4px;">
+            </div>
+        </div>
+        
+        <!-- ==================== TABLE OF CONTENTS ==================== -->
+        <div class="toc page-break">
+            <div class="toc-label">Contents</div>
+            
+            <div class="toc-grid">
+                <div class="toc-section">
+                    <div class="toc-section-title"><a href="#intro">Intro</a></div>
+                    <ul class="toc-items">
+                        <li><a href="#thesis">The Thesis</a></li>
+                        <li><a href="#bio">Bio Copy</a></li>
+                    </ul>
+                </div>
+                
+                <div class="toc-section">
+                    <div class="toc-section-title"><a href="#narrative">Narrative</a></div>
+                    <ul class="toc-items">
+                        <li><a href="#movie-pitch">Movie Pitch</a></li>
+                        <li><a href="#archetype">Archetype Blend</a></li>
+                        <li><a href="#story-style">Story Style</a></li>
+                        <li><a href="#enemies">Stakes &amp; Enemies</a></li>
+                        <li><a href="#values">Underlying Value System</a></li>
+                        <li><a href="#touchpoints">Career Touchpoints</a></li>
+                        <li><a href="#audience">Target Audience</a></li>
+                    </ul>
+                </div>
+                
+                <div class="toc-section">
+                    <div class="toc-section-title"><a href="#visual">Visual Identity System</a></div>
+                    <ul class="toc-items">
+                        <li><a href="#typography">Typography</a></li>
+                        <li><a href="#color">Color Palette</a></li>
+                        <li><a href="#art-direction">Art Direction</a></li>
+                        <li><a href="#anti-direction">Anti-Direction</a></li>
+                        <li><a href="#visual-output">Visual Output</a></li>
+                        <li><a href="#collaborators">Collaborator Guidelines</a></li>
+                    </ul>
+                </div>
+                
+                <div class="toc-section">
+                    <div class="toc-section-title"><a href="#consistency">Consistency Framework</a></div>
+                    <ul class="toc-items">
+                        <li><a href="#constants">Constants vs Variables</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== SECTION: INTRO ==================== -->
+        <div class="section-header intro" id="intro">
+            <div class="section-number">Section 01</div>
+            <div class="section-title">Intro</div>
+        </div>
+        
+        <!-- The Thesis -->
+        <div class="content-section page-break" id="thesis">
+            <div class="subsection-label">The Thesis</div>
+            
+            <div class="thesis-block">
+                <div class="thesis-text" contenteditable="true">
+                    Micah Manaitai is a humble craftsman of an artist. His tool is the ukulele, but his songs span all kinds of genres and musical traditions. For him, the making of every song is like directing a movie that just gets better every time you rewatch it. No ego, no cult of personality. Just you, the music, and whatever world it summons for you.
+                </div>
+            </div>
+            
+            </div>
+        
+        <!-- Bio -->
+        <div class="content-section white page-break" id="bio">
+            <div class="subsection-label">Bio</div>
+            <div class="subsection-title">Bio Copy</div>
+            
+            <div class="bio-block">
+                <div class="bio-label" contenteditable="true">Long Version</div>
+                <div class="bio-text" contenteditable="true">
+                    Micah 'Manaitai' Garrido is a Guam born, Los Angeles based artist whose genre-blending work combines music of the Pacific islands, soul/R&amp;B, and pop. His cover of "Inner Voices" by legendary Guam band Marianas Homegrown launched a career of songwriting, producing and mixing for other artists like Austin P. McKenzie, and VANIA. His music also been heard in film, breaking out in 2024 with his original score for the Emmy-nominated New York Times documentary, <i>Mas y mas y mas flores</i>. 2025 marked the release of Micah's first score for a feature film with the award winning documentary for Nia Tero,&nbsp;<i>Remathau: People of the Ocean</i>. With a string of releases set for 2026, his newest single, "Actin' Tough," marks a turn into 80's rock and alternative.
+                </div>
+            </div>
+            
+            <div class="bio-block">
+                <div class="bio-label" contenteditable="true">Medium Version</div>
+                <div class="bio-text" contenteditable="true">
+                    Micah 'Manaitai' Garrido is a Guam born, Los Angeles based artist whose genre-blending work combines music of the Pacific islands, soul/R&amp;B, and pop. His cover of "Inner Voices" by legendary Guam band Marianas Homegrown launched a career of producing for other artists and composing for film, breaking out in 2024 with his original score for the Emmy-nominated New York Times documentary, <i>Mas y mas y mas flores</i>. 2025 marked the release of Micah's first score for a feature film with the award winning documentary <i>Remathau: People of the Ocean</i>.&nbsp;
+                </div>
+            </div>
+            
+            <div class="bio-block">
+                <div class="bio-label" contenteditable="true">Short Version</div>
+                <div class="bio-text" contenteditable="true">
+                    Micah Manaitai is a Guam born, Los Angeles based artist, producer, and composer whose genre-blending work combines music of the Pacific islands, soul/R&amp;B, and pop.
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== SECTION: NARRATIVE ==================== -->
+        <div class="section-header narrative" id="narrative">
+            <div class="section-number">Section 02</div>
+            <div class="section-title">Narrative</div>
+        </div>
+        
+        <!-- Movie Pitch -->
+        <div class="content-section page-break" id="movie-pitch">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: start;">
+                <div>
+                    <div class="subsection-title" style="font-size: 48px; margin-bottom: 40px;" contenteditable="true">The Movie Pitch</div>
+                    
+                    <div class="body-text" contenteditable="true">
+                        Micah Manaitai is a craftsman. Each project starts with him stuck: creative block, self-imposed limitations, the shadow of what he made before. The conflict is him versus infinite creative possibility, paralyzed by his own expectations. He fights the craft, tries extreme approaches, documents the chaos. When he breaks through, he emerges transformed—but that transformation immediately creates the next block.
+                    </div>
+                    
+                    <div class="body-text" contenteditable="true">
+                        The real character is the creative process: sometimes adversary, sometimes collaborator, always unpredictable. Audiences tune in because they recognize the cycle—constantly feeling like you're starting from square one to find the next dimension of your creative potential.
+                    </div>
+                    
+                    <div class="body-text" contenteditable="true">
+                        Micah's story is honest documentation of someone who treats each song like it's the last thing he'll make, who takes the craft deadly seriously while not taking himself too seriously. The tension: will he break through this time? What version emerges next? The answer is always yes, but never final.
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: flex-start;">
+                    <img src="./Micah Manaitai - Artist Guide_files/movie pitch.png" alt="Live at the Troubadour" style="width: 100%; height: auto; max-height: 280px; object-fit: contain; border-radius: 4px;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Archetype Blend -->
+        <div class="content-section white page-break" id="archetype">
+            <div class="subsection-label">Archetype Blend</div>
+            <div class="subsection-title" contenteditable="true">70% Creator / 30% Everyman</div>
+            
+            <div class="two-column">
+                <div class="column-box" style="border-left: 3px solid #D96459;">
+                    <div class="column-title" style="color: #D96459;" contenteditable="true">Creator</div>
+                    <div class="body-text" style="margin: 0;" contenteditable="true">Obsessed with making, driven by vision, always working on the next thing. The craftsman who can't stop.</div>
+                </div>
+                <div class="column-box" style="border-left: 3px solid #E8A45D;">
+                    <div class="column-title" style="color: #E8A45D;" contenteditable="true">Everyman</div>
+                    <div class="body-text" style="margin: 0;" contenteditable="true">Accessible, simple. Not above you—next to you. Everyone can play the ukulele</div>
+                </div>
+            </div>
+            
+            <div class="body-text" style="margin-top: 30px;" contenteditable="true">
+                Target blend: someone you'd want to grab a beer with who also write a song that stops you in your tracks.
+            </div>
+        </div>
+        
+        <!-- Story Style -->
+        <div class="content-section page-break" id="story-style">
+            <div class="subsection-label">Story Style</div>
+            <div class="subsection-title" contenteditable="true">Cyclical Rebirth with Internal Monsters</div>
+            
+            <div class="narrative-beats">
+                <div class="beat">
+                    <div class="beat-number">01</div>
+                    <div class="beat-name" contenteditable="true">The Trap</div>
+                </div>
+                <div class="beat">
+                    <div class="beat-number">02</div>
+                    <div class="beat-name" contenteditable="true">The Struggle</div>
+                </div>
+                <div class="beat">
+                    <div class="beat-number">03</div>
+                    <div class="beat-name" contenteditable="true">The Breakthrough</div>
+                </div>
+                <div class="beat">
+                    <div class="beat-number">04</div>
+                    <div class="beat-name" contenteditable="true">The Rebirth</div>
+                </div>
+                <div class="beat">
+                    <div class="beat-number">05</div>
+                    <div class="beat-name" contenteditable="true">Shadow Returns</div>
+                </div>
+            </div>
+            
+            <div class="two-column" style="margin-top: 40px;">
+                <div>
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">Primary Plot: Rebirth (Cyclical)</div>
+                        <div class="principle-body" contenteditable="true">
+                            Micah's artistry is constantly dying and being reborn as different versions of himself. Each era/project is a transformation, not a step toward some final destination. The "shadow" is his own expectations, creative blocks, the previous version of himself.
+                        </div>
+                    </div>
+                    
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">Secondary Plot: Overcoming the Monster</div>
+                        <div class="principle-body" contenteditable="true">
+                            The antagonist isn't the industry or gatekeepers, it's the creative process. Sometimes he fights the music, sometimes he fights himself. New monsters keep appearing.
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">The Comedy Element</div>
+                        <div class="principle-body" contenteditable="true">
+                            Not a jester, but there is absurdity of the struggle. "Guy takes an instrument people associate with tiny guitars and Makes It Serious" has inherent comedic tension. Lightness from not taking stakes too seriously while taking craft deadly seriously.
+                        </div>
+                    </div>
+                    
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">What This Means</div>
+                        <div class="principle-body" contenteditable="true">
+                            Glorifying the struggle, not just the wins. Documenting the process, the blocks, the "I tried 47 versions of this bridge." Each release framed as transformation, not a step on a ladder. The real story is artist vs. infinite creative possibility.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stakes & Enemies -->
+        <div class="content-section white page-break" id="enemies">
+            <div class="subsection-label">Stakes &amp; Enemies</div>
+            <div class="subsection-title" contenteditable="true">The Forces in Opposition</div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 30px;">
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">Self-imposed pressure</div>
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">Comparison to others</div>
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">Perfectionism</div>
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">Disappointment with output</div>
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">Burnout</div>
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">Overthinking</div>
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">Gear Acquisition Syndrome</div>
+                <div style="padding: 20px; background: #f8f6f3; border: 1px solid #e8e4de; font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.5;" contenteditable="true">The product of music itself as content</div>
+            </div>
+        </div>
+        
+        <!-- Underlying Value System -->
+        <div class="content-section page-break" id="values">
+            <div class="subsection-label">Underlying Value System</div>
+            <div class="subsection-title" contenteditable="true">The Beliefs That Drive Everything</div>
+            
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 30px;">
+                <div style="padding: 25px; background: white; border: 1px solid #e8e4de; border-left: 3px solid #5B8C6E;">
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; line-height: 1.7;" contenteditable="true">We believe in making music specific enough that people can see themselves in it, not music so universal it belongs to no one.</div>
+                </div>
+                <div style="padding: 25px; background: white; border: 1px solid #e8e4de; border-left: 3px solid #5B8C6E;">
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; line-height: 1.7;" contenteditable="true">We believe intention matters—work from internal compulsion creates something fundamentally different than work optimized for metrics.</div>
+                </div>
+                <div style="padding: 25px; background: white; border: 1px solid #e8e4de; border-left: 3px solid #5B8C6E;">
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; line-height: 1.7;" contenteditable="true">We believe artists should use platforms as tools, not blueprints.</div>
+                </div>
+                <div style="padding: 25px; background: white; border: 1px solid #e8e4de; border-left: 3px solid #5B8C6E;">
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; line-height: 1.7;" contenteditable="true">We believe there's a path to making a living that doesn't require abandoning your vision.</div>
+                </div>
+                <div style="padding: 25px; background: white; border: 1px solid #e8e4de; border-left: 3px solid #5B8C6E;">
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; line-height: 1.7;" contenteditable="true">We believe everyone can be an artist and everyone should be empowered to be an artist.&nbsp;</div>
+                </div>
+                <div style="padding: 25px; background: white; border: 1px solid #e8e4de; border-left: 3px solid #5B8C6E;">
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; line-height: 1.7;" contenteditable="true">We believe demand for art isn't limited to what's marketable—genuine expression finds its audience.</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Career Touchpoints -->
+        <div class="content-section white page-break" id="touchpoints">
+            <div class="subsection-label">Career Touchpoints</div>
+            <div class="subsection-title" contenteditable="true">Contemporary Artists Who Model the Values</div>
+            
+            <div class="subsection-intro" contenteditable="true">Artists whose public personas and output reflect aspects of what we're building—not to imitate, but to reference as proof of concept.
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 30px;">
+                <div style="background: #f8f6f3; border: 1px solid #e8e4de; overflow: hidden;">
+                    <img src="./Micah Manaitai - Artist Guide_files/madison cunningham.jpg" alt="Madison Cunningham" style="width: 100%; height: 180px; object-fit: cover; object-position: center 20%;">
+                    <div style="padding: 20px;">
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 18px; font-weight: 600; margin-bottom: 10px;" contenteditable="true">Madison Cunningham</div>
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.6; color: #666;" contenteditable="true">A clear student of the songwriting craft and all its great figures. Immensely talented and skillful with her instruments, but all technicality serves the song. The focal point isn't how good her voice is or how good she is at guitar, it's that her songs are so imaginative.</div>
+                    </div>
+                </div>
+                <div style="background: #f8f6f3; border: 1px solid #e8e4de; overflow: hidden;">
+                    <img src="./Micah Manaitai - Artist Guide_files/yves.jpg" alt="Yves Jarvis" style="width: 100%; height: 180px; object-fit: cover; object-position: center 30%;">
+                    <div style="padding: 20px;">
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 18px; font-weight: 600; margin-bottom: 10px;" contenteditable="true">Yves Jarvis</div>
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.6; color: #666;" contenteditable="true">Extremely well versed in approaches to both pop and experimental music. Virtuosic guitarist, but only expresses it within what makes sense for the sonic world he builds. He comes across as someone who does a lot of exploring and refining. Then what is released is the most essential version of his work, with the live versions allowing space to explore more expansive arrangements.</div>
+                    </div>
+                </div>
+                <div style="background: #f8f6f3; border: 1px solid #e8e4de; overflow: hidden;">
+                    <img src="./Micah Manaitai - Artist Guide_files/dora.jpg" alt="Dora Jar" style="width: 100%; height: 180px; object-fit: cover; object-position: center 15%;">
+                    <div style="padding: 20px;">
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 18px; font-weight: 600; margin-bottom: 10px;" contenteditable="true">Dora Jar</div>
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.6; color: #666;" contenteditable="true">Her personality bleeds through everything with her name on it that the public sees. Careful but playful songwriting, clear and purposeful art direction with a focus on letting her naturally-compelling personality find different visual vessels to fill out. Excellent taste in collaborators and a true showperson as well. Maybe the most traditional 'rock star' persona on this list.</div>
+                    </div>
+                </div>
+                <div style="background: #f8f6f3; border: 1px solid #e8e4de; overflow: hidden;">
+                    <img src="./Micah Manaitai - Artist Guide_files/lianne.jpg" alt="Lianne La Havas" style="width: 100%; height: 180px; object-fit: cover; object-position: center 25%;">
+                    <div style="padding: 20px;">
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 18px; font-weight: 600; margin-bottom: 10px;" contenteditable="true">Lianne La Havas</div>
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.6; color: #666;" contenteditable="true">Someone whose generational talent is defined by capturing it in its rawest form. No gimmicks, she just is that amazing. Her voice is that good, her songs are that good, the instruments sound that good. All of the components are simple, all of the complexity comes from how they're layered.</div>
+                    </div>
+                </div>
+                <div style="background: #f8f6f3; border: 1px solid #e8e4de; overflow: hidden;">
+                    <img src="./Micah Manaitai - Artist Guide_files/theo.jpeg" alt="Theo Katzman" style="width: 100%; height: 180px; object-fit: cover; object-position: center 25%;">
+                    <div style="padding: 20px;">
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 18px; font-weight: 600; margin-bottom: 10px;" contenteditable="true">Theo Katzman</div>
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.6; color: #666;" contenteditable="true">He has captured what I think authenticity should be in the social media landscape. His music, live shows, and visual aesthetic aren't trying to be cool or trendy, he is just unapologetically committed the things that he cares about and that is naturally compelling on its own. Another artist whose talent benefits from being captured in a raw way.</div>
+                    </div>
+                </div>
+                <div style="background: #f8f6f3; border: 1px solid #e8e4de; overflow: hidden;">
+                    <img src="./Micah Manaitai - Artist Guide_files/jack johnson.jpg" alt="Jack Johnson" style="width: 100%; height: 180px; object-fit: cover; object-position: center 20%;">
+                    <div style="padding: 20px;">
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 18px; font-weight: 600; margin-bottom: 10px;" contenteditable="true">Jack Johnson</div>
+                        <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 14px; line-height: 1.6; color: #666;" contenteditable="true">Might feel like the most left field pick, but in recent years, Jack Johnson's whole "thing" has shown to age really well for me. He feels like an artist who anyone could pick up a guitar and sing his songs about as good as he does. His last record with Blake Mills indicated a keen ear and interest in musical and production never heard on a previous album of his. He remains someone who while pushing the boundaries of his own craft, would still be an exceptional hang.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Target Audience -->
+        <div class="content-section page-break" id="audience">
+            <div class="subsection-label">Target Audience</div>
+            <div class="subsection-title" contenteditable="true">Who This Is For</div>
+            
+            <div class="subsection-intro" contenteditable="true">
+                The people who we hope resonate most deeply with what we're making.
+            </div>
+            
+            <div class="two-column" style="margin-top: 30px;">
+                <div>
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">Primary Audience</div>
+                        <div class="principle-body" contenteditable="true">The people of Guam, and Guamanians/Chamorros in the diaspora tend to eagerly adopt those with roots on the island regardless of what they do. I consider this demographic to be core listeners, easy to market to, who will always be somewhat interested in the project. By proxy, many other other islanders relate to the music, particularly in Hawaii, but I do have listeners in New Zealand and Australia. The people of Oceania are who I would like to consider that the music is "for." The goal is to have an audience wider than that feel like the project is something they're finding or being included in on.&nbsp;</div>
+                    </div>
+                    
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">Secondary Audience</div>
+                        <div class="principle-body" contenteditable="true">The music most often finds listenership in "non-music heads," people who maybe don't have extensive libraries or deep, archival types of music taste. Probably not your Pitchfork, Dublab/NTS, 'underground,' 'trend,' or counterculture kind of crowd. I want to appeal to people starting their journey in music, inspiring people to pick up an instrument and write their first song. If this project were a product, the product would be the idea "Hey--I can do that!"</div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">What They Value</div>
+                        <div class="principle-body" contenteditable="true">
+                            Hopefully, they value real people, imperfect art, the idea that they are in on something that not many people are tuned into. It might not be "cool," but it scratches the itch for authenticity in the digital era.</div>
+                    </div>
+                    
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">Where They Are</div>
+                        <div class="principle-body" contenteditable="true">
+                            Lots of Chamorros are on Facebook and WhatsApp, but the younger generation does tend to find itself on the classic generational platforms like TikTok and Instagram. Once something catches on in the community, it spreads like wildfire.&nbsp;</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== SECTION: VISUAL IDENTITY ==================== -->
+        <div class="section-header visual" id="visual">
+            <div class="section-number">Section 03</div>
+            <div class="section-title">Visual Identity System</div>
+        </div>
+        
+        <!-- Typography -->
+        <div class="content-section page-break" id="typography">
+            <div class="subsection-label">Typography</div>
+            <div class="subsection-title" contenteditable="true">Crimson Text + IBM Plex Mono</div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; margin-top: 30px;">
+                <div>
+                    <div class="type-specimen">
+                        <div class="type-label">Crimson Text / Display</div>
+                        <div class="type-display-xl" contenteditable="true">Micah Manaitai</div>
+                    </div>
+                    <div class="type-specimen">
+                        <div class="type-label">Crimson Text / Titles</div>
+                        <div class="type-display-medium" contenteditable="true">Tumaiguini</div>
+                    </div>
+                    <div class="type-specimen">
+                        <div class="type-label">Crimson Text / Body</div>
+                        <div class="type-body" contenteditable="true">Tumaiguini means "to become like this" or "this is the way", it is a song about finding peace at what feels like the end of the world.</div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="type-specimen">
+                        <div class="type-label">IBM Plex Mono / Credits</div>
+                        <div class="type-mono" contenteditable="true">
+                            produced, written, performed / micah manaitai<br>
+                            recorded at home / los angeles, ca 2024<br>
+                            mixed and mastered / micah manaitai
+                        </div>
+                    </div>
+                    <div class="type-specimen">
+                        <div class="type-label">IBM Plex Mono / Metadata</div>
+                        <div class="type-mono" contenteditable="true">
+                            streaming everywhere / link in bio<br>
+                            © 2024 micah manaitai
+                        </div>
+                    </div>
+                    <div class="type-specimen" style="margin-top: 20px;">
+                        <div class="type-label">Usage Rules</div>
+                        <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; line-height: 1.6; color: #666;">
+                            <strong>Crimson</strong> — art/narrative: titles, lyrics, bios, storytelling<br>
+                            <strong>Plex Mono</strong> — technical: credits, dates, links, metadata<br>
+                            Never mix within same text block.
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="padding: 25px; background: white; border: 1px solid #e8e4de;">
+                    <div class="type-label" style="margin-bottom: 15px;">Example / Album Layout</div>
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 28px; font-weight: 400; margin-bottom: 8px;" contenteditable="true">Micah Manaitai</div>
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600; margin-bottom: 5px;" contenteditable="true">Sovereign - EP</div>
+                    <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 12px; font-style: italic; color: #666; margin-bottom: 15px;" contenteditable="true">An island infused space country excursion</div>
+                    <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #666; line-height: 1.8; margin-bottom: 15px;" contenteditable="true">
+                        01. I'm Coming With You<br>
+                        02. Lahaina Noon<br>
+                        03. Uncle!<br>
+                        04. Tumaiguini<br>
+                        05. All Yesterdays
+                    </div>
+                    <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 9px; color: #999;" contenteditable="true">
+                        produced, written, performed / micah manaitai<br>
+                        © 2024 micah manaitai / all rights reserved
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Color Palette -->
+        <div class="content-section white page-break" id="color">
+            <div class="subsection-label">Color Palette</div>
+            <div class="subsection-title" contenteditable="true">Lush Tones + Film Warmth</div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 30px;">
+                <!-- Primary -->
+                <div>
+                    <div class="subsection-label" style="margin-bottom: 10px;">Primary</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #4A90C8; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#4A90C8</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #5B8C6E; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#5B8C6E</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #E8A45D; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#E8A45D</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #D96459; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#D96459</span></div>
+                    </div>
+                </div>
+                
+                <!-- Secondary -->
+                <div>
+                    <div class="subsection-label" style="margin-bottom: 10px;">Secondary</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #8B7355; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#8B7355</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #B8A394; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#B8A394</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #6B7C8A; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#6B7C8A</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #E8DDD0; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#E8DDD0</span></div>
+                    </div>
+                </div>
+                
+                <!-- Accent -->
+                <div>
+                    <div class="subsection-label" style="margin-bottom: 10px;">Accent</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #F4D35E; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#F4D35E</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #EE5A6F; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#EE5A6F</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #7AC7C4; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#7AC7C4</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #9B6B9E; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#9B6B9E</span></div>
+                    </div>
+                </div>
+                
+                <!-- Neutrals -->
+                <div>
+                    <div class="subsection-label" style="margin-bottom: 10px;">Neutrals</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #2A2A2A; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#2A2A2A</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #555555; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#555555</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #F8F6F3; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#F8F6F3</span></div>
+                        <div style="display: flex; align-items: center; gap: 10px;"><div style="width: 40px; height: 40px; background: #FFFFFF; border: 1px solid #e8e4de; border-radius: 4px;"></div><span style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px;">#FFFFFF</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Art Direction -->
+        <div class="content-section page-break" id="art-direction">
+            <div class="section-header art-direction">
+                <div class="section-number">Section 03</div>
+                <div class="section-title">Art Direction</div>
+            </div>
+        </div>
+        
+        <!-- 1. Photography & Video -->
+        <div class="content-section page-break" id="visual-output">
+            <div class="subsection-label">Visual Output</div>
+            <div class="subsection-title" contenteditable="true">Photography &amp; Video</div>
+            
+            <div class="two-column">
+                <div>
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">Photography</div>
+                        <div class="principle-body" contenteditable="true">
+                            Lush tones meet film grain warmth. Bold graphics, vintage vinyl aesthetics, natural collage compositions. Saturated primaries grounded by muted secondaries, organic textures, warm analog feel even in digital capture.
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="principle">
+                        <div class="principle-title" contenteditable="true">Video</div>
+                        <div class="principle-body" contenteditable="true">
+                            Documentary-like, but artful and intentional. Raw and confessional, rough and tumble, run and gun, but with a nice camera. Avoid a staged lighting feel.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 2. Approved Collaborators -->
+        <div class="content-section white page-break" id="collaborators">
+            <div class="subsection-label">Approved Collaborators</div>
+            <div class="subsection-title" contenteditable="true">How to Work With Us</div>
+            
+            <div class="subsection-intro" contenteditable="true">
+                What a photographer, videographer, or creative partner needs to know walking in cold.
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Core Collaborators</div>
+                <div class="principle-body" contenteditable="true">
+                    Your visual identity evolves through the lens of recurring collaborators. Each brings their own signature while respecting the core framework. Different eras reflect different collaborators' growth.
+                </div>
+            </div>
+            
+            <!-- Sid Dueñas -->
+            <div style="margin-top: 40px;">
+                <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 20px; font-weight: 600; margin-bottom: 15px;" contenteditable="true">Sid Dueñas</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/Sid Duenas.png" alt="Sid Dueñas work" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/Sid Duenas 2.png" alt="Sid Dueñas work" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
+                </div>
+            </div>
+            
+            <!-- Alf Bordallo -->
+            <div style="margin-top: 40px;">
+                <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 20px; font-weight: 600; margin-bottom: 15px;" contenteditable="true">Alf Bordallo</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/Alf Bordallo.png" alt="Alf Bordallo work" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/alf bordallo 2.png" alt="Alf Bordallo work" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/alf bordallo 3.png" alt="Alf Bordallo work" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px;">
+                </div>
+            </div>
+            
+            <!-- Tangerine Kimmel -->
+            <div class="force-break" style="margin-top: 40px; page-break-before: always;">
+                <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 20px; font-weight: 600; margin-bottom: 15px;" contenteditable="true">Tangerine Kimmel</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/Tangerine Kimmel.png" alt="Tangerine Kimmel work" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/Tangerine Kimmel 2.png" alt="Tangerine Kimmel work" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/Tangering Kimmel 3.png" alt="Tangerine Kimmel work" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
+                </div>
+            </div>
+            
+            <!-- Geraldine Datuin 'Sigwarz' -->
+            <div style="margin-top: 40px;">
+                <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 20px; font-weight: 600; margin-bottom: 15px;" contenteditable="true">Geraldine Datuin 'Sigwarz'</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/geraldine.png" alt="Geraldine Sigwarz work" style="width: 100%; max-width: 500px; height: auto; border-radius: 4px;">
+                </div>
+            </div>
+            
+            <!-- César Martinez Barba -->
+            <div style="margin-top: 40px;">
+                <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 20px; font-weight: 600; margin-bottom: 15px;" contenteditable="true">César Martinez Barba</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                    <img src="./Micah Manaitai - Artist Guide_files/cesar.png" alt="César Martinez Barba work" style="width: 100%; max-width: 700px; height: auto; border-radius: 4px;">
+                </div>
+            </div>
+            
+            <div class="principle" style="margin-top: 50px;">
+                <div class="principle-title" contenteditable="true">Collaboration Philosophy</div>
+                <div class="principle-body" contenteditable="true">
+                    Trust their eye. Let them push the art visually while the music helps maintain the conceptual anchor. They bring the aesthetic evolution, you bring the thematic consistency. Different cameras, different light, same essence.
+                </div>
+            </div>
+        </div>
+        
+        <!-- 3. Social Media -->
+        <div class="content-section page-break">
+            <div class="subsection-label">Visual Output</div>
+            <div class="subsection-title" contenteditable="true">Social Media</div>
+            
+            <div class="principle">
+                <div class="principle-body" contenteditable="true">
+                    The platforms the music and visual media is post on are tools, not blueprints for what we make. We don't make things for the purpose of it being content. The work is being served as content by nature of sharing it on a platform. Social media presence should serve to make the art accessible, to demonstrate that anyone can make art.
+                </div>
+            </div>
+            
+            <div style="margin-top: 40px;">
+                <div class="subsection-label">On Brand / Account References</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px;">
+                    <div style="background: #f8f6f3; border: 1px solid #e8e4de;">
+                        <a href="https://www.instagram.com/dylnday/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Dylan Day</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@dylnday</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8e4de; padding-top: 10px;">I love that this feels like a performance archive, like it's personal and raw.</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8f6f3; border: 1px solid #e8e4de;">
+                        <a href="https://www.instagram.com/s.wilkes.music/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Sam Wilkes</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@s.wilkes.music</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8e4de; padding-top: 10px;">A bit more graphical, more indicative of a regularly performing musician.</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8f6f3; border: 1px solid #e8e4de;">
+                        <a href="https://www.instagram.com/carolineplz/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Caroline Polachek</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@carolineplz</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8e4de; padding-top: 10px;">I love that she shares dream journals, art that she comes across, weird stuff. Not so much the high fashion, but it all very clearly conveys her personality while accomplishing everything that an account like this should be.</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8f6f3; border: 1px solid #e8e4de;">
+                        <a href="https://www.instagram.com/marlonwilliamssings/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Marlon Williams</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@marlonwilliamssings</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8e4de; padding-top: 10px;">Probably the most middle of the road reference, but there are individual, low key performances on here that really capture what I'm going for.</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8f6f3; border: 1px solid #e8e4de;">
+                        <a href="https://www.instagram.com/spdrtwnbby/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Spdrtwnbby</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@spdrtwnbby</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8e4de; padding-top: 10px;">I just really like her art direction, but I like that this feels like a personal account.</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8f6f3; border: 1px solid #e8e4de;">
+                        <a href="https://www.instagram.com/lucyparkmusic/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Lucy Park</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@lucyparkmusic</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8e4de; padding-top: 10px;">This strikes the balance between feeling personal/casual, and also fostering a realistic connection with listeners.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="force-break" style="margin-top: 30px; page-break-before: always;">
+                <div class="subsection-label">Off Brand / Account References</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px;">
+                    <div style="background: #fff5f5; border: 1px solid #e8d4d4;">
+                        <a href="https://www.youtube.com/watch?v=8jm1Zl2Fjd4" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Scary Pockets</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">YouTube</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8d4d4; padding-top: 10px;">This kind of content doesn't work for me. While they are excellent musicians, it's clear that this music wouldn't follow a listener off a platform and into their life. Feels low stakes in the wrong way.</div>
+                        </div>
+                    </div>
+                    <div style="background: #fff5f5; border: 1px solid #e8d4d4;">
+                        <a href="https://www.instagram.com/sebastiankamae/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Sebastian Kamae</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@sebastiankamae</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8d4d4; padding-top: 10px;">Maybe it's because absolutely zero personality comes across in this account, but it communicates to me that he is a "vibe session" or a "cook" kind of producer which is not my goal. No clear art direction, no perspective.</div>
+                        </div>
+                    </div>
+                    <div style="background: #fff5f5; border: 1px solid #e8d4d4;">
+                        <a href="https://www.instagram.com/kolohekaimusic/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Kolohe Kai</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@kolohekaimusic</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8d4d4; padding-top: 10px;">It's clear that his culture and tradition are forefront, but he feels like too much of a public figure and not a musician. Too 'people please-y.'</div>
+                        </div>
+                    </div>
+                    <div style="background: #fff5f5; border: 1px solid #e8d4d4;">
+                        <a href="https://www.instagram.com/soulyhad/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Soulyhad</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@soulyhad</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8d4d4; padding-top: 10px;">The music is cool, the content is somewhat eye-catching, but I feel like I get the music on the platform. I don't want to follow him to streaming, and it leans into clickbaity tropes that don't work for me.&nbsp;</div>
+                        </div>
+                    </div>
+                    <div style="background: #fff5f5; border: 1px solid #e8d4d4;">
+                        <a href="http://instagram.com/noahrinker/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Noah Rinker</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@noahrinker</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8d4d4; padding-top: 10px;">I just want to be conscious that everything on the account isn't a post of me with an ukulele. This account also doesn't really have any personality, I don't feel like I get to know him and it all just feels kind of homogenous.</div>
+                        </div>
+                    </div>
+                    <div style="background: #fff5f5; border: 1px solid #e8d4d4;">
+                        <a href="https://www.instagram.com/young_dervish/" target="_blank" style="display: block; padding: 20px; text-decoration: none; color: inherit;">
+                            <div style="font-family: &#39;Crimson Text&#39;, serif; font-size: 16px; font-weight: 600;">Young Dervish</div>
+                            <div style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 10px; color: #999; margin-top: 5px;">@young_dervish</div>
+                        </a>
+                        <div style="padding: 0 20px 20px 20px;">
+                            <div contenteditable="true" style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11px; color: #666; line-height: 1.5; min-height: 40px; border-top: 1px solid #e8d4d4; padding-top: 10px;">I really like the music, and maybe it's not the scope of what he wants to do but it's 99% product builds and 1% original music that a listener would want to follow to streaming.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 4. Process Not Person -->
+        <div class="content-section white page-break">
+            <div class="subsection-label">Art Direction</div>
+            <div class="subsection-title" contenteditable="true">The Process, Not the Person</div>
+            
+            <div class="subsection-intro" contenteditable="true">
+                The Signature "Micah Manaitai" thing isn't me physically—it's the relationship between him, his tools, and the environment around him. The look is about creative ecosystem, not individual.
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Primary Visual Anchor: Ukulele as Extension of Self</div>
+                <div class="principle-body" contenteditable="true">
+                    The ukulele isn't a prop—it's the tool that translates what he sees and hears into sound. Like a painter with their palette, a photographer with their camera. It should feel essential, not posed.
+                </div>
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Secondary Elements: Audio Tools</div>
+                <div class="principle-body" contenteditable="true">
+                    Headphones, speakers, bits of audio gear all in service to convey that Micah experiences the world differently—hearing in color, texture, emotion. They're not fashion accessories; the audience comes to understand the artist through the tools.
+                </div>
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Style Signature: Casual Creative Readiness</div>
+                <div class="principle-body" contenteditable="true">
+                    Utilitarian/working aesthetic—clean enough to be professional, grounded enough to get dirty. Movie director energy: someone who looks put-together but isn't precious about getting their hands dirty to get the shot.
+                </div>
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Composition: Artist + Tools + Environment</div>
+                <div class="principle-body" contenteditable="true">
+                    Never just a portrait. Always show the relationship between artist and your instruments. Capture the moment of creation or exploration, not the announcement of it. Think of the active state of making, not the static state of "being an artist."
+                </div>
+            </div>
+            
+            <div class="two-column" style="margin-top: 50px;">
+                <div class="column-box">
+                    <div class="column-title green" contenteditable="true">Do</div>
+                    <ul class="column-list">
+                        <li class="green" contenteditable="true">Show instruments in use, being played</li>
+                        <li class="green" contenteditable="true">Capture in-process moments</li>
+                        <li class="green" contenteditable="true">Feature audio tools (headphones, speakers)</li>
+                        <li class="green" contenteditable="true">Emphasize process + tools</li>
+                        <li class="green" contenteditable="true">Keep it grounded and real</li>
+                    </ul>
+                </div>
+                
+                <div class="column-box">
+                    <div class="column-title red" contenteditable="true">Don't</div>
+                    <ul class="column-list">
+                        <li class="red" contenteditable="true">Pose with instrument like a prop</li>
+                        <li class="red" contenteditable="true">Rely on physical signifiers (hats, etc)</li>
+                        <li class="red" contenteditable="true">Overly styled or fashion-forward looks</li>
+                        <li class="red" contenteditable="true">Studio glamour shots without context</li>
+                        <li class="red" contenteditable="true">Anything that reads "influencer"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 5. What We're Not -->
+        <div class="content-section page-break" id="anti-direction">
+            <div class="subsection-label">Anti-Direction</div>
+            <div class="subsection-title" contenteditable="true">What We're Not</div>
+            
+            <div class="subsection-intro" contenteditable="true">
+                Sometimes it's easier to describe a vision by drawing boundaries. Here's what we are trying to avoid:
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Anti-Desirability</div>
+                <div class="principle-body" contenteditable="true">
+                    Never position the artist as aspirational, attractive, or glamorous. Not documenting a lifestyle to envy—documenting craft to intrigue/inspire. No luxury signifiers, no flex culture, no "look at me" energy. This is the opposite of influencer culture. We're showing them that they can do work, we are not selling the dream.
+                </div>
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Anti-Jealousy</div>
+                <div class="principle-body" contenteditable="true">
+                    People shouldn't want what you're wearing or where you're standing. They should want to put down whatever they're doing and go something as honest as what we're making, because ultimately we're selling the idea that anyone can do this.
+                </div>
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Anti-Personality Cult</div>
+                <div class="principle-body" contenteditable="true">
+                    If someone recreated this visual world, they wouldn't dress up as Micah. They'd set up a scene: ukulele in hand, headphones on, idea being formed mid-photo snap. It's about place + process + tools, not physical signifiers.
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== SECTION: CONSISTENCY ==================== -->
+        <div class="section-header consistency" id="consistency">
+            <div class="section-number">Section 04</div>
+            <div class="section-title">Consistency Framework</div>
+        </div>
+        
+        <!-- Constants vs Variables -->
+        <div class="content-section page-break" id="constants">
+            <div class="subsection-label">Framework</div>
+            <div class="subsection-title" contenteditable="true">Constants vs Variables</div>
+            
+            <div class="subsection-intro" contenteditable="true">
+                Visual style can shift era-to-era, camera-to-camera, collaborator-to-collaborator. What stays constant is the core: craftsperson + tools + environment. The aesthetic evolves, the essence doesn't.
+            </div>
+            
+            <div class="two-column">
+                <div class="column-box">
+                    <div class="column-title green" contenteditable="true">Constants / Never Changes</div>
+                    <ul class="column-list">
+                        <li class="green" contenteditable="true">Instruments always visible (uke, keyboard, tools)</li>
+                        <li class="green" contenteditable="true">Craftsperson-at-work framing</li>
+                        <li class="green" contenteditable="true">Anti-pose, candid energy</li>
+                        <li class="green" contenteditable="true">Process over personality</li>
+                        <li class="green" contenteditable="true">Crimson Text + IBM Plex Mono typography</li>
+                        <li class="green" contenteditable="true">Color palette foundation</li>
+                        <li class="green" contenteditable="true">Humble/honest/inspired tone</li>
+                    </ul>
+                </div>
+                
+                <div class="column-box">
+                    <div class="column-title blue" contenteditable="true">Variables / Era-to-Era</div>
+                    <ul class="column-list">
+                        <li class="blue" contenteditable="true">Camera format and film stock aesthetic</li>
+                        <li class="blue" contenteditable="true">Lighting style and contrast levels</li>
+                        <li class="blue" contenteditable="true">Color grading intensity</li>
+                        <li class="blue" contenteditable="true">Specific locations</li>
+                        <li class="blue" contenteditable="true">Clothing details (always workwear, different pieces)</li>
+                        <li class="blue" contenteditable="true">Collaborator's visual signature</li>
+                        <li class="blue" contenteditable="true">Which instruments are featured</li>
+                        <li class="blue" contenteditable="true">Time of day and natural light quality</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="principle" style="margin-top: 50px;">
+                <div class="principle-title" contenteditable="true">High Flexibility Zones</div>
+                <div class="principle-body" contenteditable="true">
+                    Camera format, color grading style, lighting approach, specific locations, time of day, which collaborator is shooting, clothing details, grain and texture levels.
+                </div>
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Medium Flexibility Zones</div>
+                <div class="principle-body" contenteditable="true">
+                    Compositional approaches (wide vs tight), color palette intensity (saturated vs muted within base palette), which instruments/tools are featured (uke vs keyboard vs recording gear).
+                </div>
+            </div>
+            
+            <div class="principle">
+                <div class="principle-title" contenteditable="true">Low Flexibility Zones</div>
+                <div class="principle-body" contenteditable="true">
+                    Tools always visible, craftsperson-at-work framing, anti-pose energy, anti-glamour approach, typography system, process-over-personality philosophy, humble and raw tone.
+                </div>
+            </div>
+        </div>
+            
+            <div class="summary-box" style="margin-top: 50px;">
+                <div class="summary-title">The Complete System / Summary</div>
+                <div class="summary-body" contenteditable="true">
+                    <em>Craftsman aesthetic. Anti-personality cult.</em><br><br>
+                    
+                    <strong>Typography:</strong> Crimson Text for all artistic content, IBM Plex Mono for all technical credits. Clear hierarchy between emotion (serif) and function (mono).<br><br>
+                    
+                    <strong>Color:</strong> Saturated primaries mixed with muted secondaries, punctuated by rare accent colors. Always anchored by warm neutrals. Never pure black or white.<br><br>
+                    
+                    <strong>Art Direction:</strong> Process + tools. Ukulele always visible, in use. Headphones/speakers show sonic world. Utilitarian styling/workwear aesthetics. In-process, not posed.<br><br>
+                    
+                    <strong>Consistency:</strong> Constants never change (tools visible, anti-pose, craftsperson framing, type system, humble tone). Variables evolve era-to-era through collaborators' eyes (camera format, lighting, color grading, locations). Hard rules: never glamorous, never aspirational, never luxury signifiers.<br><br>
+                    
+                    <em>The aesthetic evolves. The essence doesn't.</em>
+                </div>
+            </div>
+        </div>
+        
+    
+
+
+</body></html>
