@@ -808,12 +808,13 @@
         // Navigation Event Listeners
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
-                e.preventDefault();
                 const moduleName = link.getAttribute('data-module');
-                // Only load module if data-module attribute exists
+                // Only prevent default and load module if data-module attribute exists
                 if (moduleName) {
+                    e.preventDefault();
                     loadModule(moduleName);
                 }
+                // Otherwise let the link work normally (e.g., resources link)
             });
         });
 
