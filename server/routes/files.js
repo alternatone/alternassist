@@ -155,10 +155,16 @@ router.get('/public/:id/download', (req, res) => {
       return res.status(404).json({ error: 'File not found on disk' });
     }
 
-    // Set headers for download
+    // Set headers for download - force streaming without buffering
+    const stat = fs.statSync(filePath);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
-    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
-    res.setHeader('Content-Length', fs.statSync(filePath).size);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Cache-Control', 'no-store');
+
+    // Flush headers immediately so browser shows download dialog
+    res.flushHeaders();
 
     // Stream the file
     fs.createReadStream(filePath).pipe(res);

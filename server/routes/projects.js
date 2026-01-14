@@ -585,7 +585,16 @@ router.get('/:id/files', (req, res) => {
 });
 
 // Upload file to a specific project (admin access)
-router.post('/:id/upload', projectUpload.single('file'), async (req, res) => {
+router.post('/:id/upload', (req, res, next) => {
+  // Handle multer errors explicitly
+  projectUpload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Upload error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

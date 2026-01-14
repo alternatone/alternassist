@@ -1,5 +1,38 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+
+// Get correct app path for packaged apps
+function getAppPath() {
+    if (app.isPackaged) {
+        return app.getAppPath();
+    }
+    return __dirname;
+}
+
+// Initialize database for packaged apps - copy from resources if needed
+function initializeDatabase() {
+    if (app.isPackaged) {
+        const userDataPath = app.getPath('userData');
+        const destDbPath = path.join(userDataPath, 'alternaview.db');
+
+        // If database doesn't exist in user data, copy from resources
+        if (!fs.existsSync(destDbPath)) {
+            const resourcesPath = process.resourcesPath;
+            const sourceDbPath = path.join(resourcesPath, 'alternaview.db');
+
+            if (fs.existsSync(sourceDbPath)) {
+                console.log('Copying database from resources to user data...');
+                fs.copyFileSync(sourceDbPath, destDbPath);
+                console.log('Database copied to:', destDbPath);
+            } else {
+                console.log('No bundled database found, will create new one at:', destDbPath);
+            }
+        } else {
+            console.log('Using existing database at:', destDbPath);
+        }
+    }
+}
 
 // NoteMarker PTSL imports
 const { PTSLConnectionManager } = require('./src/notemarker/ptsl-connection-manager');
@@ -13,6 +46,8 @@ let ptslManager = null;
 let markerPipeline = null;
 
 function createWindow() {
+    const appPath = getAppPath();
+
     const mainWindow = new BrowserWindow({
         width: 1400,
         height: 900,
@@ -21,7 +56,7 @@ function createWindow() {
             contextIsolation: true,
             enableWebSQL: false,
             spellcheck: false,
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(appPath, 'preload.js'),
             cache: false
         },
         titleBarStyle: 'hiddenInset',
@@ -33,7 +68,7 @@ function createWindow() {
     // Disable HTTP cache
     mainWindow.webContents.session.clearCache();
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile(path.join(appPath, 'index.html'));
 
     // Show window when ready to prevent flash
     mainWindow.once('ready-to-show', () => {
@@ -52,22 +87,6 @@ function createWindow() {
     // mainWindow.webContents.openDevTools();
 }
 
-app.whenReady().then(() => {
-    createWindow();
-
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
-        }
-    });
-});
-
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
-
 // Initialize PTSL for NoteMarker
 function initializePTSL() {
     try {
@@ -85,16 +104,35 @@ function initializePTSL() {
     }
 }
 
-// Initialize PTSL and Alternaview server when app is ready
 app.whenReady().then(() => {
+    // Initialize database before anything else
+    initializeDatabase();
+
+    // Initialize PTSL (non-blocking, OK if it fails)
     initializePTSL();
 
-    // Start the Alternaview Express server
+    // Start the Alternaview Express server BEFORE creating window
+    // This ensures the API is ready when the UI tries to fetch data
     try {
         alternaviewServer.startServer();
         console.log('Alternaview server started successfully');
     } catch (error) {
         console.error('Failed to start Alternaview server:', error);
+    }
+
+    // Now create the window after server is ready
+    createWindow();
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
     }
 });
 

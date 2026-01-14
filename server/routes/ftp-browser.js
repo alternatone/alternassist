@@ -273,6 +273,106 @@ router.get('/stream', requireAdmin, (req, res) => {
   }
 });
 
+// Public stream file from FTP (for share links - no auth required)
+router.get('/public/stream', (req, res) => {
+  try {
+    ensureFTPAvailable();
+
+    const requestedPath = req.query.path;
+    if (!requestedPath) {
+      return res.status(400).json({ error: 'Path parameter required' });
+    }
+
+    // Security: Prevent directory traversal with proper sanitization
+    const safePath = sanitizePath(requestedPath);
+
+    if (!fs.existsSync(safePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const stats = fs.statSync(safePath);
+    if (!stats.isFile()) {
+      return res.status(400).json({ error: 'Path is not a file' });
+    }
+
+    const { size } = stats;
+    const range = req.headers.range;
+
+    let start = 0;
+    let end = size - 1;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      start = parseInt(parts[0], 10);
+      end = parts[1] ? parseInt(parts[1], 10) : size - 1;
+    }
+
+    const headers = {
+      'Accept-Ranges': 'bytes',
+      'Content-Length': end - start + 1,
+      'Content-Type': getMimeType(safePath)
+    };
+
+    if (range) {
+      headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
+    }
+
+    res.writeHead(range ? 206 : 200, headers);
+
+    const stream = fs.createReadStream(safePath, { start, end });
+    stream.on('error', (streamError) => {
+      console.error('Stream read error:', streamError);
+    });
+    stream.pipe(res);
+
+  } catch (error) {
+    if (error.message.includes('FTP drive not mounted')) {
+      return res.status(503).json({
+        error: 'FTP drive not available',
+        suggestion: 'Please connect the external drive.'
+      });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public download file from FTP (for share links - no auth required)
+router.get('/public/download', (req, res) => {
+  try {
+    ensureFTPAvailable();
+
+    const requestedPath = req.query.path;
+    if (!requestedPath) {
+      return res.status(400).json({ error: 'Path parameter required' });
+    }
+
+    // Security: Prevent directory traversal with proper sanitization
+    const safePath = sanitizePath(requestedPath);
+
+    if (!fs.existsSync(safePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const stats = fs.statSync(safePath);
+    if (!stats.isFile()) {
+      return res.status(400).json({ error: 'Path is not a file' });
+    }
+
+    const filename = path.basename(safePath);
+    res.setHeader('Content-Length', stats.size);
+    res.download(safePath, filename);
+
+  } catch (error) {
+    if (error.message.includes('FTP drive not mounted')) {
+      return res.status(503).json({
+        error: 'FTP drive not available',
+        suggestion: 'Please connect the external drive.'
+      });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Download file from FTP (ADMIN ONLY)
 router.get('/download', requireAdmin, (req, res) => {
   try {

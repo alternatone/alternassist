@@ -7,7 +7,41 @@
     "start": "unset ELECTRON_RUN_AS_NODE && electron .",
     "dev": "unset ELECTRON_RUN_AS_NODE && electron .",
     "web": "python3 -m http.server 8080",
-    "build": "electron-packager . Alternassist --platform=darwin --arch=arm64 --icon=assets/icon.icns --out=dist --overwrite"
+    "build": "electron-builder --mac",
+    "build:old": "electron-packager . Alternassist --platform=darwin --arch=arm64 --icon=assets/icon.icns --out=dist --overwrite"
+  },
+  "build": {
+    "appId": "com.alternatone.alternassist",
+    "productName": "Alternassist",
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "files": [
+      "**/*",
+      ".session-secret",
+      "!dist/**",
+      "!*.md",
+      "!.git/**",
+      "!.gitignore"
+    ],
+    "extraResources": [
+      {
+        "from": "alternaview.db",
+        "to": "alternaview.db"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    }
   },
   "keywords": [
     "accounting",
@@ -38,6 +72,7 @@
   },
   "devDependencies": {
     "@electron/packager": "^18.4.4",
+    "dmg-license": "^1.0.11",
     "electron": "^38.2.1",
     "electron-builder": "^26.0.12"
   }

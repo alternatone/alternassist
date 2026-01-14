@@ -1,8 +1,25 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { db } = require('../models/database');
+const fs = require('fs');
+const path = require('path');
+const { db, fileQueries } = require('../models/database');
 const { requireAdmin } = require('../middleware/auth');
+
+// Get the correct app base path (handles packaged Electron apps)
+function getAppPath() {
+  try {
+    const { app } = require('electron');
+    if (app && app.isPackaged) {
+      return app.getAppPath();
+    }
+  } catch (e) {
+    // Not running in Electron
+  }
+  return path.join(__dirname, '../..');
+}
+
+const APP_PATH = getAppPath();
 
 const router = express.Router();
 
@@ -264,6 +281,7 @@ function parseExpiry(expiryString) {
 }
 
 function redirectToProject(link, res) {
+  console.log('[SHARE] redirectToProject called with link:', JSON.stringify(link));
   // Update access count
   shareQueries.updateAccessCount.run(link.token);
 
@@ -271,12 +289,37 @@ function redirectToProject(link, res) {
   if (link.project_id) {
     // Project share link
     res.redirect(`/client/login.html?share=${link.token}&project=${link.project_id}`);
-  } else if (link.file_id) {
-    // Database file share link - go directly to public viewer
-    res.redirect(`/media/public_viewer.html?fileId=${link.file_id}`);
-  } else if (link.ftp_path) {
-    // FTP browser file share link - go to public viewer
-    res.redirect(`/media/public_viewer.html?ftpFile=${encodeURIComponent(link.ftp_path)}`);
+  } else if (link.file_id || link.ftp_path) {
+    // File share link - serve public viewer with title pre-set
+    let fileName = 'Video Review';
+
+    if (link.file_id) {
+      // Get filename from database
+      const file = fileQueries.findById.get(link.file_id);
+      if (file) {
+        fileName = file.original_name;
+      }
+    } else if (link.ftp_path) {
+      // Extract filename from path
+      fileName = link.ftp_path.split('/').pop();
+    }
+
+    // Read the public viewer HTML and inject the title
+    const viewerPath = path.join(APP_PATH, 'public/public_viewer.html');
+    let html = fs.readFileSync(viewerPath, 'utf8');
+
+    // Replace title and og:title
+    const safeTitle = fileName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html = html.replace(/<title>Video Review<\/title>/, `<title>${safeTitle} - Alternassist</title>`);
+    html = html.replace(/content="Video Review"/, `content="${safeTitle} - Alternassist"`);
+
+    // Inject the file parameters as a script so the page knows what to load
+    const params = link.file_id
+      ? `window.SHARE_FILE_ID = ${link.file_id};`
+      : `window.SHARE_FTP_PATH = "${link.ftp_path.replace(/"/g, '\\"')}";`;
+    html = html.replace('</head>', `<script>${params}</script></head>`);
+
+    res.send(html);
   } else {
     res.status(500).send('Invalid share link configuration');
   }

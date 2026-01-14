@@ -7,6 +7,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Video Review</title>
+    <meta property="og:title" content="Video Review" id="og-title">
+    <meta property="og:site_name" content="Alternassist">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family=Public+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -843,12 +845,12 @@
         let currentDownloadUrl = null;
         let currentFileName = null;
 
-        // Get file and project ID from URL parameters
+        // Get file and project ID from URL parameters or injected window variables
         const urlParams = new URLSearchParams(window.location.search);
         currentFileId = urlParams.get('file');
         projectId = urlParams.get('project'); // Get project ID from URL
-        const ftpFilePath = urlParams.get('ftpFile'); // Get FTP file path from URL
-        const shareFileId = urlParams.get('fileId'); // Get file ID for share links
+        const ftpFilePath = urlParams.get('ftpFile') || window.SHARE_FTP_PATH; // Get FTP file path from URL or injected var
+        const shareFileId = urlParams.get('fileId') || window.SHARE_FILE_ID; // Get file ID for share links or injected var
 
         // Load file from backend if specified
         if (ftpFilePath) {
@@ -911,6 +913,7 @@
 
                 videoFilename.textContent = file.original_name;
                 currentVideoFile = file.original_name;
+                document.title = file.original_name + ' - Alternassist';
 
                 // Hide placeholder
                 videoPlaceholder.style.display = 'none';
@@ -946,16 +949,17 @@
                     audioPlayer.src = '';
                 }
 
-                // Set source to FTP stream endpoint
-                const streamUrl = `/api/ftp/stream?path=${encodeURIComponent(filePath)}`;
+                // Set source to FTP public stream endpoint (no auth required for share links)
+                const streamUrl = `/api/ftp/public/stream?path=${encodeURIComponent(filePath)}`;
                 activePlayer.src = streamUrl;
 
                 // Set download info
-                currentDownloadUrl = `/api/ftp/download?path=${encodeURIComponent(filePath)}`;
+                currentDownloadUrl = `/api/ftp/public/download?path=${encodeURIComponent(filePath)}`;
                 currentFileName = fileName;
 
                 videoFilename.textContent = fileName;
                 currentVideoFile = fileName;
+                document.title = fileName + ' - Alternassist';
 
                 // Hide placeholder
                 videoPlaceholder.style.display = 'none';
@@ -1015,6 +1019,7 @@
 
                 videoFilename.textContent = file.original_name;
                 currentVideoFile = file.original_name;
+                document.title = file.original_name + ' - Alternassist';
 
                 // Hide placeholder
                 videoPlaceholder.style.display = 'none';

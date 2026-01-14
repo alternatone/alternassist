@@ -8,6 +8,19 @@ const { PTSLErrorHandler, PTSL_ERROR_TYPES } = require('./ptsl-error-handler.js'
 // Import generated protobuf definitions for creating message instances
 const ptslProto = require('./ptsl-proto.js');
 
+// Get correct app path for packaged Electron apps
+function getAppPath() {
+    try {
+        const { app } = require('electron');
+        if (app && app.isPackaged) {
+            return app.getAppPath();
+        }
+    } catch (e) {
+        // Not running in Electron
+    }
+    return path.join(__dirname, '../..');
+}
+
 // Connection States
 const CONNECTION_STATE = {
     DISCONNECTED: 'disconnected',
@@ -187,7 +200,8 @@ class PTSLConnectionManager extends EventEmitter {
      */
     async loadGrpcService() {
         try {
-            const protoPath = path.join(__dirname, '..', 'proto', 'PTSL.proto');
+            const appPath = getAppPath();
+            const protoPath = path.join(appPath, 'src', 'proto', 'PTSL.proto');
             
             const packageDefinition = protoLoader.loadSync(protoPath, {
                 keepCase: true,

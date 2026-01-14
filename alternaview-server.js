@@ -4,10 +4,26 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 
+// Get the correct app base path (handles packaged Electron apps)
+function getAppPath() {
+  try {
+    const { app } = require('electron');
+    if (app && app.isPackaged) {
+      // In packaged app, static files are in the app.asar
+      return app.getAppPath();
+    }
+  } catch (e) {
+    // Not running in Electron
+  }
+  return __dirname;
+}
+
+const APP_PATH = getAppPath();
+
 // Load session secret from file or environment
 let sessionSecret;
 try {
-  sessionSecret = fs.readFileSync(path.join(__dirname, '.session-secret'), 'utf8').trim();
+  sessionSecret = fs.readFileSync(path.join(APP_PATH, '.session-secret'), 'utf8').trim();
 } catch (e) {
   console.warn('WARNING: .session-secret file not found, using environment variable');
   sessionSecret = process.env.SESSION_SECRET || 'INSECURE-FALLBACK-' + Math.random();
@@ -56,6 +72,15 @@ function startServer() {
     next();
   });
 
+  // Check if running in Electron (local app) vs production
+  let isLocalApp = false;
+  try {
+    const { app } = require('electron');
+    isLocalApp = !!app;
+  } catch (e) {
+    // Not in Electron
+  }
+
   // Session middleware with enhanced security
   app.use(session({
     secret: config.sessionSecret,
@@ -64,8 +89,8 @@ function startServer() {
     cookie: {
       maxAge: config.sessionMaxAge,
       httpOnly: true,
-      secure: true,  // HTTPS only
-      sameSite: 'strict',
+      secure: !isLocalApp,  // HTTPS only in production, HTTP OK for local Electron app
+      sameSite: isLocalApp ? 'lax' : 'strict',  // Lax for local to allow iframe cookies
       path: '/'
     }
   }));
@@ -133,7 +158,7 @@ function startServer() {
   });
 
   // Serve static files from public directory with no-cache headers for development
-  app.use('/media', express.static(path.join(__dirname, 'public'), {
+  app.use('/media', express.static(path.join(APP_PATH, 'public'), {
     etag: false,
     maxAge: 0,
     setHeaders: (res) => {
@@ -144,7 +169,7 @@ function startServer() {
   }));
 
   // Serve client portal at /client
-  app.use('/client', express.static(path.join(__dirname, 'client-portal'), {
+  app.use('/client', express.static(path.join(APP_PATH, 'client-portal'), {
     etag: false,
     maxAge: 0,
     setHeaders: (res) => {
