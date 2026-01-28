@@ -992,13 +992,28 @@
 
         async function loadCommentsFromBackend() {
             try {
-                const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`);
-                if (response.ok) {
-                    comments = await response.json();
+                if (projectId && currentFileId) {
+                    const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`);
+                    if (response.ok) {
+                        comments = await response.json();
+                        // Clear localStorage backup since server has the data
+                        clearCommentsLocalStorage();
+                        renderComments();
+                    } else {
+                        // Server failed, try localStorage backup
+                        comments = loadCommentsFromLocalStorage();
+                        renderComments();
+                    }
+                } else {
+                    // No server connection possible, load from localStorage
+                    comments = loadCommentsFromLocalStorage();
                     renderComments();
                 }
             } catch (error) {
                 console.error('Error loading comments:', error);
+                // Fallback to localStorage on error
+                comments = loadCommentsFromLocalStorage();
+                renderComments();
             }
 
             // Load saved author from localStorage
@@ -1010,6 +1025,12 @@
 
         async function saveCommentToBackend(comment) {
             try {
+                if (!projectId || !currentFileId) {
+                    console.warn('Missing projectId or fileId, saving to localStorage only');
+                    saveCommentsToLocalStorage();
+                    return null;
+                }
+
                 const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1022,10 +1043,17 @@
 
                 if (response.ok) {
                     const savedComment = await response.json();
+                    // Clear localStorage backup since server has the data
+                    clearCommentsLocalStorage();
                     return savedComment;
+                } else {
+                    console.warn('Server save failed, backing up to localStorage');
+                    saveCommentsToLocalStorage();
                 }
             } catch (error) {
                 console.error('Error saving comment:', error);
+                // Backup to localStorage on error
+                saveCommentsToLocalStorage();
             }
             return null;
         }
@@ -1034,6 +1062,43 @@
         function saveAuthor() {
             if (authorInput.value) {
                 localStorage.setItem('video-review-author', authorInput.value);
+            }
+        }
+
+        // Get localStorage key for comments backup
+        function getCommentsStorageKey() {
+            return currentFileId ? `video-review-comments-${currentFileId}` : null;
+        }
+
+        // Save comments to localStorage as backup
+        function saveCommentsToLocalStorage() {
+            const key = getCommentsStorageKey();
+            if (key && comments.length > 0) {
+                localStorage.setItem(key, JSON.stringify(comments));
+            }
+        }
+
+        // Load comments from localStorage backup
+        function loadCommentsFromLocalStorage() {
+            const key = getCommentsStorageKey();
+            if (key) {
+                const saved = localStorage.getItem(key);
+                if (saved) {
+                    try {
+                        return JSON.parse(saved);
+                    } catch (e) {
+                        console.error('Error parsing saved comments:', e);
+                    }
+                }
+            }
+            return [];
+        }
+
+        // Clear localStorage backup after successful server sync
+        function clearCommentsLocalStorage() {
+            const key = getCommentsStorageKey();
+            if (key) {
+                localStorage.removeItem(key);
             }
         }
 

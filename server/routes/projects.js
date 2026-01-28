@@ -568,6 +568,7 @@ const projectUpload = multer({
 });
 
 // Get files for a specific project (admin/no-auth access)
+// Scans the actual filesystem and syncs with database
 router.get('/:id/files', (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
@@ -577,12 +578,117 @@ router.get('/:id/files', (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const files = fileQueries.findByProject.all(projectId);
-    res.json(files);
+    // Get the project folder path
+    const folderPath = project.folder_path || project.name;
+    const projectPath = path.join(config.storagePath, folderPath);
+
+    // Check if project folder exists
+    if (!fs.existsSync(projectPath)) {
+      // Return database files if folder doesn't exist
+      const files = fileQueries.findByProject.all(projectId);
+      return res.json(files);
+    }
+
+    // Scan filesystem and sync with database
+    const filesOnDisk = [];
+    const folders = ['FROM AA', 'TO AA'];
+
+    for (const folder of folders) {
+      const folderFullPath = path.join(projectPath, folder);
+      if (fs.existsSync(folderFullPath)) {
+        const dirEntries = fs.readdirSync(folderFullPath);
+        for (const filename of dirEntries) {
+          // Skip hidden files and directories
+          if (filename.startsWith('.')) continue;
+
+          const filePath = path.join(folderFullPath, filename);
+          const stat = fs.statSync(filePath);
+
+          // Skip directories
+          if (stat.isDirectory()) continue;
+
+          // Check if file exists in database
+          const existingFile = db.prepare(
+            'SELECT * FROM files WHERE file_path = ?'
+          ).get(filePath);
+
+          if (existingFile) {
+            filesOnDisk.push(existingFile);
+          } else {
+            // Add new file to database
+            const ext = path.extname(filename).toLowerCase();
+            const mimeType = getMimeType(ext);
+
+            const result = fileQueries.create.run(
+              projectId,
+              filename,
+              filename, // original_name same as filename for FTP files
+              filePath,
+              stat.size,
+              mimeType,
+              null, // duration
+              null, // transcoded_file_path
+              folder
+            );
+
+            filesOnDisk.push({
+              id: result.lastInsertRowid,
+              project_id: projectId,
+              filename: filename,
+              original_name: filename,
+              file_path: filePath,
+              file_size: stat.size,
+              mime_type: mimeType,
+              duration: null,
+              transcoded_file_path: null,
+              folder: folder,
+              uploaded_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+    }
+
+    res.json(filesOnDisk);
   } catch (error) {
+    console.error('Error getting project files:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
+// Helper function to determine MIME type from extension
+function getMimeType(ext) {
+  const mimeTypes = {
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.avi': 'video/x-msvideo',
+    '.mkv': 'video/x-matroska',
+    '.webm': 'video/webm',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
+    '.flac': 'audio/flac',
+    '.ogg': 'audio/ogg',
+    '.aif': 'audio/aiff',
+    '.aiff': 'audio/aiff',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.zip': 'application/zip',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.txt': 'text/plain'
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+}
 
 // Upload file to a specific project (admin access)
 router.post('/:id/upload', (req, res, next) => {

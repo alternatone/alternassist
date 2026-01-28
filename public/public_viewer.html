@@ -848,7 +848,7 @@
         // Get file and project ID from URL parameters or injected window variables
         const urlParams = new URLSearchParams(window.location.search);
         currentFileId = urlParams.get('file');
-        projectId = urlParams.get('project'); // Get project ID from URL
+        projectId = urlParams.get('project') || window.SHARE_PROJECT_ID; // Get project ID from URL or injected var
         const ftpFilePath = urlParams.get('ftpFile') || window.SHARE_FTP_PATH; // Get FTP file path from URL or injected var
         const shareFileId = urlParams.get('fileId') || window.SHARE_FILE_ID; // Get file ID for share links or injected var
 
@@ -1037,9 +1037,16 @@
                 activePlayer.load();
                 console.log('[Public Viewer] Media load initiated');
 
-                // Note: Public files don't have comment support
-                comments = [];
-                renderComments();
+                // Set currentFileId for comment operations
+                currentFileId = fileId;
+
+                // Load comments if we have projectId
+                if (projectId) {
+                    loadCommentsFromBackend();
+                } else {
+                    comments = [];
+                    renderComments();
+                }
             } catch (error) {
                 console.error('Error loading public file:', error);
                 alert('Failed to load file');
@@ -1047,14 +1054,32 @@
         }
 
         async function loadCommentsFromBackend() {
+            const fileId = currentFileId || window.SHARE_FILE_ID;
+            const projId = projectId || window.SHARE_PROJECT_ID;
+
             try {
-                const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`);
-                if (response.ok) {
-                    comments = await response.json();
+                if (projId && fileId) {
+                    const response = await fetch(`/api/files/${projId}/${fileId}/comments`);
+                    if (response.ok) {
+                        comments = await response.json();
+                        // Clear localStorage backup since server has the data
+                        clearCommentsLocalStorage();
+                        renderComments();
+                    } else {
+                        // Server failed, try localStorage backup
+                        comments = loadCommentsFromLocalStorage();
+                        renderComments();
+                    }
+                } else {
+                    // No server connection possible, load from localStorage
+                    comments = loadCommentsFromLocalStorage();
                     renderComments();
                 }
             } catch (error) {
                 console.error('Error loading comments:', error);
+                // Fallback to localStorage on error
+                comments = loadCommentsFromLocalStorage();
+                renderComments();
             }
 
             // Load saved author from localStorage
@@ -1066,7 +1091,16 @@
 
         async function saveCommentToBackend(comment) {
             try {
-                const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`, {
+                const fileId = currentFileId || window.SHARE_FILE_ID;
+                const projId = projectId || window.SHARE_PROJECT_ID;
+
+                if (!projId || !fileId) {
+                    console.warn('Missing projectId or fileId, saving to localStorage only');
+                    saveCommentsToLocalStorage();
+                    return null;
+                }
+
+                const response = await fetch(`/api/files/${projId}/${fileId}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1078,10 +1112,17 @@
 
                 if (response.ok) {
                     const savedComment = await response.json();
+                    // Clear localStorage backup since server has the data
+                    clearCommentsLocalStorage();
                     return savedComment;
+                } else {
+                    console.warn('Server save failed, backing up to localStorage');
+                    saveCommentsToLocalStorage();
                 }
             } catch (error) {
                 console.error('Error saving comment:', error);
+                // Backup to localStorage on error
+                saveCommentsToLocalStorage();
             }
             return null;
         }
@@ -1090,6 +1131,44 @@
         function saveAuthor() {
             if (authorInput.value) {
                 localStorage.setItem('video-review-author', authorInput.value);
+            }
+        }
+
+        // Get localStorage key for comments backup
+        function getCommentsStorageKey() {
+            const fileId = currentFileId || window.SHARE_FILE_ID;
+            return fileId ? `video-review-comments-${fileId}` : null;
+        }
+
+        // Save comments to localStorage as backup
+        function saveCommentsToLocalStorage() {
+            const key = getCommentsStorageKey();
+            if (key && comments.length > 0) {
+                localStorage.setItem(key, JSON.stringify(comments));
+            }
+        }
+
+        // Load comments from localStorage backup
+        function loadCommentsFromLocalStorage() {
+            const key = getCommentsStorageKey();
+            if (key) {
+                const saved = localStorage.getItem(key);
+                if (saved) {
+                    try {
+                        return JSON.parse(saved);
+                    } catch (e) {
+                        console.error('Error parsing saved comments:', e);
+                    }
+                }
+            }
+            return [];
+        }
+
+        // Clear localStorage backup after successful server sync
+        function clearCommentsLocalStorage() {
+            const key = getCommentsStorageKey();
+            if (key) {
+                localStorage.removeItem(key);
             }
         }
 

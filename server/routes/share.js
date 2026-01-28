@@ -314,9 +314,15 @@ function redirectToProject(link, res) {
     html = html.replace(/content="Video Review"/, `content="${safeTitle} - Alternassist"`);
 
     // Inject the file parameters as a script so the page knows what to load
-    const params = link.file_id
-      ? `window.SHARE_FILE_ID = ${link.file_id};`
-      : `window.SHARE_FTP_PATH = "${link.ftp_path.replace(/"/g, '\\"')}";`;
+    let params;
+    if (link.file_id) {
+      // Get project ID from the file
+      const file = fileQueries.findById.get(link.file_id);
+      const projectIdParam = file ? `window.SHARE_PROJECT_ID = ${file.project_id};` : '';
+      params = `window.SHARE_FILE_ID = ${link.file_id}; ${projectIdParam}`;
+    } else {
+      params = `window.SHARE_FTP_PATH = "${link.ftp_path.replace(/"/g, '\\"')}";`;
+    }
     html = html.replace('</head>', `<script>${params}</script></head>`);
 
     res.send(html);
