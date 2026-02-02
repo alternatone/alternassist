@@ -494,6 +494,16 @@
             color: var(--accent-teal);
         }
 
+        .comment-timecode.clickable {
+            cursor: pointer;
+            transition: color 0.2s, text-decoration 0.2s;
+        }
+
+        .comment-timecode.clickable:hover {
+            color: var(--accent-blue);
+            text-decoration: underline;
+        }
+
         .comment-status {
             display: inline-block;
             padding: 0.2rem 0.5rem;
@@ -1393,8 +1403,8 @@
             return `
                 <div class="comment-card ${isReply ? 'reply' : ''} ${activeCommentId === comment.id ? 'active' : ''}" data-id="${comment.id}">
                     <div class="comment-header">
-                        <span class="comment-timecode">${comment.timecode || ''}</span>
-                        <span class="comment-status status-${comment.status || 'open'}">${comment.status || 'open'}</span>
+                        ${comment.timecode ? `<span class="comment-timecode clickable" data-time="${comment.timeSeconds || 0}">${comment.timecode}</span>` : ''}
+                        ${!isReply ? `<span class="comment-status status-${comment.status || 'open'}">${comment.status || 'open'}</span>` : ''}
                     </div>
                     <div class="comment-author">${comment.author}</div>
                     <div class="comment-text">${comment.text}</div>
@@ -1407,12 +1417,12 @@
                                     <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
                                 </svg>
                             </button>` : ''}
-                            <button class="icon-btn resolve-btn" title="${(comment.status || 'open') === 'open' ? 'Resolve' : 'Reopen'}">
+                            ${!isReply ? `<button class="icon-btn resolve-btn" title="${(comment.status || 'open') === 'open' ? 'Resolve' : 'Reopen'}">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                                     <polyline points="22 4 12 14.01 9 11.01"></polyline>
                                 </svg>
-                            </button>
+                            </button>` : ''}
                             <button class="icon-btn delete" title="Delete">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -1474,10 +1484,21 @@
 
         // Attach event listeners to comment cards
         function attachCommentEventListeners() {
+            // Click timecode to jump to that time
+            document.querySelectorAll('.comment-timecode.clickable').forEach(timecodeEl => {
+                timecodeEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!activePlayer) return;
+                    const time = parseFloat(timecodeEl.dataset.time) || 0;
+                    activePlayer.currentTime = time;
+                });
+            });
+
             // Click comment card to jump to time
             document.querySelectorAll('.comment-card').forEach(card => {
                 card.addEventListener('click', (e) => {
                     if (e.target.closest('.icon-btn')) return;
+                    if (e.target.closest('.comment-timecode')) return; // Don't handle if timecode was clicked
                     if (!activePlayer) return;
 
                     const id = card.dataset.id;
