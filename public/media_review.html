@@ -1399,11 +1399,13 @@
             const date = new Date(comment.createdAt);
             const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const replies = comments.filter(c => String(c.reply_to_id) === String(comment.id));
+            // Calculate timeSeconds from timecode if not present
+            const timeSeconds = comment.timeSeconds !== undefined ? comment.timeSeconds : (comment.timecode ? parseTime(comment.timecode) : 0);
 
             return `
                 <div class="comment-card ${isReply ? 'reply' : ''} ${activeCommentId === comment.id ? 'active' : ''}" data-id="${comment.id}">
                     <div class="comment-header">
-                        ${comment.timecode ? `<span class="comment-timecode clickable" data-time="${comment.timeSeconds || 0}">${comment.timecode}</span>` : ''}
+                        ${comment.timecode ? `<span class="comment-timecode clickable" data-time="${timeSeconds}">${comment.timecode}</span>` : ''}
                         ${!isReply ? `<span class="comment-status status-${comment.status || 'open'}">${comment.status || 'open'}</span>` : ''}
                     </div>
                     <div class="comment-author">${comment.author}</div>
