@@ -469,12 +469,21 @@ router.get('/:id/stream', requireAuth, (req, res) =>
 // Delete file
 router.delete('/:id', requireAuth, (req, res) => {
   try {
-    const result = getAuthorizedFile(req.params.id, req.session.projectId);
-    if (result.error) {
-      return res.status(result.status).json({ error: result.error });
+    const fileId = req.params.id;
+    const file = fileQueries.findById.get(fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
     }
 
-    const { file } = result;
+    // Allow admin to delete any file, or check project access for regular users
+    if (!req.session.isAdmin) {
+      if (file.project_id !== req.session.projectId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    const projectId = file.project_id;
 
     // Delete original file from disk
     if (fs.existsSync(file.file_path)) {
@@ -490,12 +499,12 @@ router.delete('/:id', requireAuth, (req, res) => {
     fileQueries.delete.run(file.id);
 
     // Update project timestamp
-    projectQueries.updateTimestamp.run(req.session.projectId);
+    projectQueries.updateTimestamp.run(projectId);
 
     // Invalidate all relevant caches
     cache.invalidate('projects:all');
     cache.invalidate('projects:with-scope');
-    cache.invalidate(`project:${req.session.projectId}:stats`);
+    cache.invalidate(`project:${projectId}:stats`);
 
     res.json({ success: true, message: 'File deleted' });
   } catch (error) {
