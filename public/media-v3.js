@@ -879,10 +879,15 @@ async function deleteFile(projectId, fileId, fileName) {
 
         // Background delete
         const response = await fetch(`/api/files/${fileId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
 
-        if (!response.ok) throw new Error('Delete failed');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Delete response:', response.status, errorData);
+            throw new Error(errorData.error || 'Delete failed');
+        }
 
         // Success notification
         showToast(`File "${fileName}" deleted successfully`, 'success');
