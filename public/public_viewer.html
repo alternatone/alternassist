@@ -1308,7 +1308,11 @@
         });
 
         // Add comment function
+        let isSubmittingComment = false;
         async function addComment() {
+            // Prevent double submission
+            if (isSubmittingComment) return;
+
             const author = authorInput.value.trim();
             const text = commentInput.value.trim();
 
@@ -1321,6 +1325,9 @@
                 alert('Please enter a comment');
                 return;
             }
+
+            isSubmittingComment = true;
+            addCommentBtn.disabled = true;
 
             const timecodeValue = formatTime(commentTimecode);
 
@@ -1354,6 +1361,10 @@
             // Clear input
             commentInput.value = '';
             commentInput.blur();
+
+            // Re-enable submission
+            isSubmittingComment = false;
+            addCommentBtn.disabled = false;
 
             // Resume video if it was playing
             if (wasPlayingBeforeComment && activePlayer) {
