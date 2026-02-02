@@ -1460,7 +1460,7 @@
                     if (!activePlayer) return;
 
                     const id = card.dataset.id;
-                    const comment = comments.find(c => c.id === id);
+                    const comment = comments.find(c => String(c.id) === String(id));
                     if (comment) {
                         activePlayer.currentTime = comment.timeSeconds;
                         activeCommentId = id;
@@ -1475,7 +1475,7 @@
                     e.stopPropagation();
                     if (!activePlayer) return;
                     const id = marker.dataset.id;
-                    const comment = comments.find(c => c.id === id);
+                    const comment = comments.find(c => String(c.id) === String(id));
                     if (comment) {
                         activePlayer.currentTime = comment.timeSeconds;
                         activeCommentId = id;
@@ -1490,7 +1490,7 @@
                     e.stopPropagation();
                     const card = e.target.closest('.comment-card');
                     const id = card.dataset.id;
-                    const comment = comments.find(c => c.id === id);
+                    const comment = comments.find(c => String(c.id) === String(id));
                     if (!comment) return;
 
                     const newStatus = comment.status === 'open' ? 'resolved' : 'open';
@@ -1530,7 +1530,7 @@
                     if (!confirm('Delete this comment?')) return;
 
                     // Optimistic update
-                    const deletedIndex = comments.findIndex(c => c.id === id);
+                    const deletedIndex = comments.findIndex(c => String(c.id) === String(id));
                     const deletedComment = comments[deletedIndex];
                     comments.splice(deletedIndex, 1);
                     renderComments();
