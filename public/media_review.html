@@ -540,6 +540,75 @@
             gap: 0.5rem;
         }
 
+        /* Reply styles */
+        .comment-card.reply {
+            margin-left: 1.5rem;
+            margin-top: 0.75rem;
+            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+            border-left: 2px solid var(--accent-teal);
+            background: rgba(70, 159, 224, 0.03);
+        }
+
+        .comment-card.reply:hover {
+            transform: none;
+        }
+
+        .replies {
+            margin-top: 0.5rem;
+        }
+
+        .reply-form {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #eee;
+        }
+
+        .reply-input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: var(--font-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .reply-input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+        }
+
+        .reply-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .btn-cancel-reply, .btn-submit-reply {
+            padding: 0.4rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: var(--font-primary);
+        }
+
+        .btn-cancel-reply {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            color: var(--subtle-text);
+        }
+
+        .btn-submit-reply {
+            background: var(--accent-teal);
+            border: none;
+            color: white;
+        }
+
+        .btn-submit-reply:hover {
+            background: #3a8bc9;
+        }
+
         .icon-btn {
             background: none;
             border: none;
@@ -1314,9 +1383,64 @@
         });
 
         // Render comments
+        let replyingToId = null;
+
+        function renderCommentCard(comment, isReply = false) {
+            const date = new Date(comment.createdAt);
+            const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const replies = comments.filter(c => String(c.reply_to_id) === String(comment.id));
+
+            return `
+                <div class="comment-card ${isReply ? 'reply' : ''} ${activeCommentId === comment.id ? 'active' : ''}" data-id="${comment.id}">
+                    <div class="comment-header">
+                        <span class="comment-timecode">${comment.timecode || ''}</span>
+                        <span class="comment-status status-${comment.status || 'open'}">${comment.status || 'open'}</span>
+                    </div>
+                    <div class="comment-author">${comment.author}</div>
+                    <div class="comment-text">${comment.text}</div>
+                    <div class="comment-meta">
+                        <span>${dateStr}</span>
+                        <div class="comment-actions">
+                            ${!isReply ? `<button class="icon-btn reply-btn" title="Reply">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 17 4 12 9 7"></polyline>
+                                    <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+                                </svg>
+                            </button>` : ''}
+                            <button class="icon-btn resolve-btn" title="${(comment.status || 'open') === 'open' ? 'Resolve' : 'Reopen'}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </button>
+                            <button class="icon-btn delete" title="Delete">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    ${replyingToId === comment.id ? `
+                        <div class="reply-form">
+                            <input type="text" class="reply-input" placeholder="Write a reply..." />
+                            <div class="reply-actions">
+                                <button class="btn-cancel-reply">Cancel</button>
+                                <button class="btn-submit-reply">Reply</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${replies.length > 0 ? `<div class="replies">${replies.map(r => renderCommentCard(r, true)).join('')}</div>` : ''}
+                </div>
+            `;
+        }
+
         function renderComments() {
+            const topLevelComments = comments.filter(c => !c.reply_to_id);
             const total = comments.length;
-            const open = comments.filter(c => c.status === 'open').length;
+            const open = comments.filter(c => (c.status || 'open') === 'open').length;
 
             document.getElementById('totalComments').textContent = total;
             document.getElementById('openComments').textContent = open;
@@ -1326,46 +1450,13 @@
                 exportToNotesBtn.disabled = total === 0;
             }
 
-            if (total === 0) {
+            if (topLevelComments.length === 0) {
                 commentsList.innerHTML = '<div class="empty-state"><p>No comments yet. Add a comment at the current timecode.</p></div>';
                 commentMarkers.innerHTML = '';
                 return;
             }
 
-            commentsList.innerHTML = comments.map(comment => {
-                const date = new Date(comment.createdAt);
-                const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                return `
-                    <div class="comment-card ${activeCommentId === comment.id ? 'active' : ''}" data-id="${comment.id}">
-                        <div class="comment-header">
-                            <span class="comment-timecode">${comment.timecode}</span>
-                            <span class="comment-status status-${comment.status}">${comment.status}</span>
-                        </div>
-                        <div class="comment-author">${comment.author}</div>
-                        <div class="comment-text">${comment.text}</div>
-                        <div class="comment-meta">
-                            <span>${dateStr}</span>
-                            <div class="comment-actions">
-                                <button class="icon-btn resolve-btn" title="${comment.status === 'open' ? 'Resolve' : 'Reopen'}">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                                    </svg>
-                                </button>
-                                <button class="icon-btn delete" title="Delete">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            commentsList.innerHTML = topLevelComments.map(comment => renderCommentCard(comment)).join('');
 
             // Render markers
             if (activePlayer) {
@@ -1423,7 +1514,8 @@
                     const comment = comments.find(c => String(c.id) === String(id));
                     if (!comment) return;
 
-                    const newStatus = comment.status === 'open' ? 'resolved' : 'open';
+                    const currentStatus = comment.status || 'open';
+                    const newStatus = currentStatus === 'open' ? 'resolved' : 'open';
 
                     // Optimistic update
                     comment.status = newStatus;
@@ -1481,6 +1573,108 @@
                         comments.splice(deletedIndex, 0, deletedComment);
                         renderComments();
                         alert('Failed to delete comment');
+                    }
+                });
+            });
+
+            // Reply button
+            document.querySelectorAll('.reply-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const card = e.target.closest('.comment-card');
+                    const id = card.dataset.id;
+                    replyingToId = replyingToId === id ? null : id;
+                    renderComments();
+
+                    // Focus the reply input after render
+                    setTimeout(() => {
+                        const replyInput = document.querySelector('.reply-input');
+                        if (replyInput) replyInput.focus();
+                    }, 0);
+                });
+            });
+
+            // Cancel reply button
+            document.querySelectorAll('.btn-cancel-reply').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    replyingToId = null;
+                    renderComments();
+                });
+            });
+
+            // Submit reply button
+            document.querySelectorAll('.btn-submit-reply').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const replyInput = document.querySelector('.reply-input');
+                    const text = replyInput ? replyInput.value.trim() : '';
+                    const author = authorInput.value.trim();
+
+                    if (!author) {
+                        alert('Please enter your name in the author field');
+                        return;
+                    }
+                    if (!text) {
+                        alert('Please enter a reply');
+                        return;
+                    }
+
+                    const parentComment = comments.find(c => String(c.id) === String(replyingToId));
+                    const parentId = replyingToId;
+
+                    const reply = {
+                        id: Date.now().toString(),
+                        author,
+                        timecode: parentComment ? parentComment.timecode : null,
+                        timeSeconds: parentComment ? parentComment.timeSeconds : 0,
+                        text,
+                        status: 'open',
+                        reply_to_id: parentId,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    // Save to backend
+                    try {
+                        if (projectId && currentFileId) {
+                            const response = await fetch(`/api/files/${projectId}/${currentFileId}/comments`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    author_name: reply.author,
+                                    timecode: reply.timecode,
+                                    comment_text: reply.text,
+                                    reply_to_id: parentId
+                                })
+                            });
+
+                            if (response.ok) {
+                                const savedReply = await response.json();
+                                reply.id = savedReply.id;
+                                reply.createdAt = savedReply.createdAt;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error saving reply:', error);
+                    }
+
+                    comments.push(reply);
+                    replyingToId = null;
+                    renderComments();
+                });
+            });
+
+            // Reply input enter key
+            document.querySelectorAll('.reply-input').forEach(input => {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const submitBtn = document.querySelector('.btn-submit-reply');
+                        if (submitBtn) submitBtn.click();
+                    }
+                    if (e.key === 'Escape') {
+                        replyingToId = null;
+                        renderComments();
                     }
                 });
             });

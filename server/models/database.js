@@ -278,6 +278,13 @@ function initDatabase() {
     console.log('Added updated_at column to comments table');
   }
 
+  // Add reply_to_id for threaded comments
+  const hasReplyToId = commentColumns.some(col => col.name === 'reply_to_id');
+  if (!hasReplyToId) {
+    db.exec('ALTER TABLE comments ADD COLUMN reply_to_id INTEGER REFERENCES comments(id)');
+    console.log('Added reply_to_id column to comments table');
+  }
+
   // PHASE 3: Create invoice_deliverables junction table
   db.exec(`
     CREATE TABLE IF NOT EXISTS invoice_deliverables (
@@ -683,7 +690,7 @@ const fileQueries = {
 
 // Comment queries
 const commentQueries = {
-  create: db.prepare('INSERT INTO comments (file_id, author_name, timecode, comment_text) VALUES (?, ?, ?, ?)'),
+  create: db.prepare('INSERT INTO comments (file_id, author_name, timecode, comment_text, reply_to_id) VALUES (?, ?, ?, ?, ?)'),
   findByFile: db.prepare('SELECT * FROM comments WHERE file_id = ? ORDER BY created_at ASC'),
   findById: db.prepare('SELECT * FROM comments WHERE id = ?'),
   updateStatus: db.prepare('UPDATE comments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),

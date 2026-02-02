@@ -517,7 +517,9 @@ function getComments(fileId, projectId, res) {
       author: c.author_name,
       timecode: c.timecode,
       text: c.comment_text,
-      createdAt: c.created_at
+      status: c.status || 'open',
+      createdAt: c.created_at,
+      reply_to_id: c.reply_to_id || null
     })));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -526,7 +528,7 @@ function getComments(fileId, projectId, res) {
 
 function addComment(fileId, projectId, body, res, req) {
   try {
-    const { author_name, timecode, comment_text } = body;
+    const { author_name, timecode, comment_text, reply_to_id } = body;
     if (!author_name || !comment_text) {
       return res.status(400).json({ error: 'Author name and comment required' });
     }
@@ -536,7 +538,7 @@ function addComment(fileId, projectId, body, res, req) {
       return res.status(result.status).json({ error: result.error });
     }
 
-    const insertResult = commentQueries.create.run(fileId, author_name, timecode || null, comment_text);
+    const insertResult = commentQueries.create.run(fileId, author_name, timecode || null, comment_text, reply_to_id || null);
     const commentId = insertResult.lastInsertRowid;
 
     // Fetch the newly created comment to get the auto-generated created_at timestamp
@@ -557,7 +559,9 @@ function addComment(fileId, projectId, body, res, req) {
       author: newComment.author_name,
       timecode: newComment.timecode,
       text: newComment.comment_text,
-      createdAt: newComment.created_at
+      status: newComment.status || 'open',
+      createdAt: newComment.created_at,
+      reply_to_id: newComment.reply_to_id || null
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
