@@ -1493,7 +1493,7 @@
                             </button>
                         </div>
                     </div>
-                    ${replyingToId === comment.id ? `
+                    ${String(replyingToId) === String(comment.id) ? `
                         <div class="reply-form">
                             <input type="text" class="reply-input" placeholder="Write a reply..." />
                             <div class="reply-actions">
@@ -1692,7 +1692,7 @@
                     }
 
                     const parentComment = comments.find(c => String(c.id) === String(replyingToId));
-                    const parentId = replyingToId;
+                    const parentId = parseInt(replyingToId);
 
                     const reply = {
                         id: Date.now().toString(),
