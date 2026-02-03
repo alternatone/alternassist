@@ -5,28 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alternassist - Business Management</title>
     <script src="admin-auth-check.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bricolage+Grotesque:wght@400;500;600&family+Sans:wght@300;400;500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-text: #1a1a1a;
-            --secondary-text: #333;
+            /* Brand Colors - Primary */
+            --primary-text: #2a2a2a;
+            --secondary-text: #555555;
             --subtle-text: #666;
             --muted-text: #888;
-            --accent-blue: #007acc;
-            --accent-red: #ff6b6b;
-            --accent-green: #51cf66;
-            --accent-orange: #ff922b;
-            --accent-teal: #469FE0;
-            --accent-purple: #845ec2;
-            --bg-primary: #FDF8F0;
-            --bg-secondary: #FEFDFA;
+            --accent-blue: #4A90C8;
+            --accent-red: #D96459;
+            --accent-green: #5B8C6E;
+            --accent-gold: #E8A45D;
+            --accent-teal: #7AC7C4;
+            --accent-purple: #9B6B9E;
+            --accent-yellow: #F4D35E;
+            --accent-pink: #EE5A6F;
+            /* Secondary Colors */
+            --secondary-brown: #8B7355;
+            --secondary-tan: #B8A394;
+            --secondary-slate: #6B7C8A;
+            --secondary-cream: #E8DDD0;
+            /* Backgrounds */
+            --bg-primary: #F8F6F3;
+            --bg-secondary: #FFFFFF;
             --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
             --border-light: 1px solid #f0f0f0;
             --border-medium: 1px solid #e8e8e8;
-            --font-primary: 'DM Sans', system-ui, -apple-system, sans-serif;
-            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
-            --font-body: 'Public Sans', system-ui, sans-serif;
-            --font-mono: 'Archivo', monospace;
+            /* Typography */
+            --font-artistic: 'Crimson Text', serif;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --font-primary: 'Crimson Text', serif;
+            --font-mono: 'IBM Plex Mono', monospace;
             --radius-lg: 12px;
         }
 
@@ -73,6 +83,7 @@
         }
 
         .logo {
+            font-family: var(--font-artistic);
             font-size: 1.75rem;
             font-weight: 400;
             text-decoration: none;
@@ -104,17 +115,26 @@
             left: var(--underline-left, 0px);
             width: var(--underline-width, 80px);
             height: 2px;
-            background: linear-gradient(90deg, #ff6b6b 0%, #007acc 100%);
+            background: linear-gradient(90deg,
+                var(--accent-gold) 0%,
+                var(--accent-red) 16.66%,
+                var(--accent-pink) 33.33%,
+                var(--accent-purple) 50%,
+                var(--accent-blue) 66.66%,
+                var(--accent-green) 83.33%,
+                var(--accent-teal) 100%);
             transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             border-radius: 1px;
         }
 
         .nav-link {
-            font-family: var(--font-body);
+            font-family: var(--font-technical);
             text-decoration: none;
             color: var(--subtle-text);
             font-weight: 400;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            text-transform: lowercase;
+            letter-spacing: 0.02em;
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
