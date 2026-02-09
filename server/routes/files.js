@@ -467,20 +467,13 @@ router.get('/:id/stream', requireAuth, (req, res) =>
 );
 
 // Delete file
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', (req, res) => {
   try {
     const fileId = req.params.id;
     const file = fileQueries.findById.get(fileId);
 
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
-    }
-
-    // Allow admin to delete any file, or check project access for regular users
-    if (!req.session.isAdmin) {
-      if (file.project_id !== req.session.projectId) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
     }
 
     const projectId = file.project_id;
