@@ -93,11 +93,29 @@
         .payment-method h4 { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-blue); margin-bottom: 0.5rem; }
         .payment-method p { font-family: var(--font-body); color: var(--secondary-text); font-size: 0.9rem; line-height: 1.5; }
         
-        @media print { 
+        @media print {
             * { visibility: hidden; }
             .invoice-container, .invoice-container * { visibility: visible; }
-            .invoice-container { position: absolute; left: 0; top: 0; width: 100%; padding: 0.5in; }
-            @page { margin: 0.5in; size: letter; }
+            .invoice-container { position: absolute; left: 0; top: 0; width: 100%; padding: 0.4in 0.5in; }
+            @page { margin: 0; size: letter; }
+            .invoice-header { margin-bottom: 1.5rem; padding-bottom: 1rem; }
+            .brand-section h2 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+            .brand-section p { font-size: 0.85rem; }
+            .invoice-number { font-size: 1.4rem; }
+            .invoice-date { font-size: 0.8rem; }
+            .category-tag { margin-bottom: 1rem; padding: 0.3rem 0.8rem; font-size: 0.75rem; }
+            .client-section { margin-bottom: 1.5rem; }
+            .client-section .section-title { margin-bottom: 0.4rem; font-size: 0.75rem; }
+            .client-info { font-size: 0.95rem; margin-bottom: 1rem !important; }
+            .invoice-table { margin-bottom: 1.5rem; }
+            .invoice-table th { padding: 0.6rem 0.75rem; font-size: 0.7rem; }
+            .invoice-table td { padding: 0.6rem 0.75rem; font-size: 0.85rem; }
+            .total-row td { padding: 0.8rem 0.75rem; font-size: 0.95rem; }
+            .payment-section { margin-top: 1.5rem; padding-top: 1rem; }
+            .payment-section .section-title { margin-bottom: 0.75rem; font-size: 0.75rem; }
+            .payment-methods { gap: 1rem; }
+            .payment-method h4 { font-size: 0.75rem; margin-bottom: 0.25rem; }
+            .payment-method p { font-size: 0.8rem; line-height: 1.4; }
         }
         
         @media (max-width: 1024px) {
