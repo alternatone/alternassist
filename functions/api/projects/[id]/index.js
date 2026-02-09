@@ -64,7 +64,7 @@ export async function onRequestPatch(context) {
     // Update project
     await env.DB.prepare(`
       UPDATE projects
-      SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, pinned = ?,
+      SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, status_text = ?, pinned = ?,
           media_folder_path = ?, password_protected = ?, password = ?, trt = ?,
           music_coverage = ?, timeline_start = ?, timeline_end = ?,
           estimated_total = ?, estimated_taxes = ?, net_after_taxes = ?,
@@ -76,6 +76,7 @@ export async function onRequestPatch(context) {
       updates.contact_email,
       updates.status,
       updates.notes,
+      updates.status_text || '',
       updates.pinned ? 1 : 0,
       updates.media_folder_path,
       updates.password_protected ? 1 : 0,

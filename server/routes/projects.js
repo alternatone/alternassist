@@ -397,7 +397,8 @@ router.patch('/:id', requireAdmin, (req, res) => {
 
     projectQueries.update.run(
       updates.name, updates.client_name, updates.contact_email,
-      updates.status, updates.notes, updates.pinned ? 1 : 0,
+      updates.status, updates.notes, updates.status_text || '',
+      updates.pinned ? 1 : 0,
       updates.media_folder_path, updates.password_protected ? 1 : 0,
       updates.password, updates.trt, updates.music_coverage,
       updates.timeline_start, updates.timeline_end,

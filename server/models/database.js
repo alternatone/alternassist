@@ -205,6 +205,31 @@ function initDatabase() {
     }
   }
 
+  // Add status_text column for user-entered project status (separate from notes)
+  const hasStatusText = projectColumns.some(col => col.name === 'status_text');
+  if (!hasStatusText) {
+    db.exec("ALTER TABLE projects ADD COLUMN status_text TEXT DEFAULT ''");
+    console.log('Added status_text column to projects table');
+
+    // Migrate: if notes contains non-JSON text, copy it to status_text
+    const projectsToMigrate = db.prepare("SELECT id, notes FROM projects WHERE notes IS NOT NULL AND notes != ''").all();
+    const updateStatusText = db.prepare('UPDATE projects SET status_text = ? WHERE id = ?');
+    let migratedCount = 0;
+    projectsToMigrate.forEach(project => {
+      try {
+        JSON.parse(project.notes);
+        // If it parses as JSON, it's scope data - don't migrate
+      } catch (e) {
+        // Not JSON - this was being used as status text
+        updateStatusText.run(project.notes, project.id);
+        migratedCount++;
+      }
+    });
+    if (migratedCount > 0) {
+      console.log(`Migrated status_text for ${migratedCount} existing projects`);
+    }
+  }
+
   // PHASE 3: Add transcoding status tracking to files
   const hasTranscodingStatus = fileColumns.some(col => col.name === 'transcoding_status');
   if (!hasTranscodingStatus) {
@@ -595,6 +620,7 @@ const projectQueries = {
       p.client_name,
       p.status,
       p.notes,
+      p.status_text,
       p.pinned,
       p.music_coverage,
       p.updated_at,
@@ -616,6 +642,7 @@ const projectQueries = {
       p.client_name,
       p.status,
       p.notes,
+      p.status_text,
       p.pinned,
       ps.contact_email,
       ps.music_minutes,
@@ -637,7 +664,7 @@ const projectQueries = {
   `),
   update: db.prepare(`
     UPDATE projects
-    SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, pinned = ?,
+    SET name = ?, client_name = ?, contact_email = ?, status = ?, notes = ?, status_text = ?, pinned = ?,
         media_folder_path = ?, password_protected = ?, password = ?, trt = ?,
         music_coverage = ?, timeline_start = ?, timeline_end = ?,
         estimated_total = ?, estimated_taxes = ?, net_after_taxes = ?,

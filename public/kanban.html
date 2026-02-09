@@ -73,7 +73,7 @@
         .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
         .card.dragging { opacity: 0.5; }
         
-        .card-title { font-weight: 600; color: var(--primary-text); margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .card-title { font-weight: 600; color: var(--primary-text); margin-bottom: 0.5rem; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
         .card-client { font-size: 0.85rem; color: var(--subtle-text); margin-bottom: 0.5rem; }
         .card-status { font-size: 0.8rem; color: var(--muted-text); font-style: italic; }
         .card-category { font-family: var(--font-technical); font-size: 0.75rem; text-transform: lowercase; letter-spacing: 0.05em; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; }
@@ -342,8 +342,8 @@
 
                 container.innerHTML = columnProjects.map(project => `
                     <div class="card" draggable="true" data-id="${project.id}" onclick="editProject('${project.id}')">
-                        <div class="card-title">${project.title}</div>
-                        ${formatScopeData(project, column)}
+                        <div class="card-title"><span>${project.title}</span>${formatScopeData(project, column)}</div>
+                        ${project.status ? `<div class="card-status">${project.status}</div>` : ''}
                         <div class="card-actions">
                             <button class="card-btn pin ${project.pinned ? 'pinned' : ''}" onclick="event.stopPropagation(); togglePin('${project.id}')" title="${project.pinned ? 'Unpin from Dashboard' : 'Pin to Dashboard'}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -667,7 +667,7 @@
                 // Show hours logger for in-process, in-review, approved-billed, and archive projects
                 document.getElementById('scopeSection').style.display = 'none';
                 document.getElementById('hoursLoggerSection').style.display = 'block';
-                document.getElementById('statusSection').style.display = 'none';
+                document.getElementById('statusSection').style.display = 'block';
 
                 // Show all rows for all columns
                 document.getElementById('dialogueRow').style.display = 'flex';
@@ -741,9 +741,10 @@
                 document.getElementById('scopeSoundDesign').value = scopeFromAPI.sound_design_hours || '';
                 document.getElementById('scopeMix').value = scopeFromAPI.mix_hours || '';
                 document.getElementById('scopeRevisions').value = scopeFromAPI.revision_hours || '';
-
-                document.getElementById('projectStatus').value = project.status || '';
             }
+
+            // Always populate status field (works for all columns now)
+            document.getElementById('projectStatus').value = project.status || '';
 
             // Show "Send to Invoices" button for prospects and approved-billed projects
             const sendToInvoicesBtn = document.getElementById('sendToInvoicesBtn');

@@ -15,6 +15,7 @@ export async function onRequestGet(context) {
         p.client_name,
         p.status,
         p.notes,
+        p.status_text,
         p.pinned,
         p.music_coverage,
         p.updated_at,
