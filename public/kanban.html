@@ -76,6 +76,10 @@
         .card-title { font-weight: 600; color: var(--primary-text); margin-bottom: 0.5rem; font-size: 0.95rem; }
         .card-client { font-size: 0.85rem; color: var(--subtle-text); margin-bottom: 0.5rem; }
         .card-status { font-size: 0.8rem; color: var(--muted-text); font-style: italic; }
+        .card-category { font-family: var(--font-technical); font-size: 0.75rem; text-transform: lowercase; letter-spacing: 0.05em; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; }
+        .card-category.music { background: #E8A45D20; color: #B07830; }
+        .card-category.post { background: #4A90C820; color: #3A72A0; }
+        .card-category.music-post { background: #5B8C6E20; color: #4A7A5E; }
         .card-scope { font-size: 0.8rem; color: var(--secondary-text); line-height: 1.5; }
         
         .card-actions { display: flex; gap: 0.75rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: var(--border-light); }
@@ -312,10 +316,20 @@
             archiveColumn.classList.toggle('expanded');
         }
 
-        // Helper function to format status
+        // Helper function to derive project category from scope data
         function formatScopeData(project, column) {
-            // Show status for all columns
-            return `<div class="card-status">${project.status || ''}</div>`;
+            const scope = project.scopeData || {};
+            const hasMusic = scope.music_minutes > 0;
+            const hasPost = (scope.dialogue_hours > 0 || scope.sound_design_hours > 0 || scope.mix_hours > 0 || scope.revision_hours > 0);
+
+            if (hasMusic && hasPost) {
+                return `<span class="card-category music-post">music + post</span>`;
+            } else if (hasMusic) {
+                return `<span class="card-category music">music</span>`;
+            } else if (hasPost) {
+                return `<span class="card-category post">post</span>`;
+            }
+            return '';
         }
 
         function renderBoard() {
