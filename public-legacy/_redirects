@@ -1,0 +1,2 @@
+# Redirect /media/* to /* for Cloudflare Pages compatibility
+/media/* /:splat 200

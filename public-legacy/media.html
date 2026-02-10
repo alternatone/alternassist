@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="admin-auth-check.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media - Alternassist</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500" rel="stylesheet">
+    <link rel="stylesheet" href="media-styles.css">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #FDF8F0;
+        }
+
+        .ftp-setup-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .ftp-setup-btn:hover {
+            background: #f5f5f5;
+            border-color: #469FE0;
+            color: #469FE0;
+        }
+
+        .ftp-setup-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .project-row {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .project-row:hover {
+            background: #fafafa !important;
+        }
+
+        .folder-row {
+            background: #f9f9f9 !important;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .folder-row:hover {
+            background: #f0f0f0 !important;
+        }
+
+        .folder-row.drag-over {
+            background: #e3f2fd !important;
+            border-left: 3px solid #469FE0;
+        }
+
+        .folder-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .folder-icon {
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .folder-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .file-row {
+            display: none;
+        }
+
+        .file-row.visible {
+            display: table-row;
+        }
+
+        .file-row td:first-child {
+            padding-left: 3rem;
+        }
+
+        .folder-stats {
+            color: #888;
+            font-size: 0.85rem;
+            font-weight: normal;
+        }
+
+        /* Modal fixes */
+        .modal {
+            display: none !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .modal.show {
+            display: flex !important;
+        }
+
+        .modal-content {
+            max-width: 600px !important;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        /* Modal buttons - no uppercase */
+        .modal .btn-primary,
+        .modal .btn-secondary {
+            text-transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="browser-container">
+            <!-- Backup Button -->
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                <button onclick="backupFTP()" style="
+                    background: var(--accent-teal);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    font-family: var(--font-primary);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                ">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    backup
+                </button>
+            </div>
+            <!-- Projects and Files Browser -->
+            <div class="file-table-container">
+                <table class="file-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">Name</th>
+                            <th>Status</th>
+                            <th>Files</th>
+                            <th>Size</th>
+                            <th>date uploaded</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectsTableBody">
+                        <tr>
+                            <td colspan="6" class="empty-state">Loading projects...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="media-v3.js"></script>
+</body>
+</html>

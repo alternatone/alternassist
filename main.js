@@ -68,7 +68,16 @@ function createWindow() {
     // Disable HTTP cache
     mainWindow.webContents.session.clearCache();
 
-    mainWindow.loadFile(path.join(appPath, 'index.html'));
+    // Check if we should use SvelteKit dev server or local files
+    const useSvelteKit = process.env.USE_SVELTE === 'true';
+
+    if (useSvelteKit) {
+        // Load from SvelteKit dev server (development)
+        mainWindow.loadURL('http://localhost:5173');
+    } else {
+        // Load from local files (production)
+        mainWindow.loadFile(path.join(appPath, 'index.html'));
+    }
 
     // Show window when ready to prevent flash
     mainWindow.once('ready-to-show', () => {

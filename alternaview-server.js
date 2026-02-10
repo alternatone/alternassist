@@ -116,7 +116,8 @@ function startServer() {
   // CORS whitelist
   const allowedOrigins = [
     'https://alternassist.alternatone.com',
-    'http://localhost:3000',  // Development only
+    'http://localhost:3000',  // Development only - Express server
+    'http://localhost:5173',  // Development only - SvelteKit dev server
   ];
 
   app.use((req, res, next) => {

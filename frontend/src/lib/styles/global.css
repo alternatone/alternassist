@@ -1,0 +1,159 @@
+/**
+ * Alternassist Global Styles
+ * Base styles and resets
+ */
+
+/* Reset */
+*,
+*::before,
+*::after {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+/* Base */
+html {
+	font-size: 16px;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	font-family: var(--font-primary);
+	background: var(--bg-primary);
+	color: var(--primary-text);
+	line-height: 1.6;
+	min-height: 100vh;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--font-display);
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--primary-text);
+}
+
+h1 {
+	font-size: 2rem;
+}
+h2 {
+	font-size: 1.75rem;
+}
+h3 {
+	font-size: 1.5rem;
+}
+h4 {
+	font-size: 1.25rem;
+}
+h5 {
+	font-size: 1.125rem;
+}
+h6 {
+	font-size: 1rem;
+}
+
+p {
+	margin-bottom: 1rem;
+}
+
+/* Links */
+a {
+	color: var(--accent-teal);
+	text-decoration: none;
+	transition: color var(--transition-normal);
+}
+
+a:hover {
+	color: var(--accent-blue);
+}
+
+/* Buttons */
+button {
+	font-family: var(--font-button);
+	cursor: pointer;
+	border: none;
+	background: none;
+	transition: all var(--transition-normal);
+}
+
+button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Forms */
+input,
+textarea,
+select {
+	font-family: var(--font-body);
+	font-size: 0.95rem;
+	transition: border-color var(--transition-normal);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+	outline: none;
+	border-color: var(--accent-teal);
+}
+
+/* Utility Classes */
+.container {
+	width: 100%;
+	max-width: 1400px;
+	margin: 0 auto;
+	padding: 0 var(--spacing-lg);
+}
+
+.text-center {
+	text-align: center;
+}
+
+.text-right {
+	text-align: right;
+}
+
+.text-muted {
+	color: var(--muted-text);
+}
+
+.text-subtle {
+	color: var(--subtle-text);
+}
+
+/* Loading States */
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.loading {
+	animation: spin 1s linear infinite;
+}
+
+/* Hide Scrollbar (Optional) */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--subtle-text);
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--secondary-text);
+}

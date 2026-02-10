@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alternassist - Business Management</title>
+    <script src="admin-auth-check.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Brand Colors - Primary */
+            --primary-text: #2a2a2a;
+            --secondary-text: #555555;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #4A90C8;
+            --accent-red: #D96459;
+            --accent-green: #5B8C6E;
+            --accent-gold: #E8A45D;
+            --accent-teal: #7AC7C4;
+            --accent-purple: #9B6B9E;
+            --accent-yellow: #F4D35E;
+            --accent-pink: #EE5A6F;
+            /* Secondary Colors */
+            --secondary-brown: #8B7355;
+            --secondary-tan: #B8A394;
+            --secondary-slate: #6B7C8A;
+            --secondary-cream: #E8DDD0;
+            /* Backgrounds */
+            --bg-primary: #F8F6F3;
+            --bg-secondary: #FFFFFF;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            /* Typography */
+            --font-artistic: 'Crimson Text', serif;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --font-primary: 'Crimson Text', serif;
+            --font-mono: 'IBM Plex Mono', monospace;
+            --radius-lg: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: var(--font-primary); 
+            background: var(--bg-primary); 
+            color: var(--primary-text); 
+            line-height: 1.6; 
+        }
+
+        .app-container {
+            min-height: 100vh;
+        }
+
+        /* Top Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(253, 248, 240, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            z-index: 1000;
+            padding: 1.2rem 0;
+            transition: all 0.3s ease;
+            -webkit-app-region: drag;
+        }
+
+        .nav.scrolled {
+            padding: 0.8rem 0;
+            background: rgba(253, 248, 240, 0.95);
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            padding-left: 90px;
+        }
+
+        .logo {
+            font-family: var(--font-artistic);
+            font-size: 1.75rem;
+            font-weight: 400;
+            text-decoration: none;
+            color: var(--primary-text);
+            letter-spacing: -0.02em;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            -webkit-app-region: no-drag;
+        }
+
+        .logo:hover {
+            opacity: 0.7;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+            position: relative;
+            --underline-left: 0px;
+            --underline-width: 80px;
+            -webkit-app-region: no-drag;
+        }
+
+        .nav-links::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: var(--underline-left, 0px);
+            width: var(--underline-width, 80px);
+            height: 2px;
+            background: linear-gradient(90deg,
+                var(--accent-gold) 0%,
+                var(--accent-red) 16.66%,
+                var(--accent-pink) 33.33%,
+                var(--accent-purple) 50%,
+                var(--accent-blue) 66.66%,
+                var(--accent-green) 83.33%,
+                var(--accent-teal) 100%);
+            transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-radius: 1px;
+        }
+
+        .nav-link {
+            font-family: var(--font-technical);
+            text-decoration: none;
+            color: var(--subtle-text);
+            font-weight: 400;
+            font-size: 0.9rem;
+            text-transform: lowercase;
+            letter-spacing: 0.02em;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--primary-text);
+        }
+
+        /* Dropdown Navigation */
+        .nav-item {
+            position: relative;
+        }
+
+        .nav-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            padding: 0.5rem 0;
+            min-width: 160px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 1001;
+        }
+
+        .nav-item:hover .nav-dropdown {
+            opacity: 1;
+            visibility: visible;
+            margin-top: 0.75rem;
+        }
+
+        .nav-dropdown-item {
+            display: block;
+            padding: 0.75rem 1.25rem;
+            color: var(--subtle-text);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-dropdown-item:hover,
+        .nav-dropdown-item.active {
+            background: rgba(0, 122, 204, 0.08);
+            color: var(--accent-blue);
+        }
+
+
+        /* Main Content */
+        .main-content {
+            padding: 6rem 2rem 2rem;
+            min-height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Module Container */
+        .module-container {
+            display: none;
+            width: 100%;
+        }
+
+        .module-container.active {
+            display: block;
+        }
+
+        .module-frame {
+            border: none;
+            width: 100%;
+            border-radius: var(--radius-lg);
+            background: white;
+            overflow: visible;
+            min-height: calc(100vh - 140px);
+        }
+
+        /* Dashboard Overview */
+        .dashboard-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .overview-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            border: var(--border-light);
+            box-shadow: var(--shadow-subtle);
+            text-align: left;
+            transition: transform 0.2s;
+            cursor: pointer;
+            aspect-ratio: 3 / 2;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-2px);
+        }
+
+
+        .overview-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .overview-description {
+            color: var(--subtle-text);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation -->
+        <nav class="nav" id="nav">
+            <div class="nav-content">
+                <a href="#" class="logo" onclick="loadModule('dashboard')">Alternassist</a>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link active" data-module="dashboard">dashboard</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="event.preventDefault();">projects</a>
+                        <div class="nav-dropdown">
+                            <a href="#" class="nav-dropdown-item" data-module="projects">kanban</a>
+                            <a href="#" class="nav-dropdown-item" data-module="cues">cues</a>
+                            <a href="#" class="nav-dropdown-item" data-module="notes" id="notes-dropdown-item" style="display: none;">notes</a>
+                            <a href="#" class="nav-dropdown-item" data-module="media">media</a>
+                        </div>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="event.preventDefault();">accounting</a>
+                        <div class="nav-dropdown">
+                            <a href="#" class="nav-dropdown-item" data-module="estimates">estimates</a>
+                            <a href="#" class="nav-dropdown-item" data-module="invoices">invoices</a>
+                            <a href="#" class="nav-dropdown-item" data-module="payments">payments</a>
+                            <a href="#" class="nav-dropdown-item" data-module="accounting">books</a>
+                        </div>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/media/resources/artist-guide.html" class="nav-link" target="_blank">resources</a>
+                    </li>
+                    <li class="nav-item" style="margin-left: auto;">
+                        <a href="#" class="nav-link" onclick="event.preventDefault(); logout();" style="color: var(--accent-red);">logout</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Dashboard Module -->
+            <div class="module-container active" id="dashboard-module">
+                <div id="pinnedProjectsContainer" class="dashboard-overview">
+                    <!-- Pinned projects will be dynamically inserted here -->
+                </div>
+
+                <div id="emptyDashboard" style="text-align: center; padding: 4rem 2rem; color: var(--muted-text);">
+                    <h2 style="font-size: 1.5rem; margin-bottom: 1rem; color: var(--subtle-text);">Nothing to see here</h2>
+                    <p style="font-size: 1rem;">Pin a project to get started.</p>
+                </div>
+            </div>
+
+            <!-- Kanban Module -->
+            <div class="module-container" id="projects-module">
+                <iframe class="module-frame" src="kanban.html"></iframe>
+            </div>
+
+            <!-- Cue Tracker Module -->
+            <div class="module-container" id="cues-module">
+                <iframe class="module-frame" src="cues.html"></iframe>
+            </div>
+
+            <!-- Estimate Calculator Module -->
+            <div class="module-container" id="estimates-module">
+                <iframe class="module-frame" src="estimates.html"></iframe>
+            </div>
+
+            <!-- Invoice Generator Module -->
+            <div class="module-container" id="invoices-module">
+                <iframe class="module-frame" src="invoices.html"></iframe>
+            </div>
+
+            <!-- Payment Dashboard Module -->
+            <div class="module-container" id="payments-module">
+                <iframe class="module-frame" src="payments.html"></iframe>
+            </div>
+
+            <!-- Accounting Module -->
+            <div class="module-container" id="accounting-module">
+                <iframe class="module-frame" src="books.html"></iframe>
+            </div>
+
+            <!-- Notes Module (NoteMarker - Electron only) -->
+            <div class="module-container" id="notes-module" style="display: none;">
+                <iframe class="module-frame" src="notes.html"></iframe>
+            </div>
+
+            <!-- Media Module (Unified FTP/Upload Management) -->
+            <div class="module-container" id="media-module">
+                <iframe class="module-frame" src="media.html"></iframe>
+            </div>
+
+            <!-- Media Transfer Module (from Alternaview) -->
+            <div class="module-container" id="media-transfer-module">
+                <iframe class="module-frame" src="media_transfer.html"></iframe>
+            </div>
+        </main>
+    </div>
+
+    <!-- FTP Setup Modal (for media module iframe) -->
+    <div id="ftpSetupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>FTP Setup</h2>
+                <button class="modal-close" onclick="closeFtpSetup()">&times;</button>
+            </div>
+            <div class="modal-body" id="ftpModalBody">
+                <!-- Content will be injected from iframe -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Link Generation Modal -->
+    <div id="shareLinkModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Generate Share Link</h2>
+                <button class="modal-close" onclick="closeShareLinkModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="shareLinkProjectName" style="color: var(--subtle-text); margin-bottom: 1.5rem;"></p>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--secondary-text);">Link Expiration</label>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="radio" name="expiry" value="7d" checked style="cursor: pointer;">
+                            <span>7 days</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="radio" name="expiry" value="never" style="cursor: pointer;">
+                            <span>Never</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="requirePassword" style="cursor: pointer;">
+                        <span style="font-weight: 500; color: var(--secondary-text);">Require password</span>
+                    </label>
+                </div>
+
+                <div id="passwordField" style="margin-bottom: 1.5rem; display: none;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--secondary-text);">Password</label>
+                    <input type="text" id="shareLinkPassword" placeholder="Enter password" style="width: 100%; padding: 0.75rem; border: 1px solid #e8e8e8; border-radius: 8px; font-family: var(--font-primary); font-size: 1rem;">
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button onclick="closeShareLinkModal()" class="btn-secondary">Cancel</button>
+                    <button onclick="generateShareLink()" class="btn-primary">Generate Link</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Link Success Modal -->
+    <div id="shareLinkSuccessModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Share Link Generated</h2>
+                <button class="modal-close" onclick="closeShareLinkSuccessModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--subtle-text); margin-bottom: 1rem;">Link copied to clipboard!</p>
+
+                <div style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; word-break: break-all; font-family: var(--font-mono); font-size: 0.9rem;">
+                    <div id="shareLinkUrl"></div>
+                </div>
+
+                <div id="shareLinkDetails" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"></div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button onclick="closeShareLinkSuccessModal()" class="btn-primary">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #888;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #1a1a1a;
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'DM Sans', system-ui, sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: none;
+        }
+
+        .btn-primary {
+            background: #469FE0;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #007acc;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #666;
+            border: 1px solid #e8e8e8;
+        }
+
+        .btn-secondary:hover {
+            background: #FDF8F0;
+        }
+    </style>
+
+    <script>
+        // FTP Setup Modal functions
+        let currentModalProject = null;
+
+        function closeFtpSetup() {
+            const modal = document.getElementById('ftpSetupModal');
+            modal.classList.remove('show');
+            currentModalProject = null;
+        }
+
+        function copyClientPortalLink() {
+            const link = `/client/login.html`;
+            navigator.clipboard.writeText(link).then(() => {
+                alert(`Client portal link copied!\n\n${link}`);
+            }).catch(err => {
+                alert(`Failed to copy link: ${err}`);
+            });
+        }
+
+        async function toggleModalPassword() {
+            if (!currentModalProject) return;
+
+            const input = document.getElementById('modalPasswordInput');
+            const btn = document.getElementById('modalPasswordToggle');
+
+            if (input.type === 'password') {
+                // Fetch real password
+                try {
+                    const response = await fetch(`/api/projects/${currentModalProject.id}/password`);
+                    const data = await response.json();
+                    input.value = data.password;
+                    input.type = 'text';
+                    btn.textContent = 'Hide';
+                } catch (error) {
+                    console.error('Error fetching password:', error);
+                    alert('Failed to fetch password');
+                }
+            } else {
+                input.type = 'password';
+                input.value = '••••••••';
+                btn.textContent = 'Show';
+            }
+        }
+
+        async function regeneratePassword() {
+            if (!currentModalProject) return;
+
+            if (!confirm('Generate a new password for this project? The old password will no longer work.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/projects/${currentModalProject.id}/regenerate-password`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(`New password generated: ${data.password}`);
+                    closeFtpSetup();
+                } else {
+                    alert('Failed to regenerate password');
+                }
+            } catch (error) {
+                console.error('Error regenerating password:', error);
+                alert('Failed to regenerate password');
+            }
+        }
+
+        // Listen for modal requests from iframes
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'show-ftp-modal') {
+                const modal = document.getElementById('ftpSetupModal');
+                const modalBody = document.getElementById('ftpModalBody');
+                modalBody.innerHTML = event.data.content;
+                currentModalProject = event.data.project;
+                modal.classList.add('show');
+            } else if (event.data.type === 'hide-ftp-modal') {
+                closeFtpSetup();
+            } else if (event.data.type === 'show-share-link-modal') {
+                // Handle share link modal from iframe
+                if (event.data.shareType === 'project') {
+                    copyClientPortalLinkForProject(event.data.projectId, event.data.projectName);
+                } else if (event.data.shareType === 'file') {
+                    openShareLinkModalForFile(event.data.fileId, event.data.fileName);
+                } else if (event.data.shareType === 'ftp') {
+                    openShareLinkModalForFtpFile(event.data.ftpPath, event.data.fileName);
+                }
+            }
+        });
+
+        // Click outside modal to close
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('ftpSetupModal');
+            if (e.target === modal) {
+                closeFtpSetup();
+            }
+        });
+
+        // Update navigation underline position
+        function updateNavUnderline(activeLink) {
+            // Use requestAnimationFrame to ensure layout is complete
+            requestAnimationFrame(() => {
+                const navLinks = document.querySelector('.nav-links');
+
+                if (!activeLink || !navLinks) return;
+
+                // Get the actual position and width of the active link
+                const linkRect = activeLink.getBoundingClientRect();
+                const navRect = navLinks.getBoundingClientRect();
+
+                // Calculate the left offset relative to the nav-links container
+                const leftOffset = linkRect.left - navRect.left;
+                const linkWidth = linkRect.width;
+
+                // Set CSS custom properties to position the underline
+                navLinks.style.setProperty('--underline-left', leftOffset + 'px');
+                navLinks.style.setProperty('--underline-width', linkWidth + 'px');
+            });
+        }
+
+        // Track resize observers to prevent duplicates
+        const iframeObservers = new Map();
+        const resizeTimeouts = new Map();
+        const lastResizeHeights = new Map();
+
+        // Auto-resize iframes to fit content
+        function resizeIframe(iframe) {
+            try {
+                // Wait for browser to complete current layout cycle
+                iframe.contentWindow.requestAnimationFrame(() => {
+                    const body = iframe.contentWindow.document.body;
+                    const html = iframe.contentWindow.document.documentElement;
+
+                    // Calculate content height
+                    const contentHeight = Math.max(
+                        body.scrollHeight,
+                        body.offsetHeight,
+                        html.clientHeight,
+                        html.scrollHeight,
+                        html.offsetHeight
+                    );
+
+                    // Get the CSS min-height value (calc(100vh - 140px))
+                    const minHeight = window.innerHeight - 140;
+
+                    // Use the larger of content height or min-height
+                    const finalHeight = Math.max(contentHeight, minHeight);
+
+                    // Only update if height changed by more than 10px to prevent resize loops
+                    const lastHeight = lastResizeHeights.get(iframe) || 0;
+                    if (Math.abs(finalHeight - lastHeight) > 10) {
+                        iframe.style.height = finalHeight + 'px';
+                        lastResizeHeights.set(iframe, finalHeight);
+                    }
+                });
+            } catch (e) {
+                // Silently fail - iframe not ready yet
+            }
+        }
+
+        function setupIframeResize(iframe) {
+            if (!iframe || iframeObservers.has(iframe)) return;
+
+            // Check if this is the media module
+            const isMediaModule = iframe.closest('#media-module');
+
+            if (isMediaModule) {
+                // For media module, set height on every load (for navigation between pages)
+                iframe.addEventListener('load', function onLoad() {
+                    const minHeight = window.innerHeight - 140;
+                    iframe.style.height = minHeight + 'px';
+                    lastResizeHeights.set(iframe, minHeight);
+                });
+
+                iframeObservers.set(iframe, 'fixed');
+                return;
+            }
+
+            // Debounced resize handler for other modules
+            const debouncedResize = () => {
+                if (resizeTimeouts.has(iframe)) {
+                    clearTimeout(resizeTimeouts.get(iframe));
+                }
+                const timeout = setTimeout(() => {
+                    resizeIframe(iframe);
+                    resizeTimeouts.delete(iframe);
+                }, 150);
+                resizeTimeouts.set(iframe, timeout);
+            };
+
+            iframe.addEventListener('load', function onLoad() {
+                // Initial resize
+                setTimeout(() => resizeIframe(iframe), 100);
+
+                // Set up resize observer with debouncing
+                try {
+                    const observer = new ResizeObserver(debouncedResize);
+                    observer.observe(iframe.contentWindow.document.body);
+                    iframeObservers.set(iframe, observer);
+                } catch (e) {
+                    // Fallback not needed - one-time resize is enough
+                }
+            }, { once: true });
+
+            // Trigger initial resize if already loaded
+            if (iframe.contentWindow.document.readyState === 'complete') {
+                setTimeout(() => resizeIframe(iframe), 100);
+            }
+        }
+
+        // Module Management
+        function loadModule(moduleName) {
+            // Hide all modules
+            document.querySelectorAll('.module-container').forEach(module => {
+                module.classList.remove('active');
+            });
+
+            // Show selected module
+            const targetModule = document.getElementById(`${moduleName}-module`);
+            if (targetModule) {
+                targetModule.classList.add('active');
+
+                // Reload invoices/payments iframe to pick up new data from localStorage
+                if (moduleName === 'invoices' || moduleName === 'payments') {
+                    const iframe = targetModule.querySelector('iframe');
+                    if (iframe) {
+                        iframe.contentWindow.location.reload();
+                    }
+                }
+
+                // Refresh dashboard when switching to it
+                if (moduleName === 'dashboard') {
+                    renderPinnedProjects();
+                } else {
+                    // Set up iframe resize
+                    const iframe = targetModule.querySelector('iframe');
+                    if (iframe) {
+                        setupIframeResize(iframe);
+                    }
+                }
+            }
+
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-dropdown-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Find the active link/item
+            const dropdownItem = document.querySelector(`.nav-dropdown-item[data-module="${moduleName}"]`);
+            const topLevelLink = document.querySelector(`.nav-link[data-module="${moduleName}"]`);
+
+            if (dropdownItem) {
+                // If it's a dropdown item, activate both the dropdown item and its parent nav-link
+                dropdownItem.classList.add('active');
+                const parentNavItem = dropdownItem.closest('.nav-item');
+                const parentNavLink = parentNavItem.querySelector('.nav-link');
+                if (parentNavLink) {
+                    parentNavLink.classList.add('active');
+                    updateNavUnderline(parentNavLink);
+                }
+            } else if (topLevelLink) {
+                // If it's a top-level link, just activate it
+                topLevelLink.classList.add('active');
+                updateNavUnderline(topLevelLink);
+            }
+        }
+
+        // Navigation Event Listeners
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                const moduleName = link.getAttribute('data-module');
+                // Only prevent default and load module if data-module attribute exists
+                if (moduleName) {
+                    e.preventDefault();
+                    loadModule(moduleName);
+                }
+                // Otherwise let the link work normally (e.g., resources link)
+            });
+        });
+
+        // Dropdown Navigation Event Listeners
+        document.querySelectorAll('.nav-dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const moduleName = item.getAttribute('data-module');
+                loadModule(moduleName); // This now handles all active state management
+            });
+        });
+
+        // Initialize navigation underline on page load
+        async function renderPinnedProjects() {
+            // Load projects from API
+            let projects = [];
+            try {
+                const response = await fetch('/api/projects');
+                if (response.ok) {
+                    const apiProjects = await response.json();
+
+                    // Fetch scope data for all projects from project_scope table
+                    const scopePromises = apiProjects.map(async (p) => {
+                        try {
+                            const scopeResponse = await fetch(`/api/estimates/scope/${p.id}`);
+                            if (scopeResponse.ok) {
+                                const scopeData = await scopeResponse.json();
+                                return { projectId: p.id, scope: scopeData };
+                            }
+                        } catch (e) {
+                            console.error(`Failed to fetch scope for project ${p.id}:`, e);
+                        }
+                        return { projectId: p.id, scope: null };
+                    });
+
+                    const scopesData = await Promise.all(scopePromises);
+                    const scopeMap = {};
+                    scopesData.forEach(({ projectId, scope }) => {
+                        scopeMap[projectId] = scope;
+                    });
+
+                    // Transform to dashboard format
+                    projects = apiProjects.map(p => {
+                        const scopeData = scopeMap[p.id] || {};
+                        // Use music_coverage from project table, other scope from project_scope table
+                        const scope = {
+                            music_minutes: p.music_coverage || scopeData.music_minutes || 0,
+                            dialogue_hours: scopeData.dialogue_hours || 0,
+                            sound_design_hours: scopeData.sound_design_hours || 0,
+                            mix_hours: scopeData.mix_hours || 0,
+                            revision_hours: scopeData.revision_hours || 0
+                        };
+
+                        // Check if notes contains JSON scope data - if so, don't use it as display notes
+                        let displayNotes = '';
+                        try {
+                            const parsed = JSON.parse(p.notes);
+                            // If it's JSON with scope fields, don't use it as notes
+                            if (!(parsed.musicMinutes !== undefined || parsed.dialogueHours !== undefined ||
+                                  parsed.soundDesignHours !== undefined || parsed.mixHours !== undefined)) {
+                                // It's JSON but not scope data, use it as notes
+                                displayNotes = p.notes;
+                            }
+                        } catch (e) {
+                            // Not JSON, use as regular notes
+                            displayNotes = p.notes || '';
+                        }
+
+                        return {
+                            id: p.id.toString(),
+                            title: p.name,
+                            client: p.client_name || '',
+                            notes: displayNotes,
+                            scopeData: scope,
+                            status: p.status || '',
+                            pinned: Boolean(p.pinned)
+                        };
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading projects:', error);
+            }
+
+            const pinnedProjects = projects.filter(p => p.pinned);
+            const container = document.getElementById('pinnedProjectsContainer');
+            const emptyState = document.getElementById('emptyDashboard');
+
+            if (pinnedProjects.length === 0) {
+                container.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            container.style.display = 'grid';
+            emptyState.style.display = 'none';
+
+            // Fetch cues for all projects
+            let cuesByProject = {};
+            try {
+                const cuesResponse = await fetch('/api/cues');
+                if (cuesResponse.ok) {
+                    const allCues = await cuesResponse.json();
+                    // Group cues by project_id
+                    allCues.forEach(cue => {
+                        if (!cuesByProject[cue.project_id]) {
+                            cuesByProject[cue.project_id] = [];
+                        }
+                        cuesByProject[cue.project_id].push(cue);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading cues:', error);
+            }
+
+            // Fetch hours log for all projects
+            let hoursLogByProject = {};
+            try {
+                const hoursResponse = await fetch('/api/hours-log');
+                if (hoursResponse.ok) {
+                    const allHours = await hoursResponse.json();
+                    // Group by project_id and category
+                    allHours.forEach(log => {
+                        if (!hoursLogByProject[log.project_id]) {
+                            hoursLogByProject[log.project_id] = {};
+                        }
+                        const category = log.category || 'uncategorized';
+                        if (!hoursLogByProject[log.project_id][category]) {
+                            hoursLogByProject[log.project_id][category] = 0;
+                        }
+                        hoursLogByProject[log.project_id][category] += parseFloat(log.hours) || 0;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading hours log:', error);
+            }
+
+            container.innerHTML = pinnedProjects.map(project => {
+                const projectCues = cuesByProject[project.id] || [];
+
+                // Calculate cue status breakdown
+                const toWrite = projectCues.filter(c => c.status === 'to-write').length;
+                const written = projectCues.filter(c => c.status === 'written').length;
+                const revisions = projectCues.filter(c => c.status === 'revisions').length;
+                const approved = projectCues.filter(c => c.status === 'approved').length;
+                const totalCues = projectCues.length;
+
+                // Helper function to convert time string to seconds
+                const timeToSeconds = (timeStr) => {
+                    if (!timeStr) return 0;
+                    const parts = timeStr.split(':').map(p => parseInt(p) || 0);
+                    if (parts.length === 3) {
+                        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+                    } else if (parts.length === 2) {
+                        return parts[0] * 60 + parts[1];
+                    }
+                    return 0;
+                };
+
+                // Calculate approved minutes from cues
+                const approvedCues = projectCues.filter(c => c.status === 'approved' || c.status === 'complete');
+                const approvedMinutes = approvedCues.reduce((total, cue) => {
+                    const start = timeToSeconds(cue.start_time);
+                    const end = timeToSeconds(cue.end_time);
+                    const durationSeconds = end - start;
+                    return total + (durationSeconds / 60);
+                }, 0);
+                const musicMins = Math.floor(approvedMinutes);
+
+                // Format scope data for display
+                const scope = project.scopeData || {};
+                const scopeItems = [];
+                if (scope.music_minutes > 0) scopeItems.push(`${scope.music_minutes} mins music`);
+                if (scope.dialogue_hours > 0) scopeItems.push(`${scope.dialogue_hours}h dialogue`);
+                if (scope.sound_design_hours > 0) scopeItems.push(`${scope.sound_design_hours}h sound design`);
+                if (scope.mix_hours > 0) scopeItems.push(`${scope.mix_hours}h mix`);
+                if (scope.revision_hours > 0) scopeItems.push(`${scope.revision_hours}h revisions`);
+
+                // Get logged hours for this project
+                const loggedHours = hoursLogByProject[project.id] || {};
+                const musicLoggedMins = loggedHours['music'] ? Math.floor(loggedHours['music'] * 60) : 0;
+                const dialogueLoggedHours = loggedHours['dialogue'] || 0;
+                const soundDesignLoggedHours = loggedHours['sound-design'] || 0;
+                const mixLoggedHours = loggedHours['mix'] || 0;
+                const revisionLoggedHours = loggedHours['revisions'] || 0;
+
+                return `
+                    <div class="overview-card" onclick="loadModule('projects')" style="cursor: pointer;">
+                        <h3 class="overview-title">${project.title}</h3>
+
+                        ${project.notes ? `
+                            <div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.35rem;">Creative Direction</div>
+                                <div style="font-size: 0.85rem; color: var(--secondary-text); line-height: 1.5; font-style: italic; overflow-wrap: break-word; word-wrap: break-word;">${project.notes}</div>
+                            </div>
+                        ` : ''}
+
+                        ${project.status && (project.status.includes('deposit') || project.status.includes('invoiced') || project.status.includes('received')) ? `
+                            <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: ${project.status.includes('received') ? '#d3f9d8' : project.status.includes('invoiced') ? '#fff3bf' : '#e7f5ff'}; border-left: 3px solid ${project.status.includes('received') ? 'var(--accent-green)' : project.status.includes('invoiced') ? 'var(--accent-orange)' : 'var(--accent-teal)'}; border-radius: 4px;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: ${project.status.includes('received') ? 'var(--accent-green)' : project.status.includes('invoiced') ? 'var(--accent-orange)' : 'var(--accent-teal)'}; margin-bottom: 0.25rem;">Payment Status</div>
+                                <div style="font-size: 0.85rem; color: var(--secondary-text);">${project.status}</div>
+                            </div>
+                        ` : ''}
+
+                        ${totalCues > 0 ? `
+                            <div style="margin-bottom: 0.75rem;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Music Cue Status</div>
+                                <div style="height: 20px; background: #f0f0f0; border-radius: 6px; overflow: hidden; display: flex;">
+                                    ${toWrite > 0 ? `<div style="background: #ff6b6b; width: ${(toWrite / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${toWrite}</div>` : ''}
+                                    ${written > 0 ? `<div style="background: #ff922b; width: ${(written / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${written}</div>` : ''}
+                                    ${revisions > 0 ? `<div style="background: #ffd93d; width: ${(revisions / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: #1a1a1a; font-size: 0.7rem; font-weight: 600;">${revisions}</div>` : ''}
+                                    ${approved > 0 ? `<div style="background: #51cf66; width: ${(approved / totalCues) * 100}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 600;">${approved}</div>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${scopeItems.length > 0 ? `
+                            <div style="margin-bottom: 0.75rem;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: var(--subtle-text); margin-bottom: 0.5rem;">Hour Tracking</div>
+                                ${scope.dialogue_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Dialogue</span>
+                                            <span>${dialogueLoggedHours.toFixed(1)} / ${scope.dialogue_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: ${Math.min(100, (dialogueLoggedHours / scope.dialogue_hours) * 100)}%; background: #469FE0;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${scope.sound_design_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Sound Design</span>
+                                            <span>${soundDesignLoggedHours.toFixed(1)} / ${scope.sound_design_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: ${Math.min(100, (soundDesignLoggedHours / scope.sound_design_hours) * 100)}%; background: #469FE0;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${scope.mix_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Mix</span>
+                                            <span>${mixLoggedHours.toFixed(1)} / ${scope.mix_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: ${Math.min(100, (mixLoggedHours / scope.mix_hours) * 100)}%; background: #469FE0;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${scope.revision_hours > 0 ? `
+                                    <div style="margin-bottom: 0.35rem;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted-text); margin-bottom: 0.15rem;">
+                                            <span>Revisions</span>
+                                            <span>${revisionLoggedHours.toFixed(1)} / ${scope.revision_hours}h</span>
+                                        </div>
+                                        <div style="height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="height: 100%; width: ${Math.min(100, (revisionLoggedHours / scope.revision_hours) * 100)}%; background: #469FE0;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const activeLink = document.querySelector('.nav-link.active');
+            if (activeLink) {
+                updateNavUnderline(activeLink);
+            }
+
+            // Render pinned projects on dashboard
+            renderPinnedProjects();
+
+            // Re-render when projects are updated
+            window.addEventListener('message', (e) => {
+                if (e.data && e.data.type === 'projects-updated') {
+                    renderPinnedProjects();
+
+                    // Forward message to all iframes so they can reload their data
+                    const iframes = document.querySelectorAll('iframe.module-frame');
+                    iframes.forEach(iframe => {
+                        if (iframe.contentWindow && iframe.contentWindow !== e.source) {
+                            iframe.contentWindow.postMessage({ type: 'projects-updated' }, '*');
+                        }
+                    });
+                }
+            });
+
+            // Also listen for localStorage changes (backward compatibility)
+            window.addEventListener('storage', () => {
+                renderPinnedProjects();
+            });
+        });
+
+        // Update underline position on window resize
+        window.addEventListener('resize', () => {
+            const activeLink = document.querySelector('.nav-link.active');
+            if (activeLink) {
+                updateNavUnderline(activeLink);
+            }
+        });
+
+        // Listen for messages from iframes (like project additions)
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'projectAdded') {
+                // Auto-switch to projects tab when a project is added
+                loadModule('projects');
+            } else if (event.data.type === 'open-project-media') {
+                // Switch to media browser when project is clicked in FTP admin
+                loadModule('media-transfer');
+                // Forward message to media browser iframe after a short delay to ensure it's loaded
+                setTimeout(() => {
+                    const mediaFrame = document.querySelector('#media-transfer-module iframe');
+                    if (mediaFrame && mediaFrame.contentWindow) {
+                        mediaFrame.contentWindow.postMessage(event.data, '*');
+                    }
+                }, 100);
+            } else if (event.data.type === 'navigate-to-ftp-admin') {
+                // Go back to FTP admin from media browser
+                loadModule('ftp-admin');
+            } else if (event.data.type === 'exportToNotes') {
+                // Switch to notes page and send comments
+                loadModule('notes');
+                // Forward message to notes iframe after a short delay to ensure it's loaded
+                setTimeout(() => {
+                    const notesFrame = document.querySelector('#notes-module iframe');
+                    if (notesFrame && notesFrame.contentWindow) {
+                        notesFrame.contentWindow.postMessage(event.data, '*');
+                    }
+                }, 100);
+            }
+        });
+
+        // Show notes link only in Electron
+        if (typeof window.electronAPI !== 'undefined') {
+            const notesDropdownItem = document.getElementById('notes-dropdown-item');
+            const notesModule = document.getElementById('notes-module');
+            if (notesDropdownItem) {
+                notesDropdownItem.style.display = 'block';
+            }
+            if (notesModule) {
+                notesModule.style.display = '';
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            if (!confirm('Are you sure you want to logout?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    window.location.href = '/media/admin-login.html';
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('Logout failed. Please try again.');
+            }
+        }
+
+        // Share Link Modal State
+        let currentShareLinkItem = null; // Can be {type: 'project', id, name} or {type: 'file', id, name}
+
+        // Open share link modal for project
+        function copyClientPortalLinkForProject(projectId, projectName) {
+            currentShareLinkItem = { type: 'project', id: projectId, name: projectName };
+
+            const modal = document.getElementById('shareLinkModal');
+            const projectNameEl = document.getElementById('shareLinkProjectName');
+            const passwordField = document.getElementById('passwordField');
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+
+            projectNameEl.textContent = `Generate a secure share link for project "${projectName}"`;
+
+            // Reset form
+            document.querySelector('input[name="expiry"][value="7d"]').checked = true;
+            requirePasswordCheckbox.checked = false;
+            passwordField.style.display = 'none';
+            document.getElementById('shareLinkPassword').value = '';
+
+            modal.classList.add('show');
+        }
+
+        // Open share link modal for file
+        function openShareLinkModalForFile(fileId, fileName) {
+            currentShareLinkItem = { type: 'file', id: fileId, name: fileName };
+
+            const modal = document.getElementById('shareLinkModal');
+            const projectNameEl = document.getElementById('shareLinkProjectName');
+            const passwordField = document.getElementById('passwordField');
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+
+            projectNameEl.textContent = `Generate a secure share link for file "${fileName}"`;
+
+            // Reset form
+            document.querySelector('input[name="expiry"][value="7d"]').checked = true;
+            requirePasswordCheckbox.checked = false;
+            passwordField.style.display = 'none';
+            document.getElementById('shareLinkPassword').value = '';
+
+            modal.classList.add('show');
+        }
+
+        // Open share link modal for FTP file
+        function openShareLinkModalForFtpFile(ftpPath, fileName) {
+            currentShareLinkItem = { type: 'ftp', path: ftpPath, name: fileName };
+
+            const modal = document.getElementById('shareLinkModal');
+            const projectNameEl = document.getElementById('shareLinkProjectName');
+            const passwordField = document.getElementById('passwordField');
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+
+            projectNameEl.textContent = `Generate a secure share link for file "${fileName}"`;
+
+            // Reset form
+            document.querySelector('input[name="expiry"][value="7d"]').checked = true;
+            requirePasswordCheckbox.checked = false;
+            passwordField.style.display = 'none';
+            document.getElementById('shareLinkPassword').value = '';
+
+            modal.classList.add('show');
+        }
+
+        // Toggle password field visibility
+        document.addEventListener('DOMContentLoaded', () => {
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+            const passwordField = document.getElementById('passwordField');
+
+            if (requirePasswordCheckbox) {
+                requirePasswordCheckbox.addEventListener('change', (e) => {
+                    passwordField.style.display = e.target.checked ? 'block' : 'none';
+                    if (e.target.checked) {
+                        document.getElementById('shareLinkPassword').focus();
+                    }
+                });
+            }
+        });
+
+        // Close share link modal
+        function closeShareLinkModal() {
+            const modal = document.getElementById('shareLinkModal');
+            modal.classList.remove('show');
+            currentShareLinkItem = null;
+        }
+
+        // Close success modal
+        function closeShareLinkSuccessModal() {
+            const modal = document.getElementById('shareLinkSuccessModal');
+            modal.classList.remove('show');
+        }
+
+        // Generate share link from modal
+        async function generateShareLink() {
+            if (!currentShareLinkItem) return;
+
+            try {
+                const expiryRadio = document.querySelector('input[name="expiry"]:checked');
+                const requirePassword = document.getElementById('requirePassword').checked;
+                const passwordInput = document.getElementById('shareLinkPassword');
+
+                const expiresIn = expiryRadio.value;
+                let password = null;
+
+                if (requirePassword) {
+                    password = passwordInput.value.trim();
+                    if (!password) {
+                        alert('Please enter a password');
+                        passwordInput.focus();
+                        return;
+                    }
+                }
+
+                console.log('[Share Link] Generating for', currentShareLinkItem.type + ':', currentShareLinkItem.id);
+
+                // Build request body based on type
+                const requestBody = {
+                    expires_in: expiresIn,
+                    password: password
+                };
+
+                if (currentShareLinkItem.type === 'project') {
+                    requestBody.project_id = currentShareLinkItem.id;
+                } else if (currentShareLinkItem.type === 'file') {
+                    requestBody.file_id = currentShareLinkItem.id;
+                } else if (currentShareLinkItem.type === 'ftp') {
+                    requestBody.ftp_path = currentShareLinkItem.path;
+                }
+
+                const response = await fetch('/api/share/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody),
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    console.error('[Share Link] API error:', error);
+                    throw new Error(error.error || 'Failed to generate share link');
+                }
+
+                const data = await response.json();
+                console.log('[Share Link] Generated:', data);
+
+                // Copy to clipboard
+                await navigator.clipboard.writeText(data.url);
+
+                // Close generation modal
+                closeShareLinkModal();
+
+                // Show success modal
+                const successModal = document.getElementById('shareLinkSuccessModal');
+                const urlEl = document.getElementById('shareLinkUrl');
+                const detailsEl = document.getElementById('shareLinkDetails');
+
+                urlEl.textContent = data.url;
+
+                let detailsHTML = '<div style="font-size: 0.9rem;">';
+                if (password) {
+                    detailsHTML += `<div style="margin-bottom: 0.5rem;"><strong>Password:</strong> <code style="background: white; padding: 0.25rem 0.5rem; border-radius: 4px;">${password}</code></div>`;
+                }
+                if (expiresIn !== 'never') {
+                    detailsHTML += `<div><strong>Expires:</strong> 7 days</div>`;
+                } else {
+                    detailsHTML += `<div><strong>Expires:</strong> Never</div>`;
+                }
+                detailsHTML += '</div>';
+
+                detailsEl.innerHTML = detailsHTML;
+
+                successModal.classList.add('show');
+
+            } catch (error) {
+                console.error('[Share Link] Error:', error);
+                alert(error.message || 'Failed to generate share link');
+            }
+        }
+
+        // Click outside modal to close
+        document.addEventListener('click', (e) => {
+            const shareLinkModal = document.getElementById('shareLinkModal');
+            const successModal = document.getElementById('shareLinkSuccessModal');
+
+            if (e.target === shareLinkModal) {
+                closeShareLinkModal();
+            }
+            if (e.target === successModal) {
+                closeShareLinkSuccessModal();
+            }
+        });
+    </script>
+</body>
+</html>

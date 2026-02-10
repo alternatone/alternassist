@@ -1,0 +1,10 @@
+/**
+ * Alternassist App Styles
+ * Main CSS entry point for SvelteKit frontend
+ */
+
+/* Design System (CSS Variables) */
+@import './lib/styles/design-system.css';
+
+/* Global Styles (Resets & Base) */
+@import './lib/styles/global.css';

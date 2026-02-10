@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="admin-auth-check.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alternatone Invoice Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #2a2a2a;
+            --secondary-text: #555555;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #4A90C8;
+            --accent-red: #D96459;
+            --accent-teal: #7AC7C4;
+            --bg-primary: #F8F6F3;
+            --bg-secondary: #FFFFFF;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'Crimson Text', serif;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --font-mono: 'Archivo', 'Monaco', 'Consolas', monospace;
+            --radius-lg: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-primary); background: var(--bg-primary); color: var(--primary-text); line-height: 1.6; padding: 0; margin: 0; overflow: hidden; }
+
+        .generator-container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 400px 1fr; gap: 3rem; padding: 2rem; }
+        
+        .form-panel { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; border: var(--border-light); box-shadow: var(--shadow-subtle); height: fit-content; width: 100%; }
+        .invoice-preview { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-subtle); border: var(--border-light); overflow: hidden; }
+        
+        .header { text-align: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: var(--border-medium); }
+        .header h1 { font-family: var(--font-display); font-size: 1.8rem; font-weight: 600; color: var(--primary-text); }
+        
+        .form-section { margin-bottom: 2rem; }
+        .section-title { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-blue); margin-bottom: 1rem; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        
+        label { font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); margin-bottom: 0.5rem; }
+        input, select { padding: 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; transition: border-color 0.2s; width: 100%; }
+        input:focus, select:focus { outline: none; border-color: var(--accent-teal); }
+        
+        .payment-split { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .split-option { flex: 1; padding: 0.75rem; border: var(--border-medium); border-radius: 6px; text-align: center; cursor: pointer; transition: all 0.2s; background: white; }
+        .split-option.active { background: var(--accent-teal); color: white; border-color: var(--accent-teal); }
+        
+        .action-buttons { display: flex; gap: 1rem; margin-top: 2rem; }
+        .btn { flex: 1; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-family: var(--font-primary); }
+        .btn-primary { background: var(--accent-teal); color: white; }
+        .btn-primary:hover { background: #3a8bc7; }
+        .btn-secondary { background: var(--subtle-text); color: white; }
+        .btn-secondary:hover { background: var(--secondary-text); }
+        .btn-gradient { background: linear-gradient(135deg, #4A90E2 0%, #E74C3C 100%); color: white; box-shadow: 0 4px 20px rgba(0,0,0,0.05), 0 0 0 1px rgba(74, 144, 226, 0.1); transition: all 0.2s; }
+        .btn-gradient:hover { background: linear-gradient(135deg, #3a7bc8 0%, #d43f33 100%); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(74, 144, 226, 0.2); }
+
+        /* Logged Invoices styles */
+        .logged-invoice-card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; border: var(--border-medium); }
+        .logged-invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+        .logged-invoice-title { font-weight: 600; font-size: 1rem; color: var(--primary-text); }
+        .logged-invoice-date { font-size: 0.85rem; color: var(--muted-text); }
+        .logged-invoice-info { display: flex; justify-content: flex-end; gap: 1.5rem; font-size: 0.9rem; color: var(--secondary-text); }
+        .logged-invoice-delete { background: none; border: none; color: var(--muted-text); cursor: pointer; transition: color 0.2s; padding: 0; display: flex; align-items: center; justify-content: center; }
+        .logged-invoice-delete:hover { color: var(--accent-red); }
+
+        /* Invoice styles */
+        .invoice-container { padding: 3rem; font-family: var(--font-primary); min-height: 800px; }
+        .invoice-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: var(--border-medium); }
+        .brand-section h2 { font-family: var(--font-display); font-size: 2.2rem; font-weight: 600; color: var(--primary-text); letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+        .brand-section p { font-family: var(--font-body); color: var(--subtle-text); font-size: 0.95rem; font-weight: 300; }
+        .invoice-meta { text-align: right; }
+        .invoice-number { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 600; background: linear-gradient(90deg, var(--accent-red) 0%, var(--accent-teal) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: var(--accent-teal); margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+        .invoice-date { font-family: var(--font-body); color: var(--muted-text); font-size: 0.9rem; }
+        .client-section { margin-bottom: 2.5rem; }
+        .client-info { font-family: var(--font-body); font-size: 1.1rem; color: var(--secondary-text); line-height: 1.5; }
+        .category-tag { display: inline-block; background: rgba(70, 159, 224, 0.1); color: var(--accent-teal); padding: 0.4rem 1rem; border-radius: 24px; font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2rem; font-family: var(--font-primary); }
+        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; font-family: var(--font-body); }
+        .invoice-table th { background: var(--bg-primary); padding: 1rem; text-align: left; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--subtle-text); border-bottom: 3px solid; border-image: linear-gradient(90deg, var(--accent-red) 0%, var(--accent-teal) 100%) 1; }
+        .invoice-table th:last-child, .invoice-table td:last-child { text-align: right; }
+        .invoice-table td { padding: 1rem; border-bottom: var(--border-light); font-size: 0.95rem; color: var(--secondary-text); }
+        .task-row td:first-child { font-weight: 500; color: var(--primary-text); }
+        .total-row { background: var(--bg-primary); font-weight: 600; }
+        .total-row td { font-family: var(--font-mono); font-size: 1.1rem; color: var(--primary-text); border-bottom: none; padding: 1.2rem 1rem; }
+        .payment-section { margin-top: 3rem; padding-top: 2rem; border-top: var(--border-medium); }
+        .payment-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .payment-method h4 { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-blue); margin-bottom: 0.5rem; }
+        .payment-method p { font-family: var(--font-body); color: var(--secondary-text); font-size: 0.9rem; line-height: 1.5; }
+        
+        @media print {
+            * { visibility: hidden; }
+            .invoice-container, .invoice-container * { visibility: visible; }
+            .invoice-container { position: absolute; left: 0; top: 0; width: 100%; padding: 0.4in 0.5in; }
+            @page { margin: 0; size: letter; }
+            .invoice-header { margin-bottom: 1.5rem; padding-bottom: 1rem; }
+            .brand-section h2 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+            .brand-section p { font-size: 0.85rem; }
+            .invoice-number { font-size: 1.4rem; }
+            .invoice-date { font-size: 0.8rem; }
+            .category-tag { margin-bottom: 1rem; padding: 0.3rem 0.8rem; font-size: 0.75rem; }
+            .client-section { margin-bottom: 1.5rem; }
+            .client-section .section-title { margin-bottom: 0.4rem; font-size: 0.75rem; }
+            .client-info { font-size: 0.95rem; margin-bottom: 1rem !important; }
+            .invoice-table { margin-bottom: 1.5rem; }
+            .invoice-table th { padding: 0.6rem 0.75rem; font-size: 0.7rem; }
+            .invoice-table td { padding: 0.6rem 0.75rem; font-size: 0.85rem; }
+            .total-row td { padding: 0.8rem 0.75rem; font-size: 0.95rem; }
+            .payment-section { margin-top: 1.5rem; padding-top: 1rem; }
+            .payment-section .section-title { margin-bottom: 0.75rem; font-size: 0.75rem; }
+            .payment-methods { gap: 1rem; }
+            .payment-method h4 { font-size: 0.75rem; margin-bottom: 0.25rem; }
+            .payment-method p { font-size: 0.8rem; line-height: 1.4; }
+        }
+        
+        @media (max-width: 1024px) {
+            .generator-container { grid-template-columns: 1fr; }
+            .invoice-container { padding: 2rem; }
+            .payment-methods { grid-template-columns: 1fr; gap: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="generator-container">
+        <!-- Form Panel -->
+        <div class="form-panel">
+            <div class="header">
+                <h1>Invoice Generator</h1>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">Invoice Details</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="invoiceNumber">Invoice Number</label>
+                        <input type="text" id="invoiceNumber" placeholder="2523">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceDate">Date</label>
+                        <input type="date" id="invoiceDate">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="projectName">Project Name</label>
+                        <input type="text" id="projectName">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="clientName">Point of Contact Name</label>
+                        <input type="text" id="clientName">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="category">Category</label>
+                        <select id="category">
+                            <option value="Music Composition">Music Composition</option>
+                            <option value="Post-Production Audio">Post-Production Audio</option>
+                            <option value="Music & Post-Production">Music & Post-Production</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">Services</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="musicMinutes">Music (minutes)</label>
+                        <input type="number" id="musicMinutes" placeholder="0" min="0" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="postDays">Post Audio (days)</label>
+                        <input type="number" id="postDays" placeholder="0" min="0" step="0.5">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">Payment Terms</h3>
+                <div class="payment-split">
+                    <div class="split-option active" onclick="setPaymentSplit('full')">
+                        <strong>full amount</strong>
+                    </div>
+                    <div class="split-option" onclick="setPaymentSplit('50%')">
+                        <strong>50%</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="window.print()">print invoice</button>
+                <button class="btn btn-gradient" onclick="sendToPayments()">send to payments</button>
+            </div>
+        </div>
+
+        <!-- Invoice Preview -->
+        <div class="invoice-preview">
+            <div class="invoice-container">
+                <header class="invoice-header">
+                    <div class="brand-section">
+                        <h2>Alternatone</h2>
+                        <p>music & post production audio by Micah Garrido</p>
+                    </div>
+                    <div class="invoice-meta">
+                        <div class="invoice-number" id="displayInvoiceNumber">Invoice #2523</div>
+                        <div class="invoice-date" id="displayInvoiceDate">December 15, 2024</div>
+                    </div>
+                </header>
+
+                <div class="category-tag" id="displayCategory">Music & Post-Production</div>
+
+                <section class="client-section">
+                    <h3 class="section-title">Project</h3>
+                    <div class="client-info" id="displayProjectName" style="margin-bottom: 1.5rem;"></div>
+                    <h3 class="section-title">Prepared For</h3>
+                    <div class="client-info" id="displayClientName"></div>
+                </section>
+
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Rate</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoiceTableBody">
+                        <tr class="task-row">
+                            <td>Music Composition (0 minutes)</td>
+                            <td>$150/min</td>
+                            <td>$0</td>
+                        </tr>
+                        <tr class="task-row">
+                            <td>Post-Production Audio (0 days)</td>
+                            <td>$500/day</td>
+                            <td>$0</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2">Total Due</td>
+                            <td>$0</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <section class="payment-section">
+                    <h3 class="section-title">Payment Methods</h3>
+                    <div class="payment-methods">
+                        <div class="payment-method">
+                            <h4>Venmo</h4>
+                            <p>@micah-garrido</p>
+                        </div>
+                        <div class="payment-method">
+                            <h4>Zelle</h4>
+                            <p>micah@alternatone.com<br>(314) 517-0251</p>
+                        </div>
+                        <div class="payment-method">
+                            <h4>Bank Transfer</h4>
+                            <p>Banking information available upon request</p>
+                        </div>
+                        <div class="payment-method">
+                            <h4>Check</h4>
+                            <p>Payable to Micah Garrido<br>3034 E Del Mar Blvd<br>Pasadena, CA 91107</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Logged Invoices Section -->
+        <div id="loggedInvoicesSection" style="max-width: 1400px; margin: 3rem auto 0; padding: 0 2rem; display: none;">
+            <h3 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-blue); margin-bottom: 1rem;">Logged Invoices</h3>
+            <div id="loggedInvoicesList"></div>
+        </div>
+    </div>
+
+    <script src="api-helpers.js"></script>
+    <script>
+        const MUSIC_RATE = 150;
+        const DAY_RATE = 500;
+        
+        let paymentSplit = 'full';
+        let estimateData = null;
+        let currentProjectId = null;
+        let hasBundleDiscount = false;
+        let lastCalculatedTotal = 0;
+        let lastCalculatedFinalAmount = 0;
+        let useEstimateTotal = false; // Flag to use estimate total instead of recalculating
+        let estimateTotal = 0; // Store the estimate total
+
+        async function loadEstimateData() {
+            // Check for invoice data from projects first
+            const invoicesRaw = localStorage.getItem('invoices');
+            console.log('Raw invoices data:', invoicesRaw);
+
+            const invoices = JSON.parse(invoicesRaw || '[]');
+            console.log('Loading invoice data, found:', invoices.length, 'invoices');
+
+            if (invoices.length > 0) {
+                // Get the most recent invoice
+                const latestInvoice = invoices[invoices.length - 1];
+                console.log('Populating from project:', latestInvoice);
+                populateFromProject(latestInvoice);
+                // Clear the invoice from localStorage after loading
+                localStorage.removeItem('invoices');
+                return;
+            }
+
+            // Fall back to estimate data
+            const savedData = localStorage.getItem('current-invoice-data');
+            if (savedData) {
+                console.log('Populating from estimate data');
+                estimateData = JSON.parse(savedData);
+                populateFromEstimate();
+            } else {
+                console.log('No invoice or estimate data found');
+            }
+
+            // Load logged invoices from API
+            await renderLoggedInvoices();
+        }
+
+        function populateFromProject(invoiceData) {
+            // Store the project ID and bundle discount status for later use
+            currentProjectId = invoiceData.projectId || null;
+            hasBundleDiscount = invoiceData.estimateData && invoiceData.estimateData.bundleDiscount || false;
+
+            // Check if we have an estimate total to use (for 50% deposits)
+            if (invoiceData.estimateData && invoiceData.estimateData.total) {
+                useEstimateTotal = true;
+                estimateTotal = invoiceData.estimateData.total;
+                console.log('Using estimate total:', estimateTotal);
+            } else {
+                useEstimateTotal = false;
+                estimateTotal = 0;
+            }
+
+            // Set today's date and get current invoice number
+            document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+
+            // Get next invoice number from database
+            fetch('/api/invoices/next-number')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('invoiceNumber').value = data.nextNumber;
+                })
+                .catch(err => {
+                    console.error('Error fetching next invoice number:', err);
+                    // Fallback to 2601 if error
+                    document.getElementById('invoiceNumber').value = '2601';
+                });
+
+            // Set project and client info
+            document.getElementById('projectName').value = invoiceData.projectName || '';
+            document.getElementById('clientName').value = invoiceData.clientName || '';
+
+            // Determine if this is a deposit (from prospects) or final invoice (from approved-billed)
+            const isProspects = invoiceData.projectColumn === 'prospects';
+            const isApprovedBilled = invoiceData.projectColumn === 'approved-billed';
+
+            // Calculate services from scope data and logged hours
+            const scopeData = invoiceData.scopeData || {};
+            const loggedHours = invoiceData.loggedHours || {};
+
+            // Extract music minutes from scope (format: "48 mins" or "18.9 mins")
+            const musicMatch = (scopeData.music || '').match(/([\d.]+)/);
+            const musicMinutes = musicMatch ? parseFloat(musicMatch[1]) : 0;
+
+            // Calculate post audio days from logged hours (if available) or scope data
+            let dialogueHrs = parseFloat(loggedHours.dialogue) || 0;
+            let soundDesignHrs = parseFloat(loggedHours.soundDesign) || 0;
+            let mixHrs = parseFloat(loggedHours.mix) || 0;
+            let revisionHrs = parseFloat(loggedHours.revisions) || 0;
+
+            // If no logged hours, try to get from scope data
+            if (dialogueHrs === 0 && scopeData.dialogue) {
+                const dialogueMatch = scopeData.dialogue.match(/([\d.]+)/);
+                dialogueHrs = dialogueMatch ? parseFloat(dialogueMatch[1]) : 0;
+            }
+            if (soundDesignHrs === 0 && scopeData.soundDesign) {
+                const soundDesignMatch = scopeData.soundDesign.match(/([\d.]+)/);
+                soundDesignHrs = soundDesignMatch ? parseFloat(soundDesignMatch[1]) : 0;
+            }
+            if (mixHrs === 0 && scopeData.mix) {
+                const mixMatch = scopeData.mix.match(/([\d.]+)/);
+                mixHrs = mixMatch ? parseFloat(mixMatch[1]) : 0;
+            }
+            if (revisionHrs === 0 && scopeData.revisions) {
+                const revisionsMatch = scopeData.revisions.match(/([\d.]+)/);
+                revisionHrs = revisionsMatch ? parseFloat(revisionsMatch[1]) : 0;
+            }
+
+            const totalPostHours = dialogueHrs + soundDesignHrs + mixHrs + revisionHrs;
+            const postDays = totalPostHours / 8; // Convert hours to days, NO rounding for exact calculations
+
+            document.getElementById('musicMinutes').value = musicMinutes;
+            document.getElementById('postDays').value = postDays;
+
+            // Set category based on what services exist
+            const hasMusic = musicMinutes > 0;
+            const hasPost = totalPostHours > 0;
+
+            if (hasMusic && hasPost) {
+                document.getElementById('category').value = 'Music & Post-Production';
+            } else if (hasMusic) {
+                document.getElementById('category').value = 'Music Composition';
+            } else if (hasPost) {
+                document.getElementById('category').value = 'Post-Production Audio';
+            }
+
+            // Auto-set payment split based on project column
+            if (isProspects) {
+                // This is a 50% deposit invoice
+                paymentSplit = '50%';
+                document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
+                document.querySelectorAll('.split-option')[1].classList.add('active'); // Second option is 50%
+            } else if (isApprovedBilled) {
+                // This is a final invoice
+                // Check if there's a previous 50% deposit invoice for this project via API
+                (async () => {
+                    try {
+                        const projectPayments = await PaymentsAPI.getByProject(currentProjectId);
+                        const previousInvoice = projectPayments.find(p => p.payment_type === 'deposit');
+
+                        if (previousInvoice) {
+                    // There was a 50% deposit, so we need to calculate remaining 50% + overages
+                    // Get the original estimated values from scope
+                    const estimatedMusicMins = musicMinutes; // From scope
+                    const estimatedPostDays = postDays; // From scope (if no logged hours)
+
+                    // Get actual logged values
+                    const actualMusicMins = musicMinutes; // Could be from approved cues
+                    const actualDialogue = parseFloat(loggedHours.dialogue) || 0;
+                    const actualSoundDesign = parseFloat(loggedHours.soundDesign) || 0;
+                    const actualMix = parseFloat(loggedHours.mix) || 0;
+                    const actualRevisions = parseFloat(loggedHours.revisions) || 0;
+                    const actualPostHours = actualDialogue + actualSoundDesign + actualMix + actualRevisions;
+                    const actualPostDays = actualPostHours / 8; // NO rounding for exact calculations
+
+                            // Use actual logged hours for final invoice
+                            document.getElementById('musicMinutes').value = actualMusicMins;
+                            document.getElementById('postDays').value = actualPostDays;
+                        }
+
+                        // Set to full payment (user will see the total with overages if any)
+                        paymentSplit = 'full';
+                        document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
+                        document.querySelectorAll('.split-option')[0].classList.add('active'); // First option is full
+                    } catch (error) {
+                        console.error('Error loading payments for project:', error);
+                    }
+                })();
+            }
+
+            generateInvoice();
+        }
+
+        async function populateFromEstimate() {
+            if (!estimateData) return;
+
+            // Set today's date
+            document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+
+            // OPTIMIZED: Invoice number already set in DOMContentLoaded - no need to fetch again
+
+            // Set project and client info
+            document.getElementById('projectName').value = estimateData.projectName || '';
+            document.getElementById('clientName').value = estimateData.clientName || '';
+
+            // Calculate services
+            const musicMinutes = estimateData.runtime * (estimateData.musicCoverage / 100);
+            const totalPostHours = estimateData.dialogueHours + estimateData.soundDesignHours +
+                                 estimateData.mixHours + estimateData.revisionHours;
+            const postDays = Math.ceil(totalPostHours / 4) * 0.5;
+
+            document.getElementById('musicMinutes').value = Math.ceil(musicMinutes);
+            document.getElementById('postDays').value = postDays;
+
+            // Set category
+            const hasMusic = musicMinutes > 0;
+            const hasPost = postDays > 0;
+            
+            if (hasMusic && hasPost) {
+                document.getElementById('category').value = 'Music & Post-Production';
+            } else if (hasMusic) {
+                document.getElementById('category').value = 'Music Composition';
+            } else if (hasPost) {
+                document.getElementById('category').value = 'Post-Production Audio';
+            }
+            
+            generateInvoice();
+        }
+
+        function setPaymentSplit(type) {
+            paymentSplit = type;
+            document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
+            event.target.closest('.split-option').classList.add('active');
+            generateInvoice();
+        }
+
+        function generateInvoice() {
+            // Update invoice header
+            document.getElementById('displayInvoiceNumber').textContent =
+                `Invoice #${document.getElementById('invoiceNumber').value}`;
+            document.getElementById('displayInvoiceDate').textContent =
+                new Date(document.getElementById('invoiceDate').value).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            document.getElementById('displayProjectName').textContent =
+                document.getElementById('projectName').value || '';
+            document.getElementById('displayClientName').textContent =
+                document.getElementById('clientName').value || '';
+            document.getElementById('displayCategory').textContent =
+                document.getElementById('category').value;
+
+            // Calculate line items
+            const musicMinutes = parseFloat(document.getElementById('musicMinutes').value) || 0;
+            const postDays = parseFloat(document.getElementById('postDays').value) || 0;
+
+            const musicCost = musicMinutes * MUSIC_RATE;
+            const postCost = postDays * DAY_RATE;
+            let total;
+
+            // Use estimate total if available (for 50% deposits from prospects)
+            if (useEstimateTotal && estimateTotal > 0) {
+                total = estimateTotal;
+                console.log('Using estimate total for invoice:', total);
+            } else {
+                // Calculate from rates
+                total = musicCost + postCost;
+
+                // Apply bundle discount if the project had one
+                if (hasBundleDiscount && musicCost > 0 && postCost > 0) {
+                    total = total * 0.9; // Apply 10% discount
+                }
+            }
+
+            // Generate table rows
+            let tableHTML = '';
+            
+            if (musicMinutes > 0) {
+                const displayAmount = paymentSplit === '50%' ? musicCost * 0.5 : musicCost;
+                tableHTML += `
+                    <tr class="task-row">
+                        <td>Music Composition (${musicMinutes} minutes)</td>
+                        <td>$${MUSIC_RATE}/min</td>
+                        <td>$${displayAmount}</td>
+                    </tr>
+                `;
+            }
+
+            if (postDays > 0) {
+                const displayAmount = paymentSplit === '50%' ? postCost * 0.5 : postCost;
+                tableHTML += `
+                    <tr class="task-row">
+                        <td>Post-Production Audio (${postDays} days)</td>
+                        <td>$${DAY_RATE}/day</td>
+                        <td>$${displayAmount}</td>
+                    </tr>
+                `;
+            }
+
+            const finalAmount = paymentSplit === '50%' ? total * 0.5 : total;
+            const amountLabel = paymentSplit === '50%' ? 'Total Due (50%)' : 'Total Due';
+
+            // Store calculated amounts for use by other functions
+            lastCalculatedTotal = total;
+            lastCalculatedFinalAmount = finalAmount;
+
+            tableHTML += `
+                <tr class="total-row">
+                    <td colspan="2">${amountLabel}</td>
+                    <td>$${finalAmount}</td>
+                </tr>
+            `;
+
+            document.getElementById('invoiceTableBody').innerHTML = tableHTML;
+        }
+
+        function clearForm() {
+            // Clear all input fields
+            document.getElementById('projectName').value = '';
+            document.getElementById('clientName').value = '';
+            document.getElementById('musicMinutes').value = '';
+            document.getElementById('postDays').value = '';
+            document.getElementById('category').value = 'Music Composition';
+
+            // Reset payment split to full
+            paymentSplit = 'full';
+            document.querySelectorAll('.split-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelector('.split-option').classList.add('active');
+
+            // Clear project ID
+            currentProjectId = null;
+
+            // Set new invoice number and date
+            document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+            // Use timestamp-based invoice number
+            const invoiceNumber = '25' + new Date().getFullYear().toString().slice(-2) + String(Math.floor(Date.now() / 1000) % 10000).padStart(4, '0');
+            document.getElementById('invoiceNumber').value = invoiceNumber;
+
+            // Regenerate empty invoice
+            generateInvoice();
+        }
+
+        async function logInvoice() {
+            const invoiceNumber = document.getElementById('invoiceNumber').value;
+            const projectName = document.getElementById('projectName').value;
+            const clientName = document.getElementById('clientName').value;
+            const invoiceDate = document.getElementById('invoiceDate').value;
+
+            if (!invoiceNumber || !clientName || !invoiceDate) {
+                alert('Please fill in invoice number, client name, and date');
+                return;
+            }
+
+            const musicMinutes = parseFloat(document.getElementById('musicMinutes').value) || 0;
+            const postDays = parseFloat(document.getElementById('postDays').value) || 0;
+
+            try {
+                // Create invoice via API
+                const invoiceData = {
+                    project_id: currentProjectId,
+                    invoice_number: invoiceNumber,
+                    amount: lastCalculatedFinalAmount,
+                    deposit_amount: paymentSplit === '50%' ? lastCalculatedFinalAmount : 0,
+                    deposit_percentage: paymentSplit === '50%' ? 50 : 0,
+                    final_amount: paymentSplit === 'final' ? lastCalculatedFinalAmount : lastCalculatedTotal,
+                    status: 'draft',
+                    due_date: new Date(new Date(invoiceDate).getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    issue_date: invoiceDate,
+                    line_items: JSON.stringify([
+                        { description: `Music Composition: ${musicMinutes} minutes`, amount: musicMinutes * MUSIC_RATE },
+                        { description: `Post Audio: ${postDays} days`, amount: postDays * DAY_RATE }
+                    ])
+                };
+
+                await InvoicesAPI.create(invoiceData);
+                await renderLoggedInvoices();
+                alert('Invoice logged successfully!');
+            } catch (error) {
+                console.error('Error logging invoice:', error);
+                alert('Failed to log invoice. Please try again.');
+            }
+        }
+
+        async function renderLoggedInvoices() {
+            const section = document.getElementById('loggedInvoicesSection');
+            const list = document.getElementById('loggedInvoicesList');
+
+            try {
+                // Single optimized query with JOIN!
+                const invoices = await InvoicesAPI.getAllWithProjects(50);
+
+                if (invoices.length === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+
+                section.style.display = 'block';
+                list.innerHTML = invoices.reverse().map(invoice => {
+                    const lineItems = invoice.line_items ? JSON.parse(invoice.line_items) : [];
+                    const musicMinutes = lineItems.find(item => item.description.includes('Music'))?.amount / MUSIC_RATE || 0;
+                    const postDays = lineItems.find(item => item.description.includes('Post'))?.amount / DAY_RATE || 0;
+                    const paymentType = invoice.deposit_percentage === 50 ? '50%' : 'Full';
+
+                    return `
+                        <div class="logged-invoice-card" data-invoice-id="${invoice.id}" onclick="loadLoggedInvoice(${invoice.id})" style="cursor: pointer;">
+                            <div class="logged-invoice-header">
+                                <div>
+                                    <div class="logged-invoice-title">Invoice #${invoice.invoice_number} - ${invoice.project_name || 'Untitled'}</div>
+                                    <div class="logged-invoice-date">${new Date(invoice.issue_date).toLocaleDateString()}</div>
+                                </div>
+                                <button class="logged-invoice-delete" onclick="event.stopPropagation(); deleteLoggedInvoice(${invoice.id}, '${(invoice.invoice_number || '').replace(/'/g, "\\'")}')" title="Delete">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="logged-invoice-info">
+                                <div><strong>Client:</strong> ${invoice.client_name || ''}</div>
+                                <div><strong>Music:</strong> ${Math.round(musicMinutes)} mins</div>
+                                <div><strong>Post:</strong> ${postDays.toFixed(1)} days</div>
+                                <div><strong>Split:</strong> ${paymentType}</div>
+                                <div><strong>Amount:</strong> $${invoice.amount}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading invoices:', error);
+                section.style.display = 'none';
+            }
+        }
+
+        async function loadLoggedInvoice(id) {
+            try {
+                // Single optimized query!
+                const invoice = await InvoicesAPI.getWithProject(id);
+                if (!invoice) return;
+
+                // Parse line items
+                const lineItems = invoice.line_items ? JSON.parse(invoice.line_items) : [];
+                const musicMinutes = lineItems.find(item => item.description.includes('Music'))?.amount / MUSIC_RATE || 0;
+                const postDays = lineItems.find(item => item.description.includes('Post'))?.amount / DAY_RATE || 0;
+
+                // Populate form fields from logged invoice - direct access to project fields
+                document.getElementById('invoiceNumber').value = invoice.invoice_number || '';
+                document.getElementById('invoiceDate').value = invoice.issue_date || new Date().toISOString().split('T')[0];
+                document.getElementById('projectName').value = invoice.project_name || '';
+                document.getElementById('clientName').value = invoice.client_name || '';
+                document.getElementById('musicMinutes').value = musicMinutes;
+                document.getElementById('postDays').value = postDays;
+
+                // Set payment split
+                paymentSplit = invoice.deposit_percentage === 50 ? '50%' : 'full';
+                currentProjectId = invoice.project_id;
+
+                // Set category based on services
+                const hasMusic = musicMinutes > 0;
+                const hasPost = postDays > 0;
+                if (hasMusic && hasPost) {
+                    document.getElementById('category').value = 'Music & Post-Production';
+                } else if (hasMusic) {
+                    document.getElementById('category').value = 'Music Composition';
+                } else if (hasPost) {
+                    document.getElementById('category').value = 'Post-Production Audio';
+                }
+
+                // Set payment split UI
+                document.querySelectorAll('.split-option').forEach(opt => opt.classList.remove('active'));
+                if (paymentSplit === '50%') {
+                    document.querySelectorAll('.split-option')[1].classList.add('active');
+                } else {
+                    document.querySelectorAll('.split-option')[0].classList.add('active');
+                }
+
+                // Regenerate invoice
+                generateInvoice();
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error loading invoice:', error);
+                alert('Failed to load invoice.');
+            }
+        }
+
+        async function deleteLoggedInvoice(id, invoiceNumber) {
+            if (!confirm(`Delete invoice #${invoiceNumber}?`)) return;
+
+            try {
+                // Optimistic UI update - remove card with animation
+                const card = document.querySelector(`[data-invoice-id="${id}"]`);
+
+                if (card) {
+                    card.style.transition = 'opacity 0.2s, transform 0.2s';
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateX(-20px)';
+                }
+
+                // Delete from server
+                await InvoicesAPI.delete(id);
+
+                // Remove from DOM after animation
+                setTimeout(() => {
+                    if (card) card.remove();
+
+                    // Check if list is now empty
+                    const list = document.getElementById('loggedInvoicesList');
+                    if (list.children.length === 0) {
+                        document.getElementById('loggedInvoicesSection').style.display = 'none';
+                    }
+                }, 200);
+            } catch (error) {
+                console.error('Error deleting invoice:', error);
+                alert('Failed to delete invoice.');
+                // Revert UI if failed
+                const card = document.querySelector(`[data-invoice-id="${id}"]`);
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateX(0)';
+                }
+            }
+        }
+
+        async function sendToPayments() {
+            const invoiceNumber = document.getElementById('invoiceNumber').value;
+            const clientName = document.getElementById('clientName').value;
+            const invoiceDate = document.getElementById('invoiceDate').value;
+
+            if (!invoiceNumber || !clientName || !invoiceDate) {
+                alert('Please fill in invoice number, client name, and date');
+                return;
+            }
+
+            try {
+                const dueDate = new Date(invoiceDate);
+                dueDate.setDate(dueDate.getDate() + 15);
+
+                const projectName = document.getElementById('projectName').value;
+                const musicMinutes = parseFloat(document.getElementById('musicMinutes').value) || 0;
+                const postDays = parseFloat(document.getElementById('postDays').value) || 0;
+
+                // Single transactional API call!
+                await InvoicesAPI.createWithPayment({
+                    invoice: {
+                        project_id: currentProjectId,
+                        invoice_number: invoiceNumber,
+                        amount: lastCalculatedFinalAmount,
+                        deposit_amount: paymentSplit === '50%' ? lastCalculatedFinalAmount : 0,
+                        deposit_percentage: paymentSplit === '50%' ? 50 : 0,
+                        final_amount: paymentSplit === 'final' ? lastCalculatedFinalAmount : lastCalculatedTotal,
+                        status: 'sent',
+                        due_date: dueDate.toISOString().split('T')[0],
+                        issue_date: invoiceDate,
+                        line_items: [
+                            { description: `Music Composition: ${musicMinutes} minutes`, amount: musicMinutes * MUSIC_RATE },
+                            { description: `Post Audio: ${postDays} days`, amount: postDays * DAY_RATE }
+                        ]
+                    },
+                    payment: {
+                        project_id: currentProjectId,
+                        amount: lastCalculatedFinalAmount,
+                        payment_date: null,
+                        payment_method: null,
+                        payment_type: paymentSplit === '50%' ? 'deposit' : 'final',
+                        notes: `Outstanding payment for invoice #${invoiceNumber}`
+                    },
+                    updateProject: currentProjectId && paymentSplit === '50%' ? {
+                        project_id: currentProjectId,
+                        status: '50% deposit invoiced'
+                    } : null
+                });
+
+                await renderLoggedInvoices();
+                alert('Invoice logged as outstanding payment! Navigating to Payments page.');
+
+                if (window.parent && window.parent.loadModule) {
+                    window.parent.loadModule('payments');
+                }
+
+                setTimeout(() => clearForm(), 100);
+            } catch (error) {
+                console.error('Error sending to payments:', error);
+                alert('Failed to send invoice to payments. Please try again.');
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Set default date and invoice number FIRST from API
+            document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+
+            // Get next invoice number (optimized - single query!)
+            try {
+                const { nextNumber } = await InvoicesAPI.getNextNumber();
+                document.getElementById('invoiceNumber').value = nextNumber;
+            } catch (e) {
+                console.error('Failed to get invoice number:', e);
+                document.getElementById('invoiceNumber').value = '2523';
+            }
+
+            // Update invoice when form fields change
+            const formInputs = ['invoiceNumber', 'invoiceDate', 'projectName', 'clientName', 'category', 'musicMinutes', 'postDays'];
+            formInputs.forEach(id => {
+                const element = document.getElementById(id);
+                element.addEventListener('input', generateInvoice);
+                element.addEventListener('change', generateInvoice);
+            });
+
+            // Load estimate data if coming from calculator (this may override invoice number)
+            loadEstimateData();
+
+            // Render logged invoices
+            renderLoggedInvoices();
+
+            // Initial generation (after everything is loaded)
+            generateInvoice();
+        });
+    </script>
+</body>
+</html>

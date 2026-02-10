@@ -3,9 +3,60 @@
 ## Project Overview
 Alternassist is an all-in-one project management and workflow Electron app for creative professionals. It combines project tracking, financial management, media review, and Pro Tools integration into a unified desktop application.
 
-**Tech Stack:** Electron + Node.js + Express + SQLite (better-sqlite3) + Vanilla JS
+**Tech Stack:** Electron + Node.js + Express + SQLite (better-sqlite3) + SvelteKit (migrating from Vanilla JS)
 
-**Latest Sync:** Dec 21, 2025 | Commit: `d69c710` (52 commits pulled from remote)
+---
+
+## Current Priority: Svelte Migration — Audit Complete
+
+We are on branch `svelte-migration`. All pages have been audited and functional discrepancies fixed. The audit+fix pass is **complete** as of 2026-02-10.
+
+**What was done:**
+1. Every page was audited — discrepancies documented in `MIGRATION_AUDIT.md`
+2. All functional/behavioral discrepancies were fixed in the Svelte versions
+3. Design system differences (fonts, colors) were kept as-is (new design system retained)
+4. Architecture differences in Media pages (legacy tree browser vs Svelte two-view) noted but not changed — Svelte approach is more modern
+5. Hours page is a standalone improvement over legacy's embedded-only approach
+
+### Page Mapping (Original → Svelte)
+
+| Original (public/) | Svelte (frontend/src/routes/) | Status |
+|---|---|---|
+| index.html | /+page.svelte + /+layout.svelte + Navigation.svelte | **Fixed** |
+| kanban.html | /kanban/+page.svelte | **Fixed** |
+| cues.html | /cues/+page.svelte | **Fixed** |
+| estimates.html | /estimates/+page.svelte | **Fixed** |
+| invoices.html | /invoices/+page.svelte | **Fixed** |
+| payments.html | /payments/+page.svelte | **Fixed** |
+| books.html | /books/+page.svelte | **Fixed** |
+| notes.html | /notes/+page.svelte | **Fixed** |
+| media.html | /media/+page.svelte | **Fixed** (architecture differs) |
+| media_browser.html | /media/browser/+page.svelte | **Fixed** (architecture differs) |
+| media_review.html | /media/review/+page.svelte | **Fixed** |
+| media_transfer.html | /media/transfer/+page.svelte | **Fixed** (architecture differs) |
+| ftp_admin.html | (no Svelte equivalent yet) | N/A |
+| admin-login.html | /login/+page.svelte | **Fixed** |
+| client_login.html | /client/login/+page.svelte | **Fixed** |
+| client_portal.html | /client/portal/+page.svelte | **Fixed** |
+| public_viewer.html | /viewer/+page.svelte | Not audited |
+| (hours log - embedded) | /hours/+page.svelte | **Fixed** (standalone, more capable) |
+
+### Audit Process
+For each page:
+1. Read the original vanilla HTML/JS file thoroughly
+2. Read the corresponding Svelte component
+3. Compare: UI layout, all interactive features, API calls, event handlers, modals/dialogs, edge cases, error handling, styling
+4. Document every discrepancy
+5. Fix each one in the Svelte version
+
+### Key Files for the Migration
+- **Original frontend:** `public/*.html` (vanilla HTML/JS, inline `<script>` and `<style>`)
+- **Svelte frontend:** `frontend/src/routes/` (SvelteKit pages)
+- **Shared components:** `frontend/src/lib/components/` (Navigation, media components, shared UI)
+- **API layer:** `frontend/src/lib/api/` (TypeScript API client modules)
+- **Stores:** `frontend/src/lib/stores/` (auth, electron detection)
+- **SvelteKit config:** `frontend/svelte.config.js` (static adapter, outputs to `public-svelte/`)
+- **Original public assets moved to:** `public-legacy/` (if applicable)
 
 ---
 
@@ -13,7 +64,7 @@ Alternassist is an all-in-one project management and workflow Electron app for c
 
 ### Launch & Kill (CRITICAL)
 
-**⚠️ ALWAYS kill existing instances before launching:**
+**ALWAYS kill existing instances before launching:**
 
 ```bash
 # Safe kill (never use killall Electron - kills VS Code!)
@@ -28,10 +79,10 @@ pkill -9 -f "Alternassist.*Electron" && sleep 1 && nohup npm start > /dev/null 2
 
 ### Development Commands
 ```bash
-npm start              # Launch Electron app
-npm run build         # Build distributable (dist/Alternassist.app)
-wrangler pages dev    # Test Cloudflare Pages locally
-wrangler pages deploy # Deploy to Cloudflare
+npm start              # Launch Electron app (serves public/)
+npm run dev:svelte     # Run SvelteKit dev server (frontend/)
+npm run build:frontend # Build Svelte to public-svelte/
+npm run build          # Build distributable (dist/Alternassist.app)
 ```
 
 ---
@@ -46,7 +97,18 @@ wrangler pages deploy # Deploy to Cloudflare
 ### Project Structure
 ```
 alternassist/
-├── public/               # Frontend HTML modules (15 pages)
+├── public/               # Original vanilla HTML/JS frontend (reference)
+├── public-legacy/        # Backup of original public/ (if moved)
+├── frontend/             # SvelteKit app (migration target)
+│   ├── src/
+│   │   ├── routes/      # SvelteKit pages (one per original HTML page)
+│   │   ├── lib/
+│   │   │   ├── api/     # TypeScript API client modules
+│   │   │   ├── components/ # Shared Svelte components
+│   │   │   └── stores/  # Svelte stores (auth, electron)
+│   │   └── hooks.server.ts
+│   ├── svelte.config.js  # Static adapter → public-svelte/
+│   └── vite.config.ts
 ├── server/
 │   ├── routes/          # Express API endpoints (10 routes)
 │   ├── models/          # Database layer (database.js)
@@ -63,21 +125,7 @@ alternassist/
 
 ---
 
-## Core Modules
-
-### Frontend Pages (public/)
-- **[kanban.html](public/kanban.html)** - Project pipeline & task management
-- **[cues.html](public/cues.html)** - Music cue tracking
-- **[estimates.html](public/estimates.html)** - Project budgeting
-- **[invoices.html](public/invoices.html)** - Invoice generation
-- **[payments.html](public/payments.html)** - Payment tracking
-- **[books.html](public/books.html)** - Accounting & transactions
-- **[notes.html](public/notes.html)** - NoteMarker (Frame.io → Pro Tools)
-- **[media.html](public/media.html)** - Media management & upload
-- **[ftp_admin.html](public/ftp_admin.html)** - FTP file management
-- **[client_portal.html](public/client_portal.html)** - Client media review
-
-### Backend Routes (server/routes/)
+## Backend Routes (server/routes/)
 - **projects.js** - Project CRUD, archiving, activity
 - **files.js** - File upload, comments, metadata
 - **invoices.js** - Invoice generation & tracking
@@ -157,87 +205,14 @@ alternassist/
 
 ---
 
-## Deployment
-
-### Cloudflare Pages Setup
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for full guide.
-
-**Quick deploy:**
-```bash
-# 1. Create D1 database
-wrangler d1 create alternassist
-
-# 2. Update wrangler.toml with database_id
-
-# 3. Apply schema
-wrangler d1 execute alternassist --file=migrations/0001_initial_schema.sql
-
-# 4. Deploy
-wrangler pages deploy public
-```
-
-**API Functions:** [functions/api/](functions/api/) automatically map to `/api/*` routes
-
----
-
-## Development Notes
-
-### Recent Major Changes (52 commits)
-- ✅ Complete SQLite migration (all pages migrated)
-- ✅ Cloudflare Pages + D1 deployment setup
-- ✅ FTP storage migration for media files
-- ✅ Client portal authentication
-- ✅ Activity tracking service
-- ✅ Response caching layer
-- ✅ Reorganized: `HTML Sketches/` → `public/`
-
-### Data Persistence
-- **Electron:** SQLite database ([alternaview.db](alternaview.db))
-- **Cloudflare:** D1 database (serverless SQLite)
-- **Files:** FTP storage (not in git)
-- **Session:** express-session + bcryptjs auth
-
-### Important Patterns
+## Important Patterns
 1. **All API routes** return JSON with proper error handling
 2. **Database queries** use prepared statements (better-sqlite3)
 3. **File uploads** use resumable tus protocol
 4. **Activity logging** auto-tracks all project changes
 5. **Client access** secured with bcrypt password hashing
-
----
-
-## Common Tasks
-
-### Add a new page
-1. Create HTML in [public/](public/)
-2. Add route in [alternaview-server.js](alternaview-server.js)
-3. Add nav link in [public/index.html](public/index.html)
-4. Use CSS variables for styling
-
-### Add API endpoint
-1. Create in [server/routes/](server/routes/) or [functions/api/](functions/api/)
-2. Import in [alternaview-server.js](alternaview-server.js)
-3. Add database queries in [server/models/database.js](server/models/database.js)
-4. Test locally before deploying
-
-### Database changes
-1. Create migration: `migrations/000X_description.sql`
-2. Test locally: `sqlite3 alternaview.db < migrations/000X_description.sql`
-3. Deploy to D1: `wrangler d1 execute alternassist --file=migrations/000X_description.sql`
-
----
-
-## Testing Checklist
-
-Before deployment, verify:
-- [ ] Electron app launches without errors
-- [ ] All modules load correctly
-- [ ] Database queries work (local SQLite)
-- [ ] PTSL connection (if Pro Tools available)
-- [ ] File upload/download
-- [ ] API endpoints return expected data
-- [ ] Client portal login works
-- [ ] Cloudflare Pages builds successfully
+6. **Svelte API layer** in `frontend/src/lib/api/` wraps all backend endpoints with typed TypeScript functions
+7. **Svelte components** use Svelte 5 runes syntax (`$state`, `$derived`, `$effect`)
 
 ---
 
@@ -258,30 +233,7 @@ Before deployment, verify:
 - Enable PTSL in Pro Tools preferences
 - Check port 31416 is available: `lsof -i :31416`
 
-**Cloudflare deployment issues:**
-- Verify database_id in [wrangler.toml](wrangler.toml)
-- Check function exports: `onRequestGet`, `onRequestPost`
-- Review logs: Cloudflare Pages dashboard
-
----
-
-## File References
-
-**Core Config:**
-- [package.json](package.json) - Dependencies & scripts
-- [wrangler.toml](wrangler.toml) - Cloudflare config
-- [alternaview-config.js](alternaview-config.js) - Server settings
-
-**Entry Points:**
-- [main.js](main.js) - Electron main process
-- [alternaview-server.js](alternaview-server.js) - Express server
-- [public/index.html](public/index.html) - Main UI shell
-
-**Documentation:**
-- [README.md](README.md) - Project overview
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment guide
-- [functions/api/files/_README.md](functions/api/files/_README.md) - R2 integration guide
-
----
-
-**Last Updated:** 2025-12-21 | Local & remote repositories synchronized ✓
+**SvelteKit dev server issues:**
+- Run from `frontend/` directory: `npm run dev`
+- Or from root: `npm run dev:svelte`
+- Check that backend Express server is running (API calls proxy to it)

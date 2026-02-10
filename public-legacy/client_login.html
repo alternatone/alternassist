@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Portal - Alternassist</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #2a2a2a;
+            --secondary-text: #555555;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-teal: #7AC7C4;
+            --accent-blue: #4A90C8;
+            --bg-primary: #F8F6F3;
+            --bg-secondary: #FFFFFF;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'Crimson Text', serif;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --radius-lg: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-primary);
+            background: var(--bg-primary);
+            color: var(--primary-text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo h1 {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--primary-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .logo p {
+            color: var(--subtle-text);
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--secondary-text);
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: var(--border-medium);
+            border-radius: 8px;
+            font-family: var(--font-primary);
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            background: var(--accent-teal);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: var(--font-primary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-blue);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .help-text {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--muted-text);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>Alternassist</h1>
+            <p>Client Portal</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="projectName">Project Name</label>
+                <input type="text" id="projectName" name="projectName" required autocomplete="off" autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn" id="loginBtn">access files</button>
+        </form>
+
+        <div class="help-text">
+            Contact your project manager if you need assistance
+        </div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const errorMessage = document.getElementById('errorMessage');
+        const loginBtn = document.getElementById('loginBtn');
+
+        // Get file parameter from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileParam = urlParams.get('file');
+        const filesParam = urlParams.get('files'); // For multiple files
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const projectName = document.getElementById('projectName').value.trim();
+            const password = document.getElementById('password').value;
+
+            // Clear previous errors
+            errorMessage.classList.remove('show');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'authenticating...';
+
+            try {
+                const response = await fetch('/api/projects/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include', // Important for cookies
+                    body: JSON.stringify({
+                        name: projectName,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Authentication successful
+                    if (fileParam) {
+                        // Single file download
+                        window.location.href = `client_portal.html?file=${encodeURIComponent(fileParam)}`;
+                    } else if (filesParam) {
+                        // Multiple files download
+                        window.location.href = `client_portal.html?files=${encodeURIComponent(filesParam)}`;
+                    } else {
+                        // Normal portal access
+                        window.location.href = 'client_portal.html';
+                    }
+                } else {
+                    // Authentication failed
+                    showError(data.error || 'Invalid credentials');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Connection error. Please try again.');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'access files';
+            }
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        // Check if already logged in
+        async function checkExistingSession() {
+            try {
+                const response = await fetch('/api/projects/current', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    // Already logged in - redirect appropriately
+                    if (fileParam) {
+                        window.location.href = `client_portal.html?file=${encodeURIComponent(fileParam)}`;
+                    } else if (filesParam) {
+                        window.location.href = `client_portal.html?files=${encodeURIComponent(filesParam)}`;
+                    } else {
+                        window.location.href = 'client_portal.html';
+                    }
+                }
+            } catch (error) {
+                // Not logged in, stay on login page
+            }
+        }
+
+        checkExistingSession();
+    </script>
+</body>
+</html>

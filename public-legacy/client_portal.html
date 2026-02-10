@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTP Admin - Alternassist</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #2a2a2a;
+            --secondary-text: #555555;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #4A90C8;
+            --accent-teal: #469FE0;
+            --accent-green: #5B8C6E;
+            --accent-red: #D96459;
+            --bg-primary: #F8F6F3;
+            --bg-secondary: #FFFFFF;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'Crimson Text', serif;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --radius-lg: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-primary);
+            background: var(--bg-primary);
+            color: var(--primary-text);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .admin-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--primary-text);
+        }
+
+        .project-selector {
+            min-width: 300px;
+        }
+
+        .project-selector select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: var(--border-medium);
+            border-radius: var(--radius-lg);
+            font-family: var(--font-primary);
+            font-size: 0.95rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-subtle);
+            height: fit-content;
+        }
+
+        .sidebar h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--primary-text);
+        }
+
+        .project-info {
+            margin-bottom: 1.5rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: var(--border-light);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: var(--subtle-text);
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 0.9rem;
+            color: var(--secondary-text);
+            font-weight: 500;
+        }
+
+        .password-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .password-hidden {
+            font-family: monospace;
+            letter-spacing: 0.2em;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-family: var(--font-primary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-small {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-teal);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-blue);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: var(--secondary-text);
+        }
+
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .file-browser {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-subtle);
+            overflow: hidden;
+        }
+
+        .browser-header {
+            padding: 1.5rem;
+            border-bottom: var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .browser-header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .upload-zone {
+            border: 2px dashed #ddd;
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 1.5rem;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-teal);
+            background: #f5f9fc;
+        }
+
+        .upload-zone.drag-over {
+            border-color: var(--accent-teal);
+            background: var(--accent-teal);
+            color: white;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .file-table th {
+            text-align: left;
+            padding: 1rem 1.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--subtle-text);
+            border-bottom: var(--border-medium);
+            background: #fafafa;
+        }
+
+        .file-table td {
+            padding: 1rem 1.5rem;
+            border-bottom: var(--border-light);
+            font-size: 0.9rem;
+        }
+
+        .file-table tr:hover {
+            background: #fafafa;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: var(--secondary-text);
+        }
+
+        .file-type-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-video { background: #e3f2fd; color: #1976d2; }
+        .badge-audio { background: #f3e5f5; color: #7b1fa2; }
+        .badge-image { background: #e8f5e9; color: #388e3c; }
+        .badge-document { background: #fff3e0; color: #f57c00; }
+
+        .empty-state {
+            padding: 4rem 2rem;
+            text-align: center;
+            color: var(--muted-text);
+        }
+
+        .upload-progress {
+            margin: 1.5rem;
+        }
+
+        .progress-item {
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-teal);
+            transition: width 0.3s;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: #f8f8f8;
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--subtle-text);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary-text);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="header">
+            <h1 id="projectTitle">My Files</h1>
+            <button class="btn btn-secondary btn-small" onclick="logout()">logout</button>
+        </div>
+
+        <div class="main-content">
+            <!-- File browser -->
+            <div class="file-browser">
+                <div class="browser-header">
+                    <h2>Files</h2>
+                    <button class="btn btn-primary" onclick="triggerFileUpload()">+ upload files</button>
+                </div>
+
+                <div class="upload-zone" id="uploadZone" onclick="triggerFileUpload()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                    <div class="upload-icon">⬆</div>
+                    <p>Drop files here or click to upload</p>
+                    <p style="font-size: 0.85rem; color: var(--muted-text); margin-top: 0.5rem;">Supports files up to 64GB</p>
+                </div>
+
+                <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFileSelect(event)">
+
+                <div class="upload-progress" id="uploadProgress" style="display: none;"></div>
+
+                <table class="file-table" id="fileTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th>Modified</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileTableBody"></tbody>
+                </table>
+
+                <div class="empty-state" id="emptyState">
+                    <p>Select a project to view files</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tus/client@3/dist/tus.min.js"></script>
+    <script>
+        let currentProject = null;
+        let currentUploads = [];
+
+        // SECURITY FIX: Load only the authenticated project
+        async function loadCurrentProject() {
+            try {
+                // Only returns project for authenticated session
+                const response = await fetch('/api/projects/current', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    // Not logged in - redirect to login
+                    window.location.href = '/client_login.html';
+                    return;
+                }
+
+                currentProject = await response.json();
+
+                // Display project info directly (no dropdown needed)
+                document.getElementById('projectName').textContent = currentProject.name;
+                document.getElementById('clientName').textContent = currentProject.client_name || 'N/A';
+
+                // Show sidebar
+                document.getElementById('sidebar').style.display = 'block';
+                document.getElementById('emptyState').style.display = 'none';
+
+                // Display project info
+                displayProjectInfo();
+
+                // Load files
+                await loadFiles();
+
+            } catch (error) {
+                console.error('Failed to load project:', error);
+                // Redirect to login on error
+                window.location.href = '/client_login.html';
+            }
+        }
+
+        function displayProjectInfo() {
+            const infoDiv = document.getElementById('projectInfo');
+            infoDiv.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value">${currentProject.status || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Client</span>
+                    <span class="info-value">${currentProject.client_name || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Password</span>
+                    <div class="password-row">
+                        <span class="info-value password-hidden" id="passwordDisplay">••••••••</span>
+                        <button class="btn btn-secondary btn-small" onclick="togglePassword()">show</button>
+                    </div>
+                </div>
+            `;
+
+            // Display stats
+            const statsDiv = document.getElementById('projectStats');
+            const fileCount = currentProject.file_count || 0;
+            const totalSize = formatFileSize(currentProject.total_size || 0);
+
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Files</div>
+                    <div class="stat-value">${fileCount}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Size</div>
+                    <div class="stat-value">${totalSize}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Folder</div>
+                    <div class="stat-value">${currentProject.media_folder_path ? '✓' : '✗'}</div>
+                </div>
+            `;
+        }
+
+        let passwordVisible = false;
+        function togglePassword() {
+            // Note: We can't actually show the password since it's hashed
+            // This is a placeholder - in production, you'd need to handle password reveal differently
+            alert('Password is stored securely and cannot be displayed. Use "regenerate password" to create a new one.');
+        }
+
+        function copyPassword() {
+            alert('Password functionality coming soon - will copy client access password');
+        }
+
+        function copyShareLink() {
+            const link = `/client?project=${currentProject.id}`;
+            navigator.clipboard.writeText(link);
+            alert('Share link copied to clipboard!');
+        }
+
+        function regeneratePassword() {
+            if (confirm('Generate a new password for this project? The old password will no longer work.')) {
+                alert('Password regeneration coming in next phase');
+            }
+        }
+
+        async function loadFiles() {
+            // This will be implemented when we add client authentication
+            // For now, show empty state
+            const tableBody = document.getElementById('fileTableBody');
+            tableBody.innerHTML = '';
+
+            document.getElementById('fileTable').style.display = 'none';
+            document.getElementById('emptyState').innerHTML = '<p>No files uploaded yet</p>';
+            document.getElementById('emptyState').style.display = 'block';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function triggerFileUpload() {
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+            document.getElementById('fileInput').click();
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('uploadZone').classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('uploadZone').classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('uploadZone').classList.remove('drag-over');
+
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+
+            const files = e.dataTransfer.files;
+            uploadFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            uploadFiles(files);
+        }
+
+        async function uploadFiles(files) {
+            if (files.length === 0) return;
+
+            // Show upload progress area
+            document.getElementById('uploadProgress').style.display = 'block';
+            const progressDiv = document.getElementById('uploadProgress');
+
+            for (let file of files) {
+                await uploadFile(file, progressDiv);
+            }
+        }
+
+        async function uploadFile(file, progressDiv) {
+            // Create progress item
+            const progressId = 'progress-' + Date.now() + '-' + Math.random();
+            const progressItem = document.createElement('div');
+            progressItem.className = 'progress-item';
+            progressItem.id = progressId;
+            progressItem.innerHTML = `
+                <div class="progress-header">
+                    <span>${file.name}</span>
+                    <span>0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+            `;
+            progressDiv.appendChild(progressItem);
+
+            // Note: Tus upload requires authentication first
+            // For now, this is a placeholder that will work once client auth is implemented
+            alert(`Upload system ready! File: ${file.name} (${formatFileSize(file.size)})\n\nFull tus upload integration will be completed in Phase 5.`);
+
+            // Remove progress item after a delay
+            setTimeout(() => {
+                progressItem.remove();
+                if (progressDiv.children.length === 0) {
+                    progressDiv.style.display = 'none';
+                }
+            }, 2000);
+        }
+
+        // Handle direct file download links
+        async function handleFileDownload() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fileParam = urlParams.get('file');
+            const filesParam = urlParams.get('files');
+
+            if (fileParam) {
+                // Single file download
+                try {
+                    const downloadUrl = `/api/ftp/download?path=${encodeURIComponent(fileParam)}`;
+                    const filename = fileParam.split('/').pop();
+
+                    // Download the file
+                    const response = await fetch(downloadUrl, {
+                        credentials: 'include'
+                    });
+
+                    if (!response.ok) throw new Error('Download failed');
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    // Show notification
+                    showNotification(`Downloaded "${filename}"`, 'success');
+                } catch (error) {
+                    console.error('File download error:', error);
+                    showNotification('Failed to download file', 'error');
+                }
+            } else if (filesParam) {
+                // Multiple files download
+                try {
+                    const filePaths = JSON.parse(decodeURIComponent(filesParam));
+
+                    for (const filePath of filePaths) {
+                        const downloadUrl = `/api/ftp/download?path=${encodeURIComponent(filePath)}`;
+                        const filename = filePath.split('/').pop();
+
+                        const response = await fetch(downloadUrl, {
+                            credentials: 'include'
+                        });
+
+                        if (!response.ok) continue;
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        // Small delay between downloads
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+
+                    showNotification(`Downloaded ${filePaths.length} files`, 'success');
+                } catch (error) {
+                    console.error('Multiple files download error:', error);
+                    showNotification('Failed to download some files', 'error');
+                }
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                font-size: 14px;
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize (SECURITY FIX: load authenticated project only)
+        loadCurrentProject().then(() => {
+            // Handle file downloads after authentication
+            handleFileDownload();
+        });
+    </script>
+</body>
+</html>

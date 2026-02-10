@@ -1,0 +1,4224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="admin-auth-check.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes - NoteMarker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500" rel="stylesheet">
+    <style>
+/* Font Face Declarations - Removed broken local fonts, relying on Google Fonts */
+
+/* Alternatone Design System Variables */
+:root {
+    /* Typography - Alternatone Design System */
+    --font-primary: 'Crimson Text', serif;
+    --font-technical: 'IBM Plex Mono', monospace;
+    --font-technical: 'IBM Plex Mono', monospace;
+    --font-mono: 'Archivo', sans-serif;
+    
+    /* Font Weights */
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    
+    /* Font Sizes */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.85rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 2rem;
+    
+    /* Line Heights */
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+    
+    /* Colors */
+    --color-primary: #4A90E2;
+    --color-secondary: #E74C3C;
+    --color-accent: var(--color-primary);
+    
+    --color-success: #27AE60;
+    --color-warning: #F39C12;
+    --color-error: #E74C3C;
+    --color-info: #3498DB;
+    
+    --color-neutral-50: #f8f9fa;
+    --color-neutral-100: #ecf0f1;
+    --color-neutral-200: #e9ecef;
+    --color-neutral-300: #bdc3c7;
+    --color-neutral-400: #95a5a6;
+    --color-neutral-500: #7f8c8d;
+    --color-neutral-700: #2c3e50;
+    --color-neutral-800: #1a252f;
+    --color-neutral-900: #0f1419;
+    
+    --color-white: #ffffff;
+    --color-black: #000000;
+    
+    /* Background Colors - Alternatone Website Style */
+    --bg-primary: #F8F6F3;
+    --bg-secondary: #FFFFFF;
+    --bg-panel: #FEFDFA;
+    --bg-hover: #f0f0f0;
+    --bg-active: #f0f8ff;
+    
+    /* Legacy background variables (updated to use new colors) */
+    --color-bg-primary: var(--bg-primary);
+    --color-bg-secondary: var(--bg-secondary);
+    --color-bg-tertiary: var(--bg-panel);
+    
+    /* Text Colors */
+    --color-text-primary: var(--color-neutral-700);
+    --color-text-secondary: var(--color-neutral-500);
+    --color-text-muted: var(--color-neutral-400);
+    --color-text-inverse: var(--color-white);
+    
+    /* Border Colors */
+    --color-border-light: var(--color-neutral-200);
+    --color-border-medium: var(--color-neutral-300);
+    --color-border-strong: var(--color-neutral-400);
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-base: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    --spacing-3xl: 4rem;
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-base: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-full: 50%;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-base: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+    
+    /* Transitions */
+    --transition-fast: 150ms ease-in-out;
+    --transition-base: 200ms ease-in-out;
+    --transition-slow: 300ms ease-in-out;
+    
+    /* Focus Ring */
+    --focus-ring: 0 0 0 2px rgba(74, 144, 226, 0.2);
+    --focus-ring-offset: 2px;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    --gradient-primary-horizontal: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+    --gradient-success: linear-gradient(90deg, #27AE60, #2ECC71);
+    --gradient-warning: linear-gradient(90deg, #F39C12, #E67E22);
+    --gradient-error: linear-gradient(90deg, #E74C3C, #C0392B);
+}
+
+/* Typography Classes - Using Design System Fonts */
+.text-display {
+    font-family: var(--font-display) !important;
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    line-height: var(--line-height-tight);
+    letter-spacing: 0.02em;
+    font-stretch: expanded;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* NoteMarker Title - Hard Coded Bricolage Grotesque */
+h1.notemarker-title {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-weight: 700;
+    font-size: 2.5rem;
+    line-height: 1.2;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(90deg, #007acc, #ff6b6b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+}
+
+.text-heading {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    line-height: var(--line-height-tight);
+    letter-spacing: -0.01em;
+    color: var(--color-text-primary);
+}
+
+.text-subheading {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-primary);
+}
+
+.text-body {
+    font-family: var(--font-body);
+    font-size: var(--font-size-base);
+    font-weight: 400;
+    line-height: var(--line-height-normal);
+    color: var(--color-text-primary);
+}
+
+.text-caption {
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-secondary);
+}
+
+.text-small {
+    font-family: var(--font-body);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-secondary);
+}
+
+.text-primary {
+    font-family: var(--font-primary);
+    font-weight: 400;
+    color: var(--color-text-primary);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: var(--font-primary);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    line-height: var(--line-height-normal);
+}
+
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: var(--spacing-base);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    flex-shrink: 0;
+}
+
+.header h1 {
+    margin-bottom: var(--spacing-sm);
+}
+
+.header p {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.status-bar {
+    background: var(--bg-panel);
+    border-radius: var(--radius-lg);
+    padding: 0.8rem 1.2rem;
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-base);
+    transition: all var(--transition-slow);
+    min-height: 60px;
+}
+
+.status-bar.progress-mode {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-sm);
+    flex: 1;
+    justify-content: center;
+}
+
+.status-bar.progress-mode .status-indicator {
+    justify-content: center;
+}
+
+.status-left {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-base);
+    width: 100%;
+}
+
+.session-status {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-base);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+}
+
+.spec-readout {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.spec-item {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.spec-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0.5px;
+}
+
+.spec-value {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    font-family: var(--font-primary);
+}
+
+.spec-value.connected {
+    color: var(--color-success);
+}
+
+.spec-value.error {
+    color: var(--color-error);
+}
+
+.connection-button {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-base);
+    padding: 0.5rem 1rem;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    min-width: 80px;
+    justify-content: center;
+}
+
+.connection-button:hover {
+    background: var(--color-primary);
+    filter: brightness(0.85);
+    transform: translateY(-1px);
+}
+
+.connection-button:active {
+    transform: translateY(0);
+}
+
+.connection-button.connected {
+    background: var(--color-secondary);
+}
+
+.connection-button.connected:hover {
+    background: var(--color-secondary);
+    filter: brightness(0.85);
+}
+
+.connection-button.connecting {
+    background: var(--color-warning);
+    cursor: not-allowed;
+}
+
+.connection-button:disabled {
+    background: var(--color-neutral-400);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.session-name {
+    color: var(--color-primary);
+}
+
+.marker-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #ecf0f1;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    display: none;
+}
+
+.marker-progress-fill {
+    height: 100%;
+    background: var(--gradient-primary-horizontal);
+    transition: width 0.5s ease, background-color var(--transition-slow);
+    width: 0%;
+}
+
+.marker-progress-fill.progress-error {
+    background: var(--gradient-error) !important;
+    animation: errorPulse 0.5s ease-in-out;
+}
+
+.marker-progress-fill.progress-success {
+    background: var(--gradient-success) !important;
+    animation: successPulse 0.5s ease-in-out;
+}
+
+.marker-progress-fill.progress-warning {
+    background: var(--gradient-warning) !important;
+    animation: warningPulse 0.5s ease-in-out;
+}
+
+@keyframes errorPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes successPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+@keyframes warningPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.75; }
+}
+
+.upload-zone.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    margin-right: 0.5rem;
+    background: var(--color-error);
+}
+
+.status-dot.connected {
+    background: var(--color-success);
+}
+
+.status-dot.disconnected {
+    background: var(--color-error);
+}
+
+.status-dot.connecting {
+    background: var(--color-warning);
+    animation: pulse 1.5s infinite;
+}
+
+.status-dot.error {
+    background: var(--color-error);
+    animation: blink 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+.status-btn {
+    background: var(--color-info);
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    margin-left: 8px;
+    transition: background var(--transition-base);
+}
+
+.status-btn:hover {
+    background: var(--color-info);
+    filter: brightness(0.85);
+}
+
+.status-btn.disconnect-btn {
+    background: var(--color-error);
+}
+
+.status-btn.disconnect-btn:hover {
+    background: var(--color-error);
+    filter: brightness(0.85);
+}
+
+.status-btn.retry-btn {
+    background: #f39c12;
+}
+
+.status-btn.retry-btn:hover {
+    background: #e67e22;
+}
+
+.reconnect-indicator {
+    background: #95a5a6;
+    color: white;
+    padding: 2px 6px;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-xs);
+    margin-left: 8px;
+    font-weight: bold;
+}
+
+.session-settings {
+    background: var(--bg-panel);
+    border-radius: var(--radius-lg);
+    padding: 0.8rem 1.2rem;
+    margin-bottom: var(--spacing-base);
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-base);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--spacing-xl);
+    overflow-x: auto;
+    min-height: 60px;
+}
+
+.settings-row {
+    display: flex;
+    gap: var(--spacing-base);
+    align-items: center;
+    flex-wrap: wrap;
+    min-width: 0;
+    justify-content: flex-start;
+}
+
+.setting-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.setting-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
+.setting-select {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--color-border-medium);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    min-width: auto;
+    width: auto;
+}
+
+.setting-select.fps-select {
+    min-width: 100px;
+}
+
+.fps-display {
+    background: #f8f9fa;
+    border: 1px solid var(--color-border-medium);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.8rem;
+    font-size: var(--font-size-sm);
+    min-width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.fps-value {
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.fps-status {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+
+.fps-display.connected .fps-value {
+    color: var(--color-success);
+}
+
+.fps-display.connected .fps-status {
+    color: var(--color-success);
+}
+
+.fps-display.error .fps-value {
+    color: var(--color-error);
+}
+
+.fps-display.error .fps-status {
+    color: var(--color-error);
+}
+
+.setting-select.track-select {
+    min-width: 140px;
+}
+
+.setting-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--focus-ring);
+}
+
+.session-start-input {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-sm);
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--color-border-medium);
+    border-radius: var(--radius-sm);
+    width: 120px;
+    background: var(--bg-panel);
+    color: var(--color-text-primary);
+    cursor: text;
+}
+
+.session-start-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--focus-ring);
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.upload-zone {
+    border: 2px dashed var(--color-border-medium);
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    text-align: center;
+    transition: all var(--transition-slow);
+    background: var(--bg-panel);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 150px;
+    box-shadow: var(--shadow-md);
+}
+
+.upload-zone:hover {
+    border-color: var(--color-primary);
+    background: #f8f9ff;
+}
+
+.upload-icon {
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-base);
+    opacity: 0.6;
+}
+
+.upload-btn {
+    background: var(--gradient-primary);
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--radius-lg);
+    color: white;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: transform var(--transition-base);
+    margin-top: var(--spacing-base);
+    max-width: 200px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: var(--shadow-base), 0 0 0 1px rgba(74, 144, 226, 0.1);
+}
+
+.upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(74, 144, 226, 0.2);
+}
+
+.validation-section {
+    background: var(--bg-panel);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-base);
+    margin-bottom: var(--spacing-base);
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-base);
+    display: none;
+}
+
+.validation-summary {
+    display: flex;
+    gap: var(--spacing-base);
+    margin-bottom: var(--spacing-base);
+}
+
+.validation-item {
+    flex: 1;
+    padding: 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    text-align: center;
+}
+
+.validation-valid {
+    background: #f0f9f3;
+    border: 1px solid var(--color-success);
+    color: #229954;
+}
+
+.validation-error {
+    background: #fdf2f2;
+    border: 1px solid var(--color-error);
+    color: #c0392b;
+    margin-bottom: var(--spacing-sm);
+}
+
+.validation-warning {
+    background: #fffbf0;
+    border: 1px solid var(--color-warning);
+    color: #d68910;
+    margin-bottom: var(--spacing-sm);
+}
+
+.validation-error strong,
+.validation-warning strong {
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
+.preview-section {
+    background: var(--bg-panel);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-base);
+    max-height: 40vh;
+    min-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-md);
+    flex: 1;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: var(--spacing-base);
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.comment-item {
+    background: #f8f9fa;
+    border-radius: var(--radius-base);
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+    border-left: 3px solid var(--color-primary);
+    font-size: var(--font-size-sm);
+}
+
+.comment-item.reply {
+    border-left-color: var(--color-secondary);
+    background: #fff8f0;
+    position: relative;
+}
+
+.comment-item.reply::before {
+    content: "↳";
+    position: absolute;
+    left: -15px;
+    color: var(--color-error);
+    font-weight: bold;
+}
+
+.comment-timecode {
+    font-family: var(--font-primary);
+    color: #4A90E2;
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+}
+
+.comment-text {
+    color: var(--color-text-primary);
+    margin-bottom: 0.3rem;
+}
+
+.comment-author {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.controls {
+    flex-shrink: 0;
+    padding-top: var(--spacing-base);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.control-row {
+    display: flex;
+    gap: var(--spacing-base);
+    margin-bottom: var(--spacing-base);
+    align-items: center;
+}
+
+.btn {
+    background: var(--bg-panel);
+    border: 1px solid var(--color-border-medium);
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-base);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-base);
+    flex: 1;
+}
+
+.btn:hover {
+    background: #f8f9fa;
+    border-color: var(--color-border-strong);
+}
+
+.btn-primary {
+    background: var(--gradient-primary);
+    border: none;
+    color: white;
+    box-shadow: var(--shadow-base), 0 0 0 1px rgba(74, 144, 226, 0.1);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(74, 144, 226, 0.2);
+}
+
+.btn-primary:disabled {
+    background: #bdc3c7;
+    color: var(--color-text-secondary);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-primary:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.file-input {
+    display: none;
+}
+
+/* File Queue System Styles */
+.file-queue-container {
+    background: var(--bg-panel);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-base);
+    margin-bottom: var(--spacing-base);
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-base);
+}
+
+.queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.queue-header h4 {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    margin: 0;
+}
+
+.queue-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.clear-queue-btn {
+    background: var(--color-error);
+    color: white;
+    border: none;
+    padding: 0.3rem 0.8rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    transition: background var(--transition-base);
+}
+
+.clear-queue-btn:hover {
+    background: var(--color-error);
+    filter: brightness(0.85);
+}
+
+.queue-summary {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    margin-bottom: 0.8rem;
+    text-align: center;
+}
+
+.file-queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.queue-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    border-radius: var(--radius-base);
+    padding: 0.6rem;
+    border: 1px solid var(--color-border-light);
+    transition: background var(--transition-base);
+}
+
+.queue-item:hover {
+    background: #ecf0f1;
+}
+
+.queue-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.queue-item .file-name {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.queue-item .file-stats {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.remove-file-btn {
+    background: var(--color-error);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-base);
+    flex-shrink: 0;
+}
+
+.remove-file-btn:hover {
+    background: var(--color-error);
+    filter: brightness(0.85);
+}
+
+.footer-logo {
+    margin-top: var(--spacing-base);
+    padding-top: var(--spacing-base);
+    border-top: 1px solid var(--color-border-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.logo-text {
+    font-size: 72px;
+    font-weight: bold;
+    color: #333;
+    letter-spacing: 24px;
+    margin: 40px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.logo-text .letter {
+    opacity: 1;
+}
+
+.top-arcs path {
+    opacity: 1;
+}
+
+.bottom-arcs path {
+    opacity: 1;
+}
+
+/* Scale down for the footer */
+.footer-logo .logo-text {
+    font-size: 12px;
+    letter-spacing: 4px;
+    margin: 8px 0;
+}
+
+.footer-logo svg {
+    width: 100px;
+    height: 30px;
+}
+
+/* Toast Notification System */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.toast {
+    background: var(--bg-panel);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    border-left: 4px solid #3498db;
+    margin-bottom: 12px;
+    min-width: 320px;
+    max-width: 480px;
+    display: flex;
+    align-items: center;
+    padding: 16px 18px;
+    transform: translateX(400px);
+    opacity: 0;
+    transition: all var(--transition-slow);
+    pointer-events: all;
+    position: relative;
+}
+
+.toast.toast-show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.toast.toast-hide {
+    transform: translateX(400px);
+    opacity: 0;
+}
+
+.toast-success {
+    border-left-color: var(--color-success);
+}
+
+.toast-error {
+    border-left-color: var(--color-error);
+}
+
+.toast-warning {
+    border-left-color: var(--color-warning);
+}
+
+.toast-info {
+    border-left-color: #3498db;
+}
+
+.toast-icon {
+    font-size: 20px;
+    font-weight: bold;
+    margin-right: 14px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toast-success .toast-icon {
+    color: #27ae60;
+}
+
+.toast-error .toast-icon {
+    color: #e74c3c;
+}
+
+.toast-warning .toast-icon {
+    color: #f39c12;
+}
+
+.toast-info .toast-icon {
+    color: var(--color-info);
+}
+
+.toast-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.toast-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-text-primary);
+    margin-bottom: 0;
+    line-height: 1.4;
+}
+
+.toast-title:not(:last-child) {
+    margin-bottom: 4px;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.toast-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.toast-action-btn {
+    background: var(--color-info);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background var(--transition-base);
+}
+
+.toast-action-btn:hover {
+    background: var(--color-info);
+    filter: brightness(0.85);
+}
+
+.toast-error .toast-action-btn {
+    background: var(--color-error);
+}
+
+.toast-error .toast-action-btn:hover {
+    background: var(--color-error);
+    filter: brightness(0.85);
+}
+
+.toast-warning .toast-action-btn {
+    background: #f39c12;
+}
+
+.toast-warning .toast-action-btn:hover {
+    background: #e67e22;
+}
+
+.toast-success .toast-action-btn {
+    background: var(--color-success);
+}
+
+.toast-success .toast-action-btn:hover {
+    background: #229954;
+}
+
+.toast-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    transition: color var(--transition-base);
+}
+
+.toast-close:hover {
+    color: var(--color-text-secondary);
+}
+
+/* Modal Dialog System */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-slow);
+}
+
+.modal-overlay.modal-show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-dialog {
+    background: var(--bg-panel);
+    border-radius: var(--radius-xl);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0, 0, 0, 0.1);
+    transform: scale(0.9) translateY(20px);
+    transition: transform var(--transition-slow);
+    overflow: hidden;
+}
+
+.modal-show .modal-dialog {
+    transform: scale(1) translateY(0);
+}
+
+.modal-header {
+    padding: 20px 24px 0;
+    border-bottom: 1px solid var(--color-border-light);
+    margin-bottom: 20px;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 4px;
+}
+
+.modal-subtitle {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.modal-body {
+    padding: 0 24px 20px;
+    overflow-y: auto;
+}
+
+.modal-message {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    margin-bottom: 16px;
+}
+
+.modal-guidance {
+    background: #f8f9fa;
+    border-left: 3px solid var(--color-info);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding: 20px 24px;
+    border-top: 1px solid var(--color-border-light);
+    background: #fafbfc;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border-radius: var(--radius-base);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    border: 1px solid transparent;
+}
+
+.modal-btn-primary {
+    background: var(--color-info);
+    color: white;
+}
+
+.modal-btn-primary:hover {
+    background: var(--color-info);
+    filter: brightness(0.85);
+}
+
+.modal-btn-secondary {
+    background: var(--bg-panel);
+    color: var(--color-text-secondary);
+    border-color: #bdc3c7;
+}
+
+.modal-btn-secondary:hover {
+    background: #f8f9fa;
+    border-color: var(--color-border-strong);
+}
+
+.modal-btn-danger {
+    background: var(--color-error);
+    color: white;
+}
+
+.modal-btn-danger:hover {
+    background: var(--color-error);
+    filter: brightness(0.85);
+}
+
+/* Responsive Design for Narrow Windows */
+
+/* Medium narrow windows - optimize layout */
+@media (max-width: 600px) {
+    .container {
+        padding: 0.6rem;
+    }
+    
+    /* Header adjustments */
+    .header {
+        margin-bottom: var(--spacing-lg);
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.3rem;
+    }
+    
+    /* Status bar - stack vertically */
+    .status-bar {
+        padding: 0.7rem;
+    }
+    
+    .status-indicator {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+    }
+    
+    .status-left {
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .status-right {
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .spec-readout {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    /* Session settings - more compact */
+    .session-settings {
+        padding: 0.6rem;
+    }
+    
+    .setting-group {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .session-start-input {
+        width: 110px;
+        font-size: var(--font-size-xs);
+        padding: 0.4rem 0.6rem;
+    }
+}
+
+/* Very narrow windows - minimal layout */
+@media (max-width: 400px) {
+    .container {
+        padding: 0.5rem;
+    }
+    
+    /* Header - more compact */
+    .header h1 {
+        font-size: 1.6rem;
+    }
+    
+    /* Status bar - ultra compact */
+    .status-bar {
+        padding: 0.6rem;
+    }
+    
+    .status-left {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    
+    .connection-button {
+        font-size: var(--font-size-xs);
+        padding: 0.4rem 0.8rem;
+    }
+    
+    .session-status {
+        justify-content: center;
+    }
+    
+    .spec-readout {
+        gap: 0.5rem;
+    }
+    
+    .spec-item {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.1rem;
+    }
+    
+    .spec-label {
+        font-size: var(--font-size-xs);
+    }
+    
+    .spec-value {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+    }
+    
+    /* Session settings - stack vertically */
+    .setting-group {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    
+    .session-start-input {
+        width: 100px;
+        text-align: center;
+    }
+    
+    /* Upload zone - more compact */
+    .upload-zone {
+        padding: var(--spacing-sm);
+        min-height: 100px;
+    }
+    
+    .upload-icon {
+        font-size: 1.5rem;
+    }
+    
+    /* Controls - stack buttons */
+    .control-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Legacy responsive styles */
+@media (max-width: 800px) {
+    .container {
+        padding: 0.8rem;
+    }
+    
+    .session-settings {
+        padding: 0.6rem;
+        gap: var(--spacing-base);
+    }
+    
+    .settings-row {
+        gap: 0.8rem;
+        justify-content: center;
+    }
+    
+    .upload-zone {
+        padding: var(--spacing-base);
+        min-height: 120px;
+    }
+    
+    .upload-icon {
+        font-size: 2rem;
+    }
+    
+    .preview-section {
+        padding: 0.8rem;
+        min-height: 150px;
+    }
+    
+    .comment-item {
+        padding: 0.6rem;
+        font-size: var(--font-size-xs);
+    }
+    
+    .control-row {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .btn {
+        padding: 0.8rem;
+        font-size: var(--font-size-sm);
+    }
+    
+    .footer-logo .logo-text {
+        font-size: 10px;
+        letter-spacing: 3px;
+    }
+    
+    .footer-logo svg {
+        width: 80px;
+        height: 24px;
+    }
+}
+
+@media (max-width: 700px) {
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .status-bar {
+        padding: 0.6rem;
+    }
+    
+    .status-indicator {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+    
+    .status-right {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+    
+    .session-settings {
+        padding: var(--spacing-sm);
+    }
+    
+    .settings-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    
+    .setting-group {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .upload-zone {
+        min-height: 100px;
+        padding: 0.8rem;
+    }
+    
+    .upload-icon {
+        font-size: 1.8rem;
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .upload-btn {
+        padding: 0.6rem 1rem;
+    }
+    
+    .preview-section {
+        max-height: 30vh;
+    }
+}
+        /* Override for iframe embedding */
+        body {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Horizontal layout: Connection status + TC offset -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: stretch;">
+            <!-- Connection Status (left half) -->
+            <div class="status-bar" id="statusBar" style="flex: 1; margin-bottom: 0;">
+                <div class="status-indicator">
+                    <div class="status-left">
+                        <button class="connection-button" id="connectionButton" title="Connect to Pro Tools">
+                            <span class="connection-text">connect</span>
+                        </button>
+                        <div class="session-status">
+                            <div class="status-dot disconnected"></div>
+                            <span>session: <span class="session-name">Not Connected</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="marker-progress-bar">
+                    <div class="marker-progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- TC Offset (right half) -->
+            <div class="session-settings" style="flex: 1; margin-bottom: 0; justify-content: center;">
+                <div class="settings-row" style="justify-content: center;">
+                    <div class="setting-group">
+                        <label class="setting-label">tc offset</label>
+                        <input type="text" class="session-start-input" id="sessionStartInput" value="00:00:00:00">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Horizontal layout: Upload zone + Preview -->
+            <div style="display: flex; gap: 1rem; align-items: stretch; min-height: 500px;">
+                <!-- Left side: Upload and file queue -->
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 1rem;">
+                <div class="upload-zone" style="min-height: 250px;">
+                    <div class="upload-icon">📄</div>
+                    <p>import txt files here</p>
+                    <input type="file" class="file-input" accept=".txt" multiple>
+                    <button class="upload-btn">
+                        choose files
+                    </button>
+                </div>
+
+                <!-- File Queue Container -->
+                <div class="file-queue-container" style="display: none;">
+                    <div class="queue-header">
+                        <h4>Queued Files</h4>
+                        <div class="queue-actions">
+                            <button class="clear-queue-btn" onclick="clearFileQueue()" title="Clear all files">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="queue-summary"></div>
+                    <div class="file-queue-list"></div>
+                </div>
+
+                <div class="validation-section" style="display: none;">
+                    <div class="validation-summary">
+                        <div class="validation-item validation-valid">
+                            18 markers ready (17 original, 1 reply)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right side: Preview -->
+            <div style="flex: 1;">
+                <div class="preview-section" style="min-height: 500px;">
+                    <div class="preview-header">
+                        <h3>no comments loaded</h3>
+                    </div>
+                    <div>
+                        <div style="text-align: center; color: #95a5a6; padding: 2rem;">
+                            import a file to see comments here
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spacer to push buttons to bottom -->
+        <div style="flex: 1; min-height: 2rem;"></div>
+
+        <div class="controls" style="margin-top: auto; padding-top: 2rem;">
+            <div class="control-row">
+                <button class="btn" id="startOverBtn">
+                    start over
+                </button>
+                <button class="btn btn-primary" disabled>
+                    create markers
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+
+    <script>
+// NoteMarker - Frame.io to Pro Tools Comment Parser
+// Renderer Process Script
+
+// Global variables
+let currentComments = [];
+let isConnectedToPT = false;
+let toastQueue = [];
+let isToastActive = false;
+let isOperationInProgress = false;
+let currentOperation = null; // 'parsing', 'validating', 'creating-markers', null
+let isStartupPhase = true; // Flag to suppress toasts during startup
+let userExplicitlyDisconnected = false; // Flag to prevent auto-connect after user disconnect
+
+// File queue system for multiple txt files
+let fileQueue = [];
+let allCommentsFromFiles = [];
+
+// Production logging system
+const isDevelopment = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
+const logger = {
+    debug: (message, data) => {
+        if (isDevelopment) {
+            console.log(`[DEBUG] ${message}`, data || '');
+        }
+        // Always send to main process for file logging
+        window.electronAPI?.debug?.log?.('debug', message, data);
+    },
+    info: (message, data) => {
+        if (isDevelopment) {
+            console.log(`[INFO] ${message}`, data || '');
+        }
+        window.electronAPI?.debug?.log?.('info', message, data);
+    },
+    warn: (message, data) => {
+        if (isDevelopment) {
+            console.warn(`[WARN] ${message}`, data || '');
+        }
+        window.electronAPI?.debug?.log?.('warn', message, data);
+    },
+    error: (message, data) => {
+        if (isDevelopment) {
+            console.error(`[ERROR] ${message}`, data || '');
+        }
+        window.electronAPI?.debug?.log?.('error', message, data);
+    }
+};
+
+// ========================================
+// Cross-Platform Utilities
+// ========================================
+
+/**
+ * Detect if the platform-appropriate modifier key is pressed
+ * @param {KeyboardEvent} event - The keyboard event
+ * @returns {boolean} True if Cmd (Mac) or Ctrl (Windows/Linux) is pressed
+ */
+function getCrossPlatformModifierKey(event) {
+    // On macOS, use metaKey (Cmd). On Windows/Linux, use ctrlKey
+    if (typeof process !== 'undefined' && process.platform === 'darwin') {
+        return event.metaKey;
+    } else {
+        return event.ctrlKey;
+    }
+}
+
+/**
+ * Check if a keyboard shortcut matches the given key combination
+ * @param {KeyboardEvent} event - The keyboard event
+ * @param {string} key - The key to match (e.g., 'o', 'r', 's')
+ * @param {boolean} needsModifier - Whether the modifier key should be pressed
+ * @returns {boolean} True if the shortcut matches
+ */
+function isKeyboardShortcut(event, key, needsModifier = true) {
+    const keyMatches = event.key.toLowerCase() === key.toLowerCase();
+    const modifierMatches = needsModifier ? getCrossPlatformModifierKey(event) : !getCrossPlatformModifierKey(event);
+    return keyMatches && modifierMatches;
+}
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', async function() {
+    initializeEventListeners();
+    setupMenuHandlers();
+    setupMarkerProgressListener();
+    setupGlobalErrorHandling();
+    createToastContainer();
+    setupGlobalKeyboardShortcuts();
+
+    // Load connection state first, then update UI to prevent flashing
+    setupLiveConnectionMonitoring();
+    await loadInitialConnectionStateAndUI();
+
+    // Start periodic connection monitoring for launch order independence
+    setTimeout(() => {
+        startConnectionMonitoring();
+    }, 1000); // Start monitoring 1 second after startup
+});
+
+// Listen for messages from parent window (like exported comments from media review)
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'exportToNotes') {
+        logger.info('Received exported comments from media review', {
+            commentCount: event.data.comments?.length || 0,
+            fileName: event.data.fileName
+        });
+
+        // Add comments to queue using the existing queue system
+        if (event.data.comments && event.data.comments.length > 0) {
+            addFileToQueue({
+                fileName: event.data.fileName || 'Media Review Comments',
+                filePath: null
+            }, event.data.comments);
+
+            // Show success toast
+            showToast('success', `Imported ${event.data.comments.length} comment${event.data.comments.length !== 1 ? 's' : ''} from media review`);
+        }
+    }
+});
+
+function initializeEventListeners() {
+    // File upload handlers
+    const fileInput = document.querySelector('.file-input');
+    const uploadZone = document.querySelector('.upload-zone');
+    const uploadBtn = document.querySelector('.upload-btn');
+    const startOverBtn = document.getElementById('startOverBtn');
+    const runBtn = document.querySelector('.btn-primary');
+
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileUpload);
+    }
+
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', openFileDialog);
+    }
+
+    if (startOverBtn) {
+        startOverBtn.addEventListener('click', startOver);
+    }
+
+    if (runBtn) {
+        runBtn.addEventListener('click', runNoteMarker);
+    }
+
+    // FPS display - no longer using dropdown, auto-detected from Pro Tools
+
+    // Session start input formatting with persistent colons
+    const sessionStartInput = document.getElementById('sessionStartInput');
+    if (sessionStartInput) {
+        setupSessionStartFormatting(sessionStartInput);
+    }
+
+    // Connection button handler
+    const connectionButton = document.getElementById('connectionButton');
+    logger.debug('Looking for connection button:', !!connectionButton);
+    if (connectionButton) {
+        connectionButton.addEventListener('click', handleConnectionButtonClick);
+        logger.debug('Connection button click handler attached');
+    } else {
+        logger.warn('Connection button not found in DOM');
+    }
+
+    // Drag and drop handlers
+    if (uploadZone) {
+        uploadZone.addEventListener('dragover', handleDragOver);
+        uploadZone.addEventListener('dragleave', handleDragLeave);
+        uploadZone.addEventListener('drop', handleDrop);
+    }
+
+    // Prevent default drag behaviors on document
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', e => e.preventDefault());
+}
+
+function setupMenuHandlers() {
+    // Handle menu messages from main process
+    window.electronAPI.onMenuImportFile(() => {
+        openFileDialog();
+    });
+
+    window.electronAPI.onMenuStartOver(() => {
+        startOver();
+    });
+
+    window.electronAPI.onMenuAbout(() => {
+        // Show about dialog or info
+        alert(`NoteMarker v1.0.1\n\nConvert Frame.io comments to Pro Tools markers\n\nby Alternatone`);
+    });
+}
+
+// Update timecode format based on detected FPS (preserving original drop frame logic)
+function updateTimecodeFormat(detectedFps) {
+    const sessionStartInput = document.getElementById('sessionStartInput');
+    
+    if (sessionStartInput && detectedFps) {
+        const currentValue = sessionStartInput.value;
+        
+        // Check if the detected frame rate is drop frame
+        const isDropFrame = detectedFps.toString().includes('drop');
+        
+        if (isDropFrame) {
+            // Convert to drop frame format (semicolon)
+            sessionStartInput.value = currentValue.replace(/:/g, ':').replace(/:(\d{2})$/, ';$1');
+        } else {
+            // Convert to non-drop frame format (all colons)
+            sessionStartInput.value = currentValue.replace(/;/g, ':');
+        }
+    }
+}
+
+// Legacy function for backward compatibility (if called anywhere)
+function handleFpsChange(e) {
+    if (e && e.target && e.target.value) {
+        updateTimecodeFormat(e.target.value);
+    }
+}
+
+function setupSessionStartFormatting(input) {
+    let lastValidValue = input.value;
+    let lastCursorPosition = 0;
+    
+    // Store cursor position before input
+    input.addEventListener('beforeinput', (e) => {
+        lastCursorPosition = input.selectionStart;
+        lastValidValue = input.value;
+    });
+    
+    // Handle input and maintain colons
+    input.addEventListener('input', (e) => {
+        formatSessionStartInput(input, lastValidValue, lastCursorPosition);
+    });
+    
+    // Handle keydown to prevent certain actions on colons
+    input.addEventListener('keydown', (e) => {
+        handleSessionStartKeydown(e, input);
+    });
+    
+    // Handle paste events
+    input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text');
+        const cleanedPaste = paste.replace(/[^\d]/g, ''); // Only keep digits
+        if (cleanedPaste.length > 0) {
+            insertDigitsAtCursor(input, cleanedPaste);
+        }
+    });
+}
+
+function formatSessionStartInput(input, lastValidValue, lastCursorPosition) {
+    const value = input.value;
+    const cursorPos = input.selectionStart;
+    
+    // Extract only the digits from the current value
+    const digits = value.replace(/[^\d]/g, '');
+    
+    // Limit to 8 digits maximum (HH:MM:SS:FF)
+    const limitedDigits = digits.substring(0, 8);
+    
+    // Format with colons (or semicolon for drop frame)
+    const formatted = formatTimecodeString(limitedDigits, isDropFrameMode());
+    
+    // Update the input value
+    input.value = formatted;
+    
+    // Calculate new cursor position
+    const newCursorPos = calculateNewCursorPosition(lastValidValue, formatted, lastCursorPosition, cursorPos);
+    
+    // Set cursor position
+    setTimeout(() => {
+        input.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+}
+
+function formatTimecodeString(digits, isDropFrame = false) {
+    // Pad with zeros to ensure we have the right format
+    const paddedDigits = digits.padEnd(8, '0');
+    
+    // Split into components: HH MM SS FF
+    const hours = paddedDigits.substring(0, 2);
+    const minutes = paddedDigits.substring(2, 4);
+    const seconds = paddedDigits.substring(4, 6);
+    const frames = paddedDigits.substring(6, 8);
+    
+    // Use semicolon for drop frame, colon for non-drop frame on the last separator
+    const lastSeparator = isDropFrame ? ';' : ':';
+    
+    return `${hours}:${minutes}:${seconds}${lastSeparator}${frames}`;
+}
+
+function isDropFrameMode() {
+    const specFps = document.getElementById('specFps');
+    const detectedFps = specFps?.textContent || '';
+    return detectedFps.includes('drop');
+}
+
+function handleSessionStartKeydown(e, input) {
+    const cursorPos = input.selectionStart;
+    const value = input.value;
+    
+    // Allow navigation keys, backspace, delete, etc.
+    const allowedKeys = [
+        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'Home', 'End', 'Tab', 'Escape', 'Enter',
+        'Backspace', 'Delete'
+    ];
+    
+    if (allowedKeys.includes(e.key)) {
+        return; // Allow these keys
+    }
+    
+    // Allow Ctrl/Cmd combinations (copy, paste, select all, etc.)
+    if (getCrossPlatformModifierKey(e)) {
+        return;
+    }
+    
+    // Only allow digits
+    if (!/^\d$/.test(e.key)) {
+        e.preventDefault();
+        return;
+    }
+    
+    // Prevent typing over colons/semicolons - skip them
+    if (cursorPos < value.length && (value[cursorPos] === ':' || value[cursorPos] === ';')) {
+        // Move cursor past the separator
+        setTimeout(() => {
+            input.setSelectionRange(cursorPos + 1, cursorPos + 1);
+        }, 0);
+    }
+}
+
+function calculateNewCursorPosition(oldValue, newValue, oldCursorPos, newCursorPos) {
+    // If we're at a colon position, move past it
+    if (newCursorPos < newValue.length && (newValue[newCursorPos] === ':' || newValue[newCursorPos] === ';')) {
+        return newCursorPos + 1;
+    }
+    
+    // Try to maintain relative position
+    return Math.min(newCursorPos, newValue.length);
+}
+
+function insertDigitsAtCursor(input, digits) {
+    const cursorPos = input.selectionStart;
+    const value = input.value;
+    
+    // Extract current digits
+    const currentDigits = value.replace(/[^\d]/g, '');
+    
+    // Find position in digit string based on cursor position
+    let digitPosition = 0;
+    for (let i = 0; i < cursorPos && i < value.length; i++) {
+        if (/\d/.test(value[i])) {
+            digitPosition++;
+        }
+    }
+    
+    // Insert new digits
+    const newDigits = currentDigits.substring(0, digitPosition) + 
+                     digits + 
+                     currentDigits.substring(digitPosition);
+    
+    // Limit to 8 digits and format
+    const limitedDigits = newDigits.substring(0, 8);
+    const formatted = formatTimecodeString(limitedDigits, isDropFrameMode());
+    
+    input.value = formatted;
+    
+    // Position cursor after inserted digits
+    const newCursorPos = Math.min(digitPosition + digits.length, 8);
+    let formattedCursorPos = 0;
+    let digitCount = 0;
+    
+    for (let i = 0; i < formatted.length && digitCount < newCursorPos; i++) {
+        if (/\d/.test(formatted[i])) {
+            digitCount++;
+        }
+        formattedCursorPos = i + 1;
+    }
+    
+    setTimeout(() => {
+        input.setSelectionRange(formattedCursorPos, formattedCursorPos);
+    }, 0);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const uploadZone = e.currentTarget;
+    uploadZone.style.borderColor = '#4A90E2';
+    uploadZone.style.background = 'rgba(74, 144, 226, 0.05)';
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const uploadZone = e.currentTarget;
+    uploadZone.style.borderColor = '#bdc3c7';
+    uploadZone.style.background = 'white';
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const uploadZone = e.currentTarget;
+    uploadZone.style.borderColor = '#bdc3c7';
+    uploadZone.style.background = 'white';
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+        const txtFiles = files.filter(file => file.name.toLowerCase().endsWith('.txt'));
+        if (txtFiles.length > 0) {
+            handleMultipleFiles(txtFiles);
+        } else {
+            showErrorMessage('Invalid File Type', 'Please use TXT files only.');
+        }
+    }
+}
+
+function handleFileUpload(e) {
+    if (e.target.files.length > 0) {
+        const files = Array.from(e.target.files);
+        handleMultipleFiles(files);
+    }
+}
+
+// Handle multiple file objects from drag/drop or file input
+async function handleMultipleFiles(files) {
+    try {
+        updateUploadStatus(`processing ${files.length} file${files.length !== 1 ? 's' : ''}...`);
+        
+        for (const file of files) {
+            await processAndQueueFile(file);
+        }
+        
+        // Update display after all files are processed
+        updateCombinedCommentsDisplay();
+        
+    } catch (error) {
+        logger.error('Error handling multiple files', { fileCount: files.length, error: error.message });
+        showErrorMessage('File Processing Error', 'Failed to process files: ' + error.message);
+    }
+}
+
+// Process a single file and add to queue
+async function processAndQueueFile(file, filePath = null) {
+    try {
+        const content = await file.text();
+        
+        // Parse the file content
+        const parseResult = await window.electronAPI.fileSystem.parseFrameioTXT(content, file.name);
+        
+        if (!parseResult.success) {
+            showErrorMessage('Parse Error', `Failed to parse ${file.name}: ${parseResult.error}`);
+            return;
+        }
+
+        // Add to queue
+        addFileToQueue({
+            fileName: file.name,
+            filePath: filePath
+        }, parseResult.comments);
+
+        logger.info('File processed and queued', { 
+            fileName: file.name, 
+            commentCount: parseResult.comments.length 
+        });
+
+    } catch (error) {
+        logger.error('Error processing file', { fileName: file.name, error: error.message });
+        showErrorMessage('File Error', `Failed to process ${file.name}: ${error.message}`);
+    }
+}
+
+// New native file dialog function
+async function openFileDialog() {
+    try {
+        const result = await window.electronAPI.fileSystem.showOpenDialog({
+            title: 'Import Frame.io TXT Files',
+            filters: [
+                { name: 'Text Files', extensions: ['txt'] },
+                { name: 'All Files', extensions: ['*'] }
+            ],
+            properties: ['openFile', 'multiSelections']
+        });
+
+        if (result.canceled) {
+            return; // User cancelled
+        }
+
+        if (result.error) {
+            showErrorMessage('File Dialog Error', result.error);
+            return;
+        }
+
+        // Handle multiple files from dialog
+        if (result.filePaths && result.filePaths.length > 0) {
+            updateUploadStatus(`processing ${result.filePaths.length} file${result.filePaths.length !== 1 ? 's' : ''}...`);
+            
+            for (const filePath of result.filePaths) {
+                await handleFilePathForQueue(filePath);
+            }
+            
+            updateCombinedCommentsDisplay();
+        }
+
+    } catch (error) {
+        logger.error('Error opening file dialog', { error: error.message, stack: error.stack });
+        showErrorMessage('File Dialog Error', 'Failed to open file dialog: ' + error.message);
+    }
+}
+
+// Handle file path from dialog for queue
+async function handleFilePathForQueue(filePath) {
+    try {
+        // Read file using secure IPC
+        const fileResult = await window.electronAPI.fileSystem.readFile(filePath);
+        
+        if (!fileResult.success) {
+            showErrorMessage('File Read Error', `Failed to read ${filePath}: ${fileResult.error}`);
+            return;
+        }
+
+        // Parse the file content
+        const parseResult = await window.electronAPI.fileSystem.parseFrameioTXT(fileResult.content, fileResult.fileName);
+        
+        if (!parseResult.success) {
+            showErrorMessage('Parse Error', `Failed to parse ${fileResult.fileName}: ${parseResult.error}`);
+            return;
+        }
+
+        // Add to queue
+        addFileToQueue({
+            fileName: fileResult.fileName,
+            filePath: filePath
+        }, parseResult.comments);
+
+        logger.info('File processed and queued from path', { 
+            fileName: fileResult.fileName, 
+            commentCount: parseResult.comments.length 
+        });
+
+    } catch (error) {
+        logger.error('Error handling file path', { filePath, error: error.message });
+        showErrorMessage('File Error', `Failed to process file: ${error.message}`);
+    }
+}
+
+// Handle file selected via native dialog (legacy single file support)
+async function handleFilePath(filePath, fileName) {
+    try {
+        // Read file using secure IPC
+        const fileResult = await window.electronAPI.fileSystem.readFile(filePath);
+        
+        if (!fileResult.success) {
+            showErrorMessage('File Read Error', fileResult.error);
+            updateUploadStatus('file read failed');
+            return;
+        }
+
+        // Parse the file content
+        await parseFileContent(fileResult.content, fileResult.fileName);
+
+    } catch (error) {
+        logger.error('Error handling file', { filePath, fileName, error: error.message });
+        showErrorMessage('File Error', 'Failed to process file: ' + error.message);
+        updateUploadStatus('file processing failed');
+    }
+}
+
+// Handle File object from drag/drop or input
+async function handleFileObject(file) {
+    try {
+        const content = await file.text();
+        await parseFileContent(content, file.name);
+    } catch (error) {
+        console.error('Error reading file object:', error);
+        showErrorMessage('File Error', 'Failed to read file: ' + error.message);
+        updateUploadStatus('file read failed');
+    }
+}
+
+// Parse file content using secure IPC
+async function parseFileContent(content, fileName) {
+    try {
+        // Set operation state to parsing
+        setOperationState('parsing');
+        updateUploadStatus('parsing comments...');
+        
+        // Parse using secure main process
+        const parseResult = await window.electronAPI.fileSystem.parseFrameioTXT(content, fileName);
+        
+        if (!parseResult.success) {
+            showErrorMessage('Parse Error', parseResult.error);
+            displayComments([]);
+            updateUploadStatus('parsing failed');
+            return;
+        }
+
+        // Update global state
+        currentComments = parseResult.comments;
+        
+        // Display results
+        displayComments(parseResult.comments, parseResult.summary);
+        
+        // Update status
+        const validCount = parseResult.summary.valid;
+        if (validCount > 0) {
+            updateUploadStatus(`parsed: ${validCount} valid comments`);
+        } else {
+            updateUploadStatus('no valid comments found');
+        }
+
+        // Log parsing details
+        logger.info('Parsing complete', { 
+            summary: parseResult.summary, 
+            fileName: fileName,
+            validComments: parseResult.comments.length 
+        });
+        
+        if (parseResult.invalidComments.length > 0) {
+            logger.warn('Invalid comments found during parsing', { 
+                fileName: fileName,
+                invalidCount: parseResult.invalidComments.length,
+                invalidComments: parseResult.invalidComments.slice(0, 5) // Log first 5 for debugging
+            });
+        }
+
+    } catch (error) {
+        logger.error('Error parsing file content', { fileName, error: error.message, stack: error.stack });
+        showErrorMessage('Parse Error', 'Failed to parse file: ' + error.message);
+        displayComments([]);
+        updateUploadStatus('parsing failed');
+    } finally {
+        // Clear operation state after parsing
+        clearOperationState();
+    }
+}
+
+// ========================================
+// File Queue Management System
+// ========================================
+
+/**
+ * Add a file to the queue for batch processing
+ * @param {Object} fileInfo - File information object
+ * @param {Array} comments - Parsed comments from the file
+ */
+function addFileToQueue(fileInfo, comments) {
+    const queueItem = {
+        id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        fileName: fileInfo.fileName,
+        filePath: fileInfo.filePath || null,
+        comments: comments || [],
+        addedAt: new Date().toISOString(),
+        status: 'queued' // 'queued', 'processing', 'completed', 'error'
+    };
+    
+    fileQueue.push(queueItem);
+    
+    // Add comments to the combined list
+    if (comments && comments.length > 0) {
+        allCommentsFromFiles.push(...comments.map(comment => ({
+            ...comment,
+            sourceFile: fileInfo.fileName,
+            queueId: queueItem.id
+        })));
+    }
+    
+    logger.info('File added to queue', { 
+        fileName: fileInfo.fileName, 
+        commentCount: comments?.length || 0,
+        queueSize: fileQueue.length 
+    });
+    
+    updateFileQueueDisplay();
+    updateCombinedCommentsDisplay();
+}
+
+/**
+ * Remove a file from the queue
+ * @param {string} queueId - ID of the file to remove
+ */
+function removeFileFromQueue(queueId) {
+    const fileIndex = fileQueue.findIndex(item => item.id === queueId);
+    if (fileIndex === -1) return;
+    
+    const removedFile = fileQueue[fileIndex];
+    fileQueue.splice(fileIndex, 1);
+    
+    // Remove comments from the combined list
+    allCommentsFromFiles = allCommentsFromFiles.filter(comment => comment.queueId !== queueId);
+    
+    logger.info('File removed from queue', { 
+        fileName: removedFile.fileName,
+        remainingFiles: fileQueue.length 
+    });
+    
+    updateFileQueueDisplay();
+    updateCombinedCommentsDisplay();
+}
+
+/**
+ * Clear all files from the queue
+ */
+function clearFileQueue() {
+    fileQueue = [];
+    allCommentsFromFiles = [];
+    logger.info('File queue cleared');
+    updateFileQueueDisplay();
+    updateCombinedCommentsDisplay();
+}
+
+/**
+ * Get combined comments from all queued files
+ * @returns {Array} All comments from all files
+ */
+function getCombinedComments() {
+    return allCommentsFromFiles;
+}
+
+/**
+ * Update the file queue display in the UI
+ */
+function updateFileQueueDisplay() {
+    const queueContainer = document.querySelector('.file-queue-container');
+    if (!queueContainer) return;
+    
+    if (fileQueue.length < 2) {
+        queueContainer.style.display = 'none';
+        return;
+    }
+    
+    queueContainer.style.display = 'block';
+    
+    const queueList = queueContainer.querySelector('.file-queue-list');
+    if (!queueList) return;
+    
+    queueList.innerHTML = fileQueue.map(file => `
+        <div class="queue-item" data-queue-id="${file.id}">
+            <div class="queue-item-info">
+                <span class="file-name">${escapeHtml(file.fileName)}</span>
+                <span class="file-stats">${file.comments.length} comments</span>
+            </div>
+            <button class="remove-file-btn" onclick="removeFileFromQueue('${file.id}')" title="Remove file">
+                ×
+            </button>
+        </div>
+    `).join('');
+    
+    // Update queue summary
+    const queueSummary = queueContainer.querySelector('.queue-summary');
+    if (queueSummary) {
+        const totalComments = allCommentsFromFiles.length;
+        queueSummary.textContent = `${fileQueue.length} file${fileQueue.length !== 1 ? 's' : ''} queued (${totalComments} total comments)`;
+    }
+}
+
+/**
+ * Update the combined comments display
+ */
+function updateCombinedCommentsDisplay() {
+    if (fileQueue.length > 0) {
+        // Show combined comments from all files
+        currentComments = getCombinedComments();
+        displayComments(currentComments);
+        
+        // Update upload status to reflect multiple files
+        const totalFiles = fileQueue.length;
+        const totalComments = allCommentsFromFiles.length;
+        updateUploadStatus(`${totalFiles} file${totalFiles !== 1 ? 's' : ''} queued: ${totalComments} comments ready`);
+    } else {
+        // No files in queue, clear display
+        currentComments = [];
+        displayComments([]);
+        updateUploadStatus('drag & drop .txt files here or click to import');
+    }
+}
+
+/**
+ * Escape HTML to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function updateUploadStatus(message) {
+    const uploadText = document.querySelector('.upload-zone p');
+    if (uploadText) {
+        uploadText.textContent = message;
+    }
+}
+
+// Parsing functions moved to main process for security
+
+function displayComments(comments, summary = null) {
+    // Use provided summary or calculate from comments
+    let validComments, originalCount, replyCount;
+    
+    if (summary) {
+        validComments = comments; // Comments are already filtered
+        originalCount = summary.original;
+        replyCount = summary.replies;
+    } else {
+        validComments = comments.filter(c => c.timecode && c.timecode !== '00:00:00:00');
+        originalCount = validComments.filter(c => !c.isReply).length;
+        replyCount = validComments.filter(c => c.isReply).length;
+    }
+    
+    let countText = `${validComments.length} comment${validComments.length !== 1 ? 's' : ''} found`;
+    if (replyCount > 0) {
+        countText += ` (${originalCount} original, ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'})`;
+    }
+    
+    const previewHeader = document.querySelector('.preview-header h3');
+    if (previewHeader) {
+        previewHeader.textContent = countText;
+    }
+    
+    // Enable/disable run button
+    const runBtn = document.querySelector('.btn-primary');
+    if (runBtn) {
+        runBtn.disabled = validComments.length === 0;
+    }
+    
+    const previewContent = document.querySelector('.preview-section > div:last-child');
+    if (!previewContent) return;
+    
+    if (validComments.length === 0) {
+        previewContent.innerHTML = `
+            <div style="text-align: center; color: #95a5a6; padding: 2rem;">
+                no valid comments found in this file
+            </div>
+        `;
+        return;
+    }
+    
+    // Show validation if we have valid comments
+    if (validComments.length > 0) {
+        const validationSection = document.querySelector('.validation-section');
+        const validationItem = document.querySelector('.validation-item');
+        if (validationSection && validationItem) {
+            validationSection.style.display = 'block';
+            validationItem.textContent = 
+                `${validComments.length} marker${validComments.length !== 1 ? 's' : ''} ready${replyCount > 0 ? ` (${replyCount} replies)` : ''}`;
+        }
+    }
+    
+    const commentHTML = validComments.map(comment => {
+        const replyClass = comment.isReply ? ' reply' : '';
+        const replyFlag = comment.isReply ? ' [REPLY]' : '';
+        
+        return `
+            <div class="comment-item${replyClass}">
+                <div class="comment-timecode">${comment.timecode}</div>
+                <div class="comment-text">${escapeHtml(comment.text)}</div>
+                <div class="comment-author">${escapeHtml(comment.author)}${replyFlag}</div>
+            </div>
+        `;
+    }).join('');
+    
+    previewContent.innerHTML = commentHTML;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function startOver() {
+    logger.info('Starting over - resetting file and UI state (preserving Pro Tools connection)');
+    
+    // Clear operation state first
+    clearOperationState();
+    
+    // Reset global state variables
+    currentComments = [];
+    
+    // Clear file queue
+    clearFileQueue();
+    
+    // Reset upload zone
+    updateUploadStatus('drag & drop .txt files here or click to import');
+    
+    // Clear and reset file input
+    const fileInput = document.querySelector('.file-input');
+    if (fileInput) {
+        fileInput.value = '';
+        fileInput.disabled = false;
+    }
+    
+    // Reset upload zone visual state
+    const uploadZone = document.querySelector('.upload-zone');
+    if (uploadZone) {
+        uploadZone.classList.remove('disabled');
+        uploadZone.style.opacity = '1';
+    }
+    
+    // Reset preview section
+    const previewHeader = document.querySelector('.preview-header h3');
+    if (previewHeader) {
+        previewHeader.textContent = 'no comments loaded';
+    }
+    
+    const previewContent = document.querySelector('.preview-section > div:last-child');
+    if (previewContent) {
+        previewContent.innerHTML = `
+            <div style="text-align: center; color: #95a5a6; padding: 2rem;">
+                import a file to see comments here
+            </div>
+        `;
+    }
+    
+    // Hide and reset validation section
+    const validationSection = document.querySelector('.validation-section');
+    if (validationSection) {
+        validationSection.style.display = 'none';
+        validationSection.innerHTML = ''; // Clear any validation content
+    }
+    
+    // Reset session start input but preserve other form controls connected to Pro Tools
+    const sessionStartInput = document.getElementById('sessionStartInput');
+    
+    if (sessionStartInput) {
+        sessionStartInput.value = '01:00:00:00'; // Reset to default
+        sessionStartInput.disabled = false;
+        sessionStartInput.style.opacity = '1';
+    }
+    
+    // NOTE: Intentionally preserving spec readouts and Pro Tools connection state
+    // The spec readouts (FPS, sample rate) should maintain their current values from Pro Tools
+    // This prevents the need to reconnect after clearing files
+    
+    // Reset progress bar completely
+    resetMarkerProgress();
+    
+    // Close any open modals or dialogs
+    const modals = document.querySelectorAll('.modal-overlay');
+    modals.forEach(modal => {
+        if (modal) {
+            modal.remove();
+        }
+    });
+    
+    // Clear any toast notifications
+    if (window._toastCleanup) {
+        clearTimeout(window._toastCleanup);
+    }
+    const toastContainer = document.querySelector('.toast-container');
+    if (toastContainer) {
+        toastContainer.innerHTML = '';
+    }
+    
+    // Update UI state to reflect reset (this will preserve connection state)
+    updateUIState();
+    
+    logger.info('Start over complete - file and UI state reset, Pro Tools connection preserved');
+    
+    // Show confirmation
+    showInfoMessage('Reset Complete', 'Files and UI reset (Pro Tools connection preserved)');
+}
+
+// Live PTSL Connection Monitoring
+function setupLiveConnectionMonitoring() {
+    // Set up event listeners for real-time connection status updates
+    const connectionStateCleanup = window.electronAPI.ptsl.onConnectionStateChanged((data) => {
+        handleConnectionStateChange(data);
+    });
+
+    const sessionInfoCleanup = window.electronAPI.ptsl.onSessionInfoChanged((data) => {
+        handleSessionInfoChange(data);
+    });
+
+    // Store cleanup functions for later use
+    window._connectionCleanup = [connectionStateCleanup, sessionInfoCleanup];
+
+    // Get initial connection state
+    loadInitialConnectionState();
+}
+
+async function loadInitialConnectionStateAndUI() {
+    try {
+        const state = await window.electronAPI.ptsl.getConnectionState();
+        
+        // Update global state variables BEFORE calling updateUIState
+        if (state.state === 'connected' && state.isConnected && state.isRegistered) {
+            isConnectedToPT = true;
+        } else {
+            isConnectedToPT = false;
+            // Clear spec readouts when starting disconnected
+            updateSpecReadouts(null);
+        }
+        
+        // Now update UI with correct state
+        updateUIState();
+        
+        // Handle connection state change (will show toast if needed)
+        handleConnectionStateChange({
+            state: state.state,
+            isConnected: state.isConnected,
+            isRegistered: state.isRegistered,
+            reconnectAttempts: state.reconnectAttempts,
+            maxReconnectAttempts: state.maxReconnectAttempts
+        });
+
+        // Update session info if available
+        if (state.sessionInfo) {
+            handleSessionInfoChange({
+                sessionInfo: state.sessionInfo
+            });
+        }
+
+        // If already connected, force session info refresh or try auto-connect
+        if (!isConnectedToPT) {
+            attemptAutoConnect();
+        } else {
+            logger.info('Already connected to Pro Tools on startup');
+            // Force a connection refresh to get session info
+            triggerSessionInfoRefresh();
+        }
+
+    } catch (error) {
+        logger.error('Failed to load initial connection state', { error: error.message });
+        isConnectedToPT = false;
+        updateUIState();
+        handleConnectionStateChange({
+            state: 'error',
+            error: error.message
+        });
+        // Still attempt auto-connect on error
+        attemptAutoConnect();
+    } finally {
+        // End startup phase after a short delay to allow any async operations to complete
+        setTimeout(() => {
+            isStartupPhase = false;
+        }, 1500);
+    }
+}
+
+async function loadInitialConnectionState() {
+    try {
+        const state = await window.electronAPI.ptsl.getConnectionState();
+        
+        // Update UI based on current state
+        handleConnectionStateChange({
+            state: state.state,
+            isConnected: state.isConnected,
+            isRegistered: state.isRegistered,
+            reconnectAttempts: state.reconnectAttempts,
+            maxReconnectAttempts: state.maxReconnectAttempts
+        });
+
+        // Update session info if available
+        if (state.sessionInfo) {
+            handleSessionInfoChange({
+                sessionInfo: state.sessionInfo
+            });
+        }
+
+    } catch (error) {
+        logger.error('Failed to load initial connection state', { error: error.message });
+        handleConnectionStateChange({
+            state: 'error',
+            error: error.message
+        });
+    }
+}
+
+function handleConnectionStateChange(data) {
+    logger.debug('Connection state changed', { state: data.state, isConnected: data.isConnected, isRegistered: data.isRegistered });
+    
+    const { state, error, message, reconnectAttempts, maxReconnectAttempts, title, guidance, errorType } = data;
+    
+    // Update global connection flag with real-time verification
+    const previousConnectionState = isConnectedToPT;
+    isConnectedToPT = data.isConnected && data.isRegistered && state === 'connected';
+    
+    // Update the last known connection state for monitoring
+    lastKnownConnectionState = isConnectedToPT;
+    
+    // Show appropriate toast notifications based on state (but not during startup)
+    if (!isStartupPhase) {
+        if (state === 'connected' && !previousConnectionState) {
+            showSuccessMessage('Successfully connected to ProTools');
+        } else if (state === 'disconnected' && data.wasConnected) {
+            showWarningMessage('Disconnected from ProTools');
+        }
+    }
+    // Note: Don't show error toasts here - let the manual retry function handle error display
+    
+    // Update connection status UI with real-time data
+    updateConnectionStatus({
+        connected: isConnectedToPT,
+        state: state,
+        message: message,
+        error: error,
+        reconnectAttempts: reconnectAttempts,
+        maxReconnectAttempts: maxReconnectAttempts,
+        timestamp: new Date().toISOString() // Add timestamp for debugging
+    });
+    
+    // Update UI state if connection changed
+    if (previousConnectionState !== isConnectedToPT) {
+        logger.info('Connection state changed', { previous: previousConnectionState, current: isConnectedToPT, operation: currentOperation });
+        updateUIState();
+        
+        // Clear spec readouts if disconnected
+        if (!isConnectedToPT) {
+            updateSpecReadouts(null);
+        }
+        
+        // If we lost connection during marker creation, handle gracefully
+        if (!isConnectedToPT && currentOperation === 'creating-markers') {
+            showErrorMessage('Connection Lost During Operation', 
+                'Lost connection to Pro Tools during marker creation. Some markers may not have been created.');
+            clearOperationState();
+        }
+    }
+}
+
+function handleSessionInfoChange(data) {
+    logger.debug('Session info changed', { 
+        sessionName: data.sessionInfo?.name, 
+        isNew: data.isNew, 
+        message: data.message,
+        fullData: data,
+        sessionInfoKeys: data.sessionInfo ? Object.keys(data.sessionInfo) : null
+    });
+    
+    const { sessionInfo, message, isNew } = data;
+    
+    if (sessionInfo) {
+        updateSessionInfo(sessionInfo);
+        
+        // Try updating spec readouts again after a short delay in case DOM wasn't ready
+        setTimeout(() => {
+            updateSpecReadouts(sessionInfo);
+        }, 100);
+        
+        // Session info updated (notification removed per user request)
+        
+        // Update UI state as session availability affects marker creation
+        updateUIState();
+    } else {
+        updateSessionInfo(null, message || 'No Pro Tools session open');
+        
+        // If session closed during operation, handle gracefully
+        if (currentOperation === 'creating-markers') {
+            showErrorMessage('Session Closed During Operation', 
+                'Pro Tools session was closed during marker creation. Operation cancelled.');
+            clearOperationState();
+        }
+        
+        updateUIState();
+    }
+}
+
+// Global Error Handling Setup
+function setupGlobalErrorHandling() {
+    // Handle uncaught errors from main process
+    if (window.electronAPI && window.electronAPI.onCriticalError) {
+        window.electronAPI.onCriticalError((errorData) => {
+            showCriticalErrorModal(errorData);
+        });
+    }
+
+    // Handle unhandled errors from main process  
+    if (window.electronAPI && window.electronAPI.onUnhandledError) {
+        window.electronAPI.onUnhandledError((errorData) => {
+            showErrorMessage(errorData.title, errorData.message, {
+                duration: 8000,
+                persistent: false
+            });
+        });
+    }
+
+    // Handle renderer process errors
+    window.addEventListener('error', (event) => {
+        logger.error('Unhandled renderer error', { error: event.error.message, stack: event.error.stack, filename: event.filename, lineno: event.lineno });
+        
+        showErrorMessage('Application Error', 
+            'An unexpected error occurred in the interface. The application should continue to work normally.',
+            { duration: 6000 }
+        );
+    });
+
+    // Handle unhandled promise rejections in renderer
+    window.addEventListener('unhandledrejection', (event) => {
+        logger.error('Unhandled promise rejection', { reason: event.reason, stack: event.reason?.stack });
+        
+        // Prevent the default behavior (which would log to console)
+        event.preventDefault();
+        
+        const message = typeof event.reason === 'string' ? event.reason : 
+                       (event.reason?.message || 'An unhandled promise rejection occurred');
+        
+        showWarningMessage('Promise Rejection', message, {
+            duration: 5000
+        });
+    });
+}
+
+// Modal Dialog System
+function showModal(options) {
+    const {
+        title,
+        subtitle = null,
+        message,
+        guidance = null,
+        actions = [],
+        persistent = false
+    } = options;
+
+    // Remove any existing modal
+    const existingModal = document.querySelector('.modal-overlay');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+
+    const actionsHtml = actions.map(action => {
+        const btnClass = action.type === 'primary' ? 'modal-btn-primary' :
+                        action.type === 'danger' ? 'modal-btn-danger' : 'modal-btn-secondary';
+        return `<button class="modal-btn ${btnClass}" data-action="${action.action}">${action.label}</button>`;
+    }).join('');
+
+    modalOverlay.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title">${escapeHtml(title)}</div>
+                ${subtitle ? `<div class="modal-subtitle">${escapeHtml(subtitle)}</div>` : ''}
+            </div>
+            <div class="modal-body">
+                <div class="modal-message">${escapeHtml(message)}</div>
+                ${guidance ? `<div class="modal-guidance">${escapeHtml(guidance)}</div>` : ''}
+            </div>
+            <div class="modal-actions">
+                ${actionsHtml}
+            </div>
+        </div>
+    `;
+
+    // Add action button event listeners
+    actions.forEach(action => {
+        const button = modalOverlay.querySelector(`[data-action="${action.action}"]`);
+        if (button && action.handler) {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                action.handler();
+                if (!persistent) {
+                    closeModal(modalOverlay);
+                }
+            });
+        }
+    });
+
+    // Add close on backdrop click (unless persistent)
+    if (!persistent) {
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeModal(modalOverlay);
+            }
+        });
+
+        // Add escape key handler
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal(modalOverlay);
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+
+    document.body.appendChild(modalOverlay);
+
+    // Animate in
+    setTimeout(() => {
+        modalOverlay.classList.add('modal-show');
+    }, 10);
+
+    return modalOverlay;
+}
+
+function closeModal(modalElement) {
+    if (!modalElement) return;
+
+    modalElement.classList.remove('modal-show');
+    
+    setTimeout(() => {
+        if (modalElement.parentNode) {
+            modalElement.parentNode.removeChild(modalElement);
+        }
+    }, 300);
+}
+
+function showCriticalErrorModal(errorData) {
+    showModal({
+        title: errorData.title || 'Critical Error',
+        message: errorData.message || 'A critical error occurred.',
+        guidance: errorData.guidance,
+        persistent: true,
+        actions: [
+            {
+                label: 'Restart Application',
+                type: 'danger',
+                action: 'restart',
+                handler: () => {
+                    if (window.electronAPI && window.electronAPI.restartApp) {
+                        window.electronAPI.restartApp();
+                    } else {
+                        location.reload();
+                    }
+                }
+            },
+            {
+                label: 'Continue Anyway',
+                type: 'secondary', 
+                action: 'continue',
+                handler: () => {
+                    // Modal will close automatically
+                }
+            }
+        ]
+    });
+}
+
+
+// Manual connection control
+async function retryConnection() {
+    try {
+        const result = await window.electronAPI.ptsl.retryConnection();
+        
+        if (result.success) {
+            showSuccessMessage('Successfully connected to ProTools');
+        } else {
+            showErrorMessage('Connection Failed', result.error || 'Could not connect to Pro Tools. Make sure Pro Tools is running and PTSL is enabled.');
+        }
+        
+        return result;
+    } catch (error) {
+        logger.error('Manual connection retry failed', { error: error.message, operation: currentOperation });
+        showErrorMessage('Connection Failed', 'Could not connect to Pro Tools. Make sure Pro Tools is running and PTSL is enabled.');
+        throw error;
+    }
+}
+
+async function disconnectFromProTools() {
+    try {
+        const result = await window.electronAPI.ptsl.disconnect();
+        
+        if (result.success) {
+            showSuccessMessage('Disconnected from ProTools');
+        } else {
+            showErrorMessage('Disconnect Failed', result.error);
+        }
+        
+        return result;
+    } catch (error) {
+        logger.error('Manual disconnect failed', { error: error.message });
+        showErrorMessage('Disconnect Error', `Failed to disconnect: ${error.message}`);
+        throw error;
+    }
+}
+
+// Auto-connect to Pro Tools on app startup (single attempt, silent failure)
+async function triggerSessionInfoRefresh() {
+    try {
+        logger.info('Triggering session info refresh');
+        // Attempt a connection to force session info retrieval
+        const result = await window.electronAPI.ptsl.retryConnection();
+        
+        if (result.success) {
+            logger.debug('Session info refresh triggered successfully');
+        } else {
+            logger.warn('Failed to trigger session info refresh:', result.error);
+            // Fall back to auto-detect
+            updateSpecReadouts(null);
+        }
+    } catch (error) {
+        logger.error('Error triggering session info refresh:', error);
+        // Fall back to auto-detect
+        updateSpecReadouts(null);
+    }
+}
+
+async function attemptAutoConnect() {
+    try {
+        // Don't auto-connect if user explicitly disconnected
+        if (userExplicitlyDisconnected) {
+            logger.info('Skipping auto-connect: user explicitly disconnected');
+            return;
+        }
+        
+        logger.info('Attempting auto-connect to Pro Tools on startup');
+        
+        // Wait a brief moment for the UI to fully initialize
+        setTimeout(async () => {
+            try {
+                const result = await window.electronAPI.ptsl.retryConnection();
+                
+                if (result.success) {
+                    // Success notification will be shown by the normal connection handler
+                    logger.info('Auto-connect successful');
+                } else {
+                    // Show one failure notification, then log
+                    logger.info('Auto-connect failed:', result.error);
+                    showWarningMessage('Unable to connect to ProTools');
+                }
+            } catch (error) {
+                // Show one failure notification, then log
+                logger.info('Auto-connect failed:', error.message);
+                showWarningMessage('Unable to connect to ProTools');
+            }
+        }, 500); // 500ms delay to let UI settle
+        
+    } catch (error) {
+        // Silent failure - no notification, just log
+        logger.info('Auto-connect setup failed:', error.message);
+    }
+}
+
+// Periodic connection monitoring for launch order independence
+let connectionMonitorInterval = null;
+let lastKnownConnectionState = false;
+
+function startConnectionMonitoring() {
+    // Don't start multiple intervals
+    if (connectionMonitorInterval) {
+        return;
+    }
+    
+    logger.info('Starting periodic connection monitoring');
+    
+    // Monitor connection every 3 seconds
+    connectionMonitorInterval = setInterval(async () => {
+        try {
+            // Skip monitoring if we're currently connected
+            if (isConnectedToPT) {
+                lastKnownConnectionState = true;
+                return;
+            }
+            
+            // Skip monitoring during marker creation operations
+            if (currentOperation === 'creating-markers') {
+                return;
+            }
+            
+            // Don't auto-connect during monitoring if user explicitly disconnected
+            if (userExplicitlyDisconnected) {
+                return;
+            }
+            
+            // Silently check if ProTools becomes available
+            const result = await window.electronAPI.ptsl.retryConnection();
+            
+            // If we successfully connected and we weren't connected before
+            if (result.success && !lastKnownConnectionState) {
+                logger.info('ProTools detected during monitoring - auto-connecting');
+                // The connection state change handler will show the success notification
+                lastKnownConnectionState = true;
+            } else if (!result.success) {
+                lastKnownConnectionState = false;
+            }
+            
+        } catch (error) {
+            // Silent failure during monitoring - just log debug info
+            logger.debug('Connection monitoring ping failed:', error.message);
+            lastKnownConnectionState = false;
+        }
+    }, 3000); // Check every 3 seconds
+}
+
+function stopConnectionMonitoring() {
+    if (connectionMonitorInterval) {
+        logger.info('Stopping periodic connection monitoring');
+        clearInterval(connectionMonitorInterval);
+        connectionMonitorInterval = null;
+    }
+}
+
+function updateConnectionStatus(status) {
+    const statusBar = document.getElementById('statusBar');
+    const statusDot = document.querySelector('.status-dot');
+    const sessionNameSpan = document.querySelector('.session-name');
+    const statusRight = document.querySelector('.status-right');
+    
+    if (!statusBar || !statusDot) return;
+    
+    // Note: statusRight now contains static spec readouts, no longer clearing innerHTML
+    
+    // Update connection indicator based on state
+    switch (status.state) {
+        case 'connected':
+            statusDot.className = 'status-dot connected';
+            if (sessionNameSpan && !sessionNameSpan.textContent.includes('.ptx')) {
+                sessionNameSpan.textContent = 'Connected to Pro Tools';
+            }
+            break;
+            
+        case 'connecting':
+            statusDot.className = 'status-dot connecting';
+            if (sessionNameSpan) {
+                sessionNameSpan.textContent = 'Connecting...';
+            }
+            break;
+            
+        case 'disconnected':
+            statusDot.className = 'status-dot disconnected';
+            if (sessionNameSpan) {
+                sessionNameSpan.textContent = '--';
+            }
+            break;
+            
+        case 'error':
+            statusDot.className = 'status-dot error';
+            if (sessionNameSpan) {
+                const errorText = getConnectionErrorText(status);
+                sessionNameSpan.textContent = errorText;
+            }
+            break;
+            
+        default:
+            statusDot.className = 'status-dot disconnected';
+            if (sessionNameSpan) {
+                sessionNameSpan.textContent = status.message || 'Unknown Status';
+            }
+    }
+    
+    // Add reconnection attempt indicator
+    if (status.reconnectAttempts && status.maxReconnectAttempts) {
+        addReconnectIndicator(statusRight, status.reconnectAttempts, status.maxReconnectAttempts);
+    }
+}
+
+// Handle connection button click (for permanent button in status bar)
+async function handleConnectionButtonClick() {
+    logger.debug('Connection button clicked!');
+    
+    const button = document.getElementById('connectionButton');
+    const buttonText = button.querySelector('.connection-text');
+    
+    logger.debug('Button elements found:', { button: !!button, buttonText: !!buttonText });
+    
+    if (!button || !buttonText) {
+        logger.warn('Connection button or text element not found');
+        return;
+    }
+    
+    // Check current connection state
+    if (isConnectedToPT) {
+        // Disconnect
+        try {
+            button.disabled = true;
+            button.classList.add('connecting');
+            buttonText.textContent = 'Disconnecting...';
+            
+            // Set flag to prevent auto-reconnect
+            userExplicitlyDisconnected = true;
+            logger.info('User explicitly disconnected - auto-connect disabled');
+            
+            await disconnectFromProTools();
+        } catch (error) {
+            logger.error('Error during disconnect:', error);
+        } finally {
+            button.disabled = false;
+            button.classList.remove('connecting');
+        }
+    } else {
+        // Connect
+        try {
+            button.disabled = true;
+            button.classList.add('connecting');
+            buttonText.textContent = 'Connecting...';
+            
+            // Clear flag since user is manually connecting
+            userExplicitlyDisconnected = false;
+            logger.info('User manually connecting - auto-connect re-enabled');
+            
+            await retryConnection();
+        } catch (error) {
+            logger.error('Error during connect:', error);
+        } finally {
+            button.disabled = false;
+            button.classList.remove('connecting');
+        }
+    }
+}
+
+function addConnectionButton(container, text, className, clickHandler) {
+    if (!container) return;
+    
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.className = `status-btn ${className}`;
+    button.onclick = clickHandler;
+    container.appendChild(button);
+}
+
+function addReconnectIndicator(container, current, max) {
+    if (!container || current === 0) return;
+    
+    const indicator = document.createElement('span');
+    indicator.className = 'reconnect-indicator';
+    indicator.textContent = `${current}/${max}`;
+    indicator.title = `Reconnection attempts: ${current} of ${max}`;
+    container.appendChild(indicator);
+}
+
+function getConnectionErrorText(status) {
+    if (!status.error) return 'Connection Error';
+    
+    const error = status.error.toLowerCase();
+    
+    if (error.includes('timeout') || error.includes('timed out')) {
+        return 'Connection Timeout';
+    } else if (error.includes('refused') || error.includes('not running')) {
+        return 'Pro Tools Not Running';
+    } else if (error.includes('ptsl')) {
+        return 'PTSL Not Enabled';
+    } else {
+        return 'Connection Error';
+    }
+}
+
+function updateSessionInfo(sessionInfo, error = null) {
+    const sessionNameSpan = document.querySelector('.session-name');
+    
+    if (!sessionNameSpan) return;
+    
+    // Update spec readouts in status bar
+    updateSpecReadouts(sessionInfo, error);
+    
+    if (error) {
+        sessionNameSpan.textContent = 'No Session Open';
+        logger.warn('Session info error', { error: error.message });
+    } else if (sessionInfo && sessionInfo.name) {
+        sessionNameSpan.textContent = sessionInfo.name;
+    } else {
+        // Check if we're connected - if not, show "--"
+        if (isConnectedToPT) {
+            sessionNameSpan.textContent = 'No Session Open';
+        } else {
+            sessionNameSpan.textContent = '--';
+        }
+    }
+}
+
+// Update spec readouts in status bar based on session info
+// Note: Spec readouts (fps/sample rate) are now hidden from UI but validation logic remains intact
+function updateSpecReadouts(sessionInfo, error = null) {
+    // Spec readouts have been removed from UI - this function now serves as a validation placeholder
+    // All the validation logic for fps and sample rate compatibility continues to work behind the scenes
+    
+    logger.debug('updateSpecReadouts called (UI elements hidden, validation preserved)', { 
+        sessionInfo, 
+        error,
+        hasSessionInfo: !!sessionInfo,
+        frameRate: sessionInfo?.frameRate,
+        sampleRate: sessionInfo?.sampleRate
+    });
+    
+    // Early return since UI elements are removed, but validation data is preserved
+    if (!sessionInfo) return;
+    
+    if (sessionInfo && sessionInfo.frameRate && sessionInfo.sampleRate) {
+        // Format values for internal validation (UI display removed)
+        const detectedFps = formatFpsForDisplay(sessionInfo.frameRate);
+        const formattedSampleRate = formatSampleRateForDisplay(sessionInfo.sampleRate);
+        
+        // Update timecode format based on detected FPS (validation still needed)
+        updateTimecodeFormat(detectedFps);
+        
+        logger.debug('Session specs auto-detected (UI hidden, validation preserved)', { 
+            fps: { raw: sessionInfo.frameRate, formatted: detectedFps },
+            sampleRate: { raw: sessionInfo.sampleRate, formatted: formattedSampleRate }
+        });
+    }
+    // No UI updates needed since spec readouts are now hidden from interface
+}
+
+// Format numeric FPS for display
+function formatSampleRateForDisplay(sampleRate) {
+    if (!sampleRate) return 'unknown';
+    
+    // Handle PTSL format (e.g., 'SR_48000') or numeric values
+    let numericRate;
+    if (typeof sampleRate === 'string' && sampleRate.startsWith('SR_')) {
+        numericRate = parseInt(sampleRate.replace('SR_', ''));
+    } else {
+        numericRate = parseFloat(sampleRate);
+    }
+    
+    if (isNaN(numericRate)) return 'unknown';
+    
+    // Convert to kHz if >= 1000 Hz
+    return numericRate >= 1000 ? 
+        `${numericRate / 1000}kHz` : 
+        `${numericRate}Hz`;
+}
+
+function formatFpsForDisplay(timeCodeRate) {
+    if (!timeCodeRate) return 'unknown';
+    
+    const rate = parseFloat(timeCodeRate);
+    
+    // Map common rates to user-friendly formats
+    const fpsMap = {
+        23.976: '23.98',
+        23.98: '23.98', 
+        24: '24',
+        25: '25',
+        29.97: '29.97',
+        30: '30',
+        50: '50',
+        59.94: '59.94',
+        60: '60'
+    };
+    
+    // Find closest match
+    for (const [numeric, display] of Object.entries(fpsMap)) {
+        if (Math.abs(parseFloat(numeric) - rate) < 0.01) {
+            return display;
+        }
+    }
+    
+    // If no exact match, return the numeric value rounded
+    return Math.round(rate * 100) / 100 + '';
+}
+
+// ========================================
+// UI State Management System
+// ========================================
+
+/**
+ * Update UI state based on current application state
+ */
+function updateUIState() {
+    const uploadBtn = document.querySelector('.upload-btn');
+    const runBtn = document.querySelector('.btn-primary');
+    const startOverBtn = document.getElementById('startOverBtn');
+    const fileInput = document.querySelector('.file-input');
+    // FPS is now auto-detected from Pro Tools session
+    const sessionStartInput = document.getElementById('sessionStartInput');
+    
+    // Determine if we have valid comments and connection
+    const hasValidComments = currentComments && currentComments.length > 0;
+    const canRunMarkers = hasValidComments && isConnectedToPT && !isOperationInProgress;
+    const canUploadFiles = !isOperationInProgress || currentOperation !== 'creating-markers';
+    const canModifySettings = !isOperationInProgress;
+    const canStartOver = !isOperationInProgress || currentOperation !== 'creating-markers';
+    
+    // Update connection button state
+    const connectionButton = document.getElementById('connectionButton');
+    const connectionText = connectionButton?.querySelector('.connection-text');
+    if (connectionButton && connectionText) {
+        connectionButton.classList.remove('connected', 'connecting');
+        
+        if (isConnectedToPT) {
+            connectionButton.classList.add('connected');
+            connectionText.textContent = 'Disconnect';
+        } else {
+            connectionText.textContent = 'Connect';
+        }
+    }
+
+    // Update button states
+    if (uploadBtn) {
+        uploadBtn.disabled = !canUploadFiles;
+        uploadBtn.style.opacity = canUploadFiles ? '1' : '0.6';
+    }
+    
+    if (runBtn) {
+        runBtn.disabled = !canRunMarkers;
+        runBtn.style.opacity = canRunMarkers ? '1' : '0.6';
+        
+        // Update button text based on operation
+        if (isOperationInProgress) {
+            switch (currentOperation) {
+                case 'parsing':
+                    runBtn.textContent = 'Parsing...';
+                    break;
+                case 'validating':
+                    runBtn.textContent = 'Validating...';
+                    break;
+                case 'creating-markers':
+                    runBtn.textContent = 'Creating Markers...';
+                    break;
+                default:
+                    runBtn.textContent = 'Processing...';
+            }
+        } else {
+            runBtn.textContent = 'create markers';
+        }
+    }
+    
+    if (startOverBtn) {
+        startOverBtn.disabled = !canStartOver;
+        startOverBtn.style.opacity = canStartOver ? '1' : '0.6';
+    }
+    
+    if (fileInput) {
+        fileInput.disabled = !canUploadFiles;
+    }
+    
+    // Update settings controls
+    if (sessionStartInput) {
+        sessionStartInput.disabled = !canModifySettings;
+        sessionStartInput.style.opacity = canModifySettings ? '1' : '0.6';
+    }
+    
+    // Update upload zone visual state
+    const uploadZone = document.querySelector('.upload-zone');
+    if (uploadZone) {
+        if (canUploadFiles) {
+            uploadZone.classList.remove('disabled');
+        } else {
+            uploadZone.classList.add('disabled');
+        }
+    }
+    
+    logger.debug('UI State Updated', {
+        hasValidComments,
+        isConnectedToPT,
+        isOperationInProgress,
+        currentOperation,
+        canRunMarkers,
+        canUploadFiles,
+        canModifySettings
+    });
+}
+
+/**
+ * Set operation state and update UI
+ */
+function setOperationState(operation) {
+    const previousOperation = currentOperation;
+    currentOperation = operation;
+    isOperationInProgress = operation !== null;
+    
+    logger.info('Operation state changed', { previous: previousOperation, current: operation });
+    updateUIState();
+    
+    // Show/hide progress bar for marker creation
+    if (operation === 'creating-markers') {
+        showMarkerProgress();
+    } else if (previousOperation === 'creating-markers' && operation === null) {
+        hideMarkerProgress();
+    }
+}
+
+/**
+ * Clear operation state and update UI
+ */
+function clearOperationState() {
+    setOperationState(null);
+}
+
+// ========================================
+// Global Keyboard Shortcuts
+// ========================================
+
+function setupGlobalKeyboardShortcuts() {
+    // Keyboard shortcuts disabled
+    logger.debug('Global keyboard shortcuts disabled');
+}
+
+// ========================================
+// Enhanced File Handling with State Management
+// ========================================
+
+// Enhanced Marker Creation with Comprehensive Validation and Progress
+async function runNoteMarker() {
+    if (!isConnectedToPT) {
+        showErrorMessage('Connection Error', 'Not connected to Pro Tools. Please check your connection.');
+        return;
+    }
+    
+    if (!currentComments || currentComments.length === 0) {
+        showErrorMessage('No Comments', 'Please import a Frame.io TXT file first.');
+        return;
+    }
+    
+    try {
+        // Set operation state to validating
+        setOperationState('validating');
+        
+        // Get and validate settings
+        const settings = getMarkerSettings();
+        
+        // Validate settings on the frontend too
+        const validationResult = validateMarkerSettings(settings, currentComments);
+        if (!validationResult.valid) {
+            showErrorMessage('Settings Validation Error', validationResult.error);
+            return;
+        }
+        
+        // Validate session settings against Pro Tools
+        const sessionValidation = await window.electronAPI.ptsl.validateSessionSettings(settings);
+        
+        if (!sessionValidation.success) {
+            showErrorMessage('Session Validation Failed', sessionValidation.error);
+            return;
+        }
+        
+        // Show validation results
+        displayValidationResults(sessionValidation.validation);
+        
+        // Check if there are critical errors that prevent marker creation
+        if (!sessionValidation.validation.valid) {
+            showErrorMessage('Session Validation Failed', 
+                'Settings validation failed:\n\n' + sessionValidation.validation.errors.join('\n'));
+            return;
+        }
+        
+        // Show warnings but continue if valid
+        if (sessionValidation.validation.warnings.length > 0) {
+            const continueAnyway = confirm(
+                'Session Validation Warnings:\n\n' + 
+                sessionValidation.validation.warnings.join('\n') + 
+                '\n\nDo you want to continue creating markers anyway?'
+            );
+            
+            if (!continueAnyway) {
+                return;
+            }
+        }
+        
+        // Set operation state to creating markers
+        setOperationState('creating-markers');
+        
+        // Create markers using enhanced IPC channel
+        const result = await window.electronAPI.ptsl.createMarkers(currentComments, settings);
+        
+        if (result.success) {
+            // Perfect success
+            if (result.summary.failed === 0) {
+                showSuccessMessage(
+                    'Markers Created Successfully', 
+                    `All ${result.summary.successful} markers were created successfully in Pro Tools.`
+                );
+            } else {
+                // Partial success - show detailed information
+                const failedMarkers = result.results.filter(r => !r.success);
+                const criticalErrors = failedMarkers.filter(r => 
+                    r.errorType && ['SESSION_LOCKED', 'INSUFFICIENT_PRIVILEGES', 'MARKER_LIMIT_EXCEEDED'].includes(r.errorType)
+                );
+                
+                if (criticalErrors.length > 0) {
+                    // Critical errors - show specific guidance
+                    const errorType = criticalErrors[0].errorType;
+                    showCriticalError(errorType, result.summary);
+                } else {
+                    // Non-critical errors - show summary
+                    showWarningMessage(
+                        'Partial Success', 
+                        `${result.summary.successful} of ${result.summary.total} markers created successfully.\n\n` +
+                        `${result.summary.failed} markers failed due to individual issues (check console for details).`
+                    );
+                }
+                
+                console.group('Marker Creation Results');
+                logger.info('Marker creation results', {
+                    successful: result.results.filter(r => r.success).length,
+                    failed: failedMarkers.length,
+                    total: result.results.length
+                });
+                if (failedMarkers.length > 0) {
+                    logger.warn('Failed markers detected', { failedMarkers: failedMarkers.slice(0, 3) });
+                }
+                console.groupEnd();
+            }
+        } else {
+            // Complete failure
+            const errorType = result.errorType || 'UNKNOWN';
+            if (['SESSION_NOT_OPEN', 'CONNECTION_FAILED', 'INVALID_SETTINGS'].includes(errorType)) {
+                showCriticalError(errorType, null, result.error);
+            } else {
+                showErrorMessage('Marker Creation Failed', result.error || 'Unknown error occurred');
+            }
+        }
+        
+    } catch (error) {
+        logger.error('Error running NoteMarker', { error: error.message, stack: error.stack, operation: currentOperation });
+        showErrorMessage('Unexpected Error', `An unexpected error occurred: ${error.message}`);
+    } finally {
+        // Clear operation state - this will update all UI elements
+        clearOperationState();
+    }
+}
+
+function getMarkerSettings() {
+    // Get auto-detected FPS from spec readout
+    const specFps = document.getElementById('specFps');
+    const detectedFps = specFps?.textContent || 'auto-detect';
+    
+    const sessionStartInput = document.getElementById('sessionStartInput');
+    
+    return {
+        fps: detectedFps !== 'auto-detect' ? detectedFps : '25', // Use detected FPS or fallback to 25fps
+        markerTrack: 1, // Always use main marker ruler
+        sessionStart: sessionStartInput ? sessionStartInput.value : '00:00:00:00'
+    };
+}
+
+// Frontend Settings Validation
+function validateMarkerSettings(settings, comments) {
+    const errors = [];
+    
+    // Validate FPS
+    const supportedFPS = ['23.976', '23.98', '24', '25', '29.97', '29.97drop', '30', '50', '59.94', '59.94drop', '60'];
+    if (!supportedFPS.includes(settings.fps)) {
+        errors.push(`Unsupported frame rate: ${settings.fps}`);
+    }
+    
+    // Validate marker track
+    // markerTrack validation removed - always use main ruler
+    
+    // Validate session start time format
+    const timecodeRegex = /^\d{1,2}:\d{2}:\d{2}:\d{2}$/;
+    if (!timecodeRegex.test(settings.sessionStart)) {
+        errors.push('Session start time must be in HH:MM:SS:FF format');
+    }
+    
+    // Validate comment count
+    if (!comments || comments.length === 0) {
+        errors.push('No valid comments to process');
+    } else if (comments.length > 1000) {
+        errors.push('Too many comments (maximum 1000 supported)');
+    }
+    
+    return {
+        valid: errors.length === 0,
+        error: errors.join('; '),
+        errors: errors
+    };
+}
+
+function setupMarkerProgressListener() {
+    // Set up progress listener
+    const removeListener = window.electronAPI.ptsl.onMarkerProgress((progress) => {
+        updateMarkerProgress(progress);
+    });
+    
+    // Store cleanup function for later use
+    window._markerProgressCleanup = removeListener;
+}
+
+function showMarkerProgress() {
+    const progressBar = document.querySelector('.marker-progress-bar');
+    if (progressBar) {
+        progressBar.style.display = 'block';
+    }
+    
+    // Reset progress to 0
+    const progressFill = document.querySelector('.marker-progress-fill');
+    if (progressFill) {
+        progressFill.style.width = '0%';
+    }
+}
+
+function updateMarkerProgress(progressData) {
+    const progressBar = document.querySelector('.marker-progress-fill');
+    const runBtn = document.querySelector('.btn-primary');
+    const statusLeft = document.querySelector('.status-left span');
+    
+    logger.debug('Updating marker progress', progressData);
+    
+    // Update progress bar
+    if (progressBar) {
+        // Use percent from the new progress data structure
+        const percent = progressData.percent || 0;
+        progressBar.style.width = `${percent}%`;
+        
+        // Add visual feedback based on phase
+        progressBar.classList.remove('progress-error', 'progress-success', 'progress-warning');
+        
+        if (progressData.phase === 'error') {
+            progressBar.classList.add('progress-error');
+        } else if (progressData.phase === 'completed') {
+            if (progressData.successRate === 100) {
+                progressBar.classList.add('progress-success');
+            } else if (progressData.successRate > 0) {
+                progressBar.classList.add('progress-warning');
+            } else {
+                progressBar.classList.add('progress-error');
+            }
+        }
+    }
+    
+    // Update button text with current status
+    if (runBtn && currentOperation === 'creating-markers') {
+        let statusText;
+        
+        switch (progressData.phase) {
+            case 'starting':
+                statusText = 'Initializing marker creation...';
+                break;
+            case 'creating':
+                if (progressData.currentMarker) {
+                    const markerType = progressData.currentMarker.isReply ? '[REPLY]' : '[MAIN]';
+                    statusText = `Creating ${markerType} ${progressData.currentMarker.name} (${progressData.current}/${progressData.total})`;
+                } else {
+                    statusText = `Creating markers... ${progressData.current}/${progressData.total}`;
+                }
+                break;
+            case 'completed':
+                statusText = `✅ Completed: ${progressData.created}/${progressData.total} markers created`;
+                break;
+            case 'stopped':
+                statusText = `⏹️ Stopped: ${progressData.created} created, ${progressData.failed} failed`;
+                break;
+            case 'error':
+                statusText = `❌ Error: ${progressData.error?.substring(0, 40) || 'Unknown error'}`;
+                break;
+            default:
+                statusText = progressData.status || 'Processing...';
+        }
+        
+        runBtn.textContent = statusText;
+        runBtn.disabled = progressData.phase === 'creating' || progressData.phase === 'starting';
+    }
+    
+    // Update status bar with detailed information
+    if (statusLeft && progressData.phase === 'creating') {
+        const connectedText = statusLeft.querySelector('.session-name')?.textContent || 'Connected';
+        if (progressData.currentMarker) {
+            statusLeft.innerHTML = `connected session: <span class="session-name">${connectedText}</span> | Creating: ${progressData.currentMarker.name}`;
+        }
+    }
+    
+    // Handle completion
+    if (progressData.phase === 'completed' || progressData.phase === 'error') {
+        setTimeout(() => {
+            finishOperation();
+            resetMarkerProgress();
+            
+            // Show completion summary
+            if (progressData.summary) {
+                showCompletionSummary(progressData.summary);
+            }
+        }, 2000); // Show completion state for 2 seconds
+    }
+}
+
+function hideMarkerProgress() {
+    const progressBar = document.querySelector('.marker-progress-bar');
+    if (progressBar) {
+        progressBar.style.display = 'none';
+    }
+    
+    const progressFill = document.querySelector('.marker-progress-fill');
+    if (progressFill) {
+        progressFill.style.width = '0%';
+        progressFill.classList.remove('progress-error');
+    }
+}
+
+function resetMarkerProgress() {
+    hideMarkerProgress();
+    const progressFill = document.querySelector('.marker-progress-fill');
+    if (progressFill) {
+        progressFill.style.width = '0%';
+        progressFill.classList.remove('progress-error', 'progress-success', 'progress-warning');
+    }
+}
+
+function showCompletionSummary(summary) {
+    logger.info('Showing completion summary', summary);
+    
+    // Determine message type based on success rate
+    let messageType = 'info';
+    let title = 'Marker Creation Complete';
+    
+    if (summary.successRate === 100) {
+        messageType = 'success';
+        title = '✅ All Markers Created Successfully';
+    } else if (summary.successRate > 50) {
+        messageType = 'warning';
+        title = '⚠️ Markers Created with Some Issues';
+    } else if (summary.created > 0) {
+        messageType = 'warning';
+        title = '⚠️ Partial Success';
+    } else {
+        messageType = 'error';
+        title = '❌ Marker Creation Failed';
+    }
+    
+    // Build detailed message
+    let message = `Created ${summary.created} out of ${summary.total} markers`;
+    
+    if (summary.failed > 0) {
+        message += `\n${summary.failed} markers failed`;
+    }
+    
+    if (summary.skipped > 0) {
+        message += `\n${summary.skipped} markers skipped`;
+    }
+    
+    message += `\nCompleted in ${Math.round(summary.duration / 1000)} seconds`;
+    
+    if (summary.successRate < 100 && summary.errors) {
+        message += `\n\nFirst error: ${summary.errors[0]?.error || 'Unknown error'}`;
+    }
+    
+    // Show completion message
+    if (messageType === 'success') {
+        showSuccessMessage(title, message, { duration: 5000 });
+    } else if (messageType === 'warning') {
+        showWarningMessage(title, message, { duration: 7000 });
+    } else {
+        showErrorMessage(title, message, { duration: 10000 });
+    }
+}
+
+// Comprehensive Toast Notification System
+function createToastContainer() {
+    if (document.querySelector('.toast-container')) return;
+    
+    const container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+}
+
+function showToast(options) {
+    const {
+        title,
+        message,
+        type = 'info',
+        duration = 5000,
+        actions = null,
+        persistent = false
+    } = options;
+
+    const toast = {
+        id: Date.now() + Math.random(),
+        title,
+        message,
+        type,
+        duration,
+        actions,
+        persistent,
+        timestamp: new Date().toISOString()
+    };
+
+    toastQueue.push(toast);
+    processToastQueue();
+}
+
+function processToastQueue() {
+    if (isToastActive || toastQueue.length === 0) return;
+    
+    const toast = toastQueue.shift();
+    displayToast(toast);
+}
+
+function displayToast(toast) {
+    isToastActive = true;
+    
+    const container = document.querySelector('.toast-container');
+    if (!container) {
+        logger.warn('Toast container not found - creating new container');
+        createToastContainer();
+        isToastActive = false;
+        return;
+    }
+
+    const toastElement = document.createElement('div');
+    toastElement.className = `toast toast-${toast.type}`;
+    toastElement.setAttribute('data-toast-id', toast.id);
+
+    let actionsHtml = '';
+    if (toast.actions && toast.actions.length > 0) {
+        actionsHtml = '<div class="toast-actions">';
+        toast.actions.forEach(action => {
+            actionsHtml += `<button class="toast-action-btn" data-action="${action.action}">${action.label}</button>`;
+        });
+        actionsHtml += '</div>';
+    }
+
+    toastElement.innerHTML = `
+        <div class="toast-icon">
+            ${getToastIcon(toast.type)}
+        </div>
+        <div class="toast-content">
+            <div class="toast-title">${escapeHtml(toast.title)}</div>
+            <div class="toast-message">${escapeHtml(toast.message)}</div>
+            ${actionsHtml}
+        </div>
+        <button class="toast-close" onclick="closeToast('${toast.id}')">&times;</button>
+    `;
+
+    // Add action button event listeners
+    if (toast.actions) {
+        toast.actions.forEach(action => {
+            const button = toastElement.querySelector(`[data-action="${action.action}"]`);
+            if (button && action.handler) {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    action.handler();
+                    closeToast(toast.id);
+                });
+            }
+        });
+    }
+
+    container.appendChild(toastElement);
+
+    // Animate in
+    setTimeout(() => {
+        toastElement.classList.add('toast-show');
+    }, 10);
+
+    // Auto-dismiss if not persistent
+    if (!toast.persistent && toast.duration > 0) {
+        setTimeout(() => {
+            closeToast(toast.id);
+        }, toast.duration);
+    }
+}
+
+function closeToast(toastId) {
+    const toastElement = document.querySelector(`[data-toast-id="${toastId}"]`);
+    if (!toastElement) return;
+
+    toastElement.classList.add('toast-hide');
+    
+    setTimeout(() => {
+        if (toastElement.parentNode) {
+            toastElement.parentNode.removeChild(toastElement);
+        }
+        
+        isToastActive = false;
+        processToastQueue();
+    }, 300);
+}
+
+function getToastIcon(type) {
+    switch (type) {
+        case 'success': return '✓';
+        case 'warning': return '⚠';
+        case 'error': return '✕';
+        case 'info': return 'ⓘ';
+        default: return 'ⓘ';
+    }
+}
+
+// Enhanced Error/Success Message Display with Toast System
+function showErrorMessage(title, message, options = {}) {
+    // Error already logged by caller
+    
+    showToast({
+        title: title,
+        message: message,
+        type: 'error',
+        duration: options.duration || 8000,
+        actions: options.actions,
+        persistent: options.persistent || false
+    });
+}
+
+function showSuccessMessage(title, message, options = {}) {
+    // Success already logged by caller
+    
+    showToast({
+        title: title,
+        message: message,
+        type: 'success',
+        duration: options.duration || 4000,
+        actions: options.actions,
+        persistent: options.persistent || false
+    });
+}
+
+function showWarningMessage(title, message, options = {}) {
+    // Warning already logged by caller
+    
+    showToast({
+        title: title,
+        message: message,
+        type: 'warning',
+        duration: options.duration || 6000,
+        actions: options.actions,
+        persistent: options.persistent || false
+    });
+}
+
+function showInfoMessage(title, message, options = {}) {
+    // Info already logged by caller
+    
+    showToast({
+        title: title,
+        message: message,
+        type: 'info',
+        duration: options.duration || 4000,
+        actions: options.actions,
+        persistent: options.persistent || false
+    });
+}
+
+function displayValidationResults(validation) {
+    const validationSection = document.querySelector('.validation-section');
+    if (!validationSection) return;
+    
+    // Clear existing validation content
+    validationSection.innerHTML = '';
+    
+    // Only show validation section if there are errors or warnings
+    if (validation.errors.length === 0 && validation.warnings.length === 0) {
+        validationSection.style.display = 'none';
+        return;
+    }
+    
+    validationSection.style.display = 'block';
+    
+    let html = '<div class="validation-summary">';
+    
+    // Show errors
+    if (validation.errors.length > 0) {
+        html += '<div class="validation-item validation-error">';
+        html += '<strong>Validation Errors:</strong><br>';
+        html += validation.errors.map(error => `• ${escapeHtml(error)}`).join('<br>');
+        html += '</div>';
+    }
+    
+    // Show warnings
+    if (validation.warnings.length > 0) {
+        html += '<div class="validation-item validation-warning">';
+        html += '<strong>Validation Warnings:</strong><br>';
+        html += validation.warnings.map(warning => `• ${escapeHtml(warning)}`).join('<br>');
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    validationSection.innerHTML = html;
+}
+
+function showCriticalError(errorType, summary = null, customMessage = null) {
+    let title = 'Critical Error';
+    let message = '';
+    let guidance = '';
+    
+    switch (errorType) {
+        case 'SESSION_NOT_OPEN':
+            title = 'No Pro Tools Session Open';
+            message = 'Pro Tools is running but no session is currently open.';
+            guidance = 'Please open a Pro Tools session first, then try again.';
+            break;
+            
+        case 'SESSION_LOCKED':
+            title = 'Pro Tools Session Locked';
+            message = 'The Pro Tools session is currently locked by another process or user.';
+            guidance = 'Please unlock the session in Pro Tools or wait for the current operation to complete.';
+            break;
+            
+        case 'CONNECTION_FAILED':
+            title = 'Connection to Pro Tools Failed';
+            message = 'Cannot connect to Pro Tools via PTSL.';
+            guidance = 'Ensure Pro Tools is running and PTSL is enabled in Pro Tools preferences.';
+            break;
+            
+        case 'INSUFFICIENT_PRIVILEGES':
+            title = 'Insufficient Privileges';
+            message = 'NoteMarker does not have permission to create markers in Pro Tools.';
+            guidance = 'Check Pro Tools security settings and ensure marker creation is allowed.';
+            break;
+            
+        case 'MARKER_LIMIT_EXCEEDED':
+            title = 'Marker Limit Exceeded';
+            message = 'Pro Tools has reached its maximum number of memory locations (markers).';
+            guidance = 'Delete some existing markers in Pro Tools to make room for new ones.';
+            break;
+            
+        case 'INVALID_SETTINGS':
+            title = 'Invalid Settings';
+            message = customMessage || 'One or more settings are invalid.';
+            guidance = 'Please check your frame rate, marker track, and session start time settings.';
+            break;
+            
+        default:
+            message = customMessage || 'An unknown critical error occurred.';
+            guidance = 'Please check the console for more details and try again.';
+    }
+    
+    const summaryText = summary ? 
+        `\n\nPartial Results: ${summary.successful} successful, ${summary.failed} failed.` : '';
+    
+    // Error already logged by caller
+    alert(`${title}\n\n${message}\n\n${guidance}${summaryText}`);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    // Stop connection monitoring
+    stopConnectionMonitoring();
+    
+    if (window._markerProgressCleanup) {
+        window._markerProgressCleanup();
+    }
+    
+    // Clean up connection event listeners
+    if (window._connectionCleanup) {
+        window._connectionCleanup.forEach(cleanup => {
+            if (typeof cleanup === 'function') {
+                cleanup();
+            }
+        });
+    }
+});
+
+
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        displayComments,
+        openFileDialog,
+        parseFileContent,
+        handleFileObject
+    };
+}
+    </script>
+</body>
+</html>

@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="admin-auth-check.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Cue Tracker v2.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #2a2a2a;
+            --secondary-text: #555555;
+            --subtle-text: #666;
+            --muted-text: #888;
+            --accent-blue: #4A90C8;
+            --accent-red: #D96459;
+            --accent-green: #5B8C6E;
+            --accent-gold: #E8A45D;
+            --accent-teal: #7AC7C4;
+            --accent-purple: #9B6B9E;
+            --bg-primary: #F8F6F3;
+            --bg-secondary: #FFFFFF;
+            --shadow-subtle: 0 4px 20px rgba(0,0,0,0.05);
+            --border-light: 1px solid #f0f0f0;
+            --border-medium: 1px solid #e8e8e8;
+            --font-primary: 'Crimson Text', serif;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --font-technical: 'IBM Plex Mono', monospace;
+            --font-mono: 'Archivo', monospace;
+            --radius-lg: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-primary); background: var(--bg-primary); color: var(--primary-text); line-height: 1.6; padding: 0; margin: 0; overflow: hidden; }
+
+        .tracker-container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        
+        .header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 2rem; }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        .header-left h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: var(--primary-text); }
+        .project-select { padding: 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; width: 200px; }
+        
+        .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .stat { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 1rem; border: var(--border-light); text-align: center; }
+        .stat-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted-text); margin-bottom: 0.25rem; }
+        .stat-value { font-size: 1.5rem; font-weight: 600; font-family: var(--font-display); color: var(--accent-teal); }
+        
+        .actions { display: flex; gap: 1rem; margin-bottom: 1rem; }
+
+        .progress-bar-container { margin-bottom: 2rem; background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 1rem; border: var(--border-light); }
+        .progress-bar { display: flex; height: 30px; border-radius: 6px; overflow: hidden; background: #f0f0f0; }
+        .progress-segment { display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: white; transition: width 0.3s ease; }
+        .progress-to-write { background: var(--accent-red); }
+        .progress-written { background: var(--accent-orange); }
+        .progress-revisions { background: #ffd93d; color: var(--primary-text); }
+        .progress-approved { background: var(--accent-green); }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-family: var(--font-primary); }
+        .btn-primary { background: var(--accent-teal); color: white; }
+        .btn-primary:hover { background: #3a8bc7; }
+        .btn-secondary { background: var(--subtle-text); color: white; }
+        .btn-secondary:hover { background: var(--secondary-text); }
+        .btn-gradient { background: linear-gradient(135deg, #4A90E2 0%, #E74C3C 100%); color: white; box-shadow: 0 4px 20px rgba(0,0,0,0.05), 0 0 0 1px rgba(74, 144, 226, 0.1); transition: all 0.2s; }
+        .btn-gradient:hover { background: linear-gradient(135deg, #3a7bc8 0%, #d43f33 100%); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(74, 144, 226, 0.2); }
+        
+        .cue-table-container { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 1.5rem; border: var(--border-light); box-shadow: var(--shadow-subtle); }
+        
+        .cue-table { width: 100%; border-collapse: collapse; }
+        .cue-table th { background: var(--bg-primary); padding: 0.75rem 0.5rem; text-align: left; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--subtle-text); border-bottom: 2px solid var(--border-medium); position: sticky; top: 0; }
+        .cue-table td { padding: 0.75rem 0.5rem; border-bottom: var(--border-light); font-size: 0.9rem; color: var(--secondary-text); text-align: left; }
+        .cue-table tr:hover { background: var(--bg-primary); }
+        .cue-table th:first-child, .cue-table td:first-child { width: 80px; max-width: 80px; }
+        .cue-table th:nth-child(3), .cue-table td:nth-child(3) { width: 100px; max-width: 100px; }
+        .cue-table th:nth-child(4), .cue-table td:nth-child(4) { width: 100px; max-width: 100px; }
+        .cue-table th:nth-child(5), .cue-table td:nth-child(5) { width: 90px; max-width: 90px; }
+        .cue-table th:nth-child(6), .cue-table td:nth-child(6) { width: 150px; max-width: 150px; }
+        
+        .cue-number { font-family: var(--font-mono); font-weight: 600; color: var(--accent-teal); }
+        .cue-timing { font-family: var(--font-mono); font-size: 0.85rem; }
+        
+        .status-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; }
+        .status-to-write { background: rgba(255, 107, 107, 0.1); color: var(--accent-red); }
+        .status-written { background: rgba(255, 146, 43, 0.1); color: var(--accent-orange); }
+        .status-revisions { background: rgba(255, 217, 61, 0.1); color: #ffd93d; }
+        .status-approved { background: rgba(81, 207, 102, 0.1); color: var(--accent-green); }
+        /* Legacy status classes for backwards compatibility */
+        .status-sketch { background: rgba(255, 146, 43, 0.1); color: var(--accent-orange); }
+        .status-recording { background: rgba(133, 94, 194, 0.1); color: var(--accent-purple); }
+        .status-mixing { background: rgba(70, 159, 224, 0.1); color: var(--accent-teal); }
+        .status-complete { background: rgba(81, 207, 102, 0.1); color: var(--accent-green); }
+        
+        .usage-type { font-size: 0.85rem; color: var(--subtle-text); }
+        
+        .action-cell { display: flex; gap: 0.5rem; }
+        .icon-btn { background: none; border: none; padding: 0.25rem; cursor: pointer; font-size: 1rem; color: var(--subtle-text); transition: color 0.2s; }
+        .icon-btn:hover { color: var(--accent-teal); }
+        .icon-btn.delete:hover { color: var(--accent-red); }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { margin-bottom: 1.5rem; }
+        .modal-title { font-size: 1.3rem; font-weight: 600; color: var(--primary-text); }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        label { display: block; font-size: 0.9rem; font-weight: 500; color: var(--secondary-text); margin-bottom: 0.5rem; }
+        input, select, textarea { width: 100%; padding: 0.75rem; border: var(--border-medium); border-radius: 6px; font-size: 0.95rem; font-family: var(--font-primary); background: white; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-teal); }
+        textarea { resize: vertical; height: 80px; font-family: var(--font-body); }
+        #cueNumber { font-family: var(--font-mono); font-weight: 600; color: var(--accent-teal); }
+
+        .inline-theme-input { width: 100%; padding: 0; border: none; background: transparent; font-size: 0.85rem; font-family: var(--font-primary); transition: all 0.2s; }
+        .inline-theme-input:not(select) { color: var(--subtle-text); }
+        .inline-theme-input:hover { background: var(--bg-primary); border-color: var(--border-light); }
+        .inline-theme-input:focus { outline: none; border-color: var(--accent-teal); background: white; }
+        select.inline-theme-input { cursor: pointer; font-weight: 600; }
+        select.inline-theme-input.status-to-write { color: var(--accent-red); }
+        select.inline-theme-input.status-written { color: var(--accent-orange); }
+        select.inline-theme-input.status-revisions { color: #ffd93d; }
+        select.inline-theme-input.status-approved { color: var(--accent-green); }
+        input[list].inline-theme-input { font-weight: 600; color: var(--accent-teal); cursor: pointer; }
+
+        /* Color-code dropdown options */
+        select.inline-theme-input option[value="to-write"] { color: var(--accent-red); font-weight: 600; }
+        select.inline-theme-input option[value="written"] { color: var(--accent-orange); font-weight: 600; }
+        select.inline-theme-input option[value="revisions"] { color: #ffd93d; font-weight: 600; }
+        select.inline-theme-input option[value="approved"] { color: var(--accent-green); font-weight: 600; }
+
+        .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
+        
+        .empty-state { text-align: center; padding: 3rem; color: var(--muted-text); }
+        
+        @media (max-width: 768px) {
+            .stats-bar { grid-template-columns: 1fr 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="tracker-container">
+        <div class="header">
+            <select class="project-select" id="projectSelect" onchange="loadProjectCues()">
+                <option value="">select project...</option>
+            </select>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-label">Total Cues</div>
+                <div class="stat-value" id="totalCues">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Cues to Write</div>
+                <div class="stat-value" id="cuesToWrite">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Minutes to Write</div>
+                <div class="stat-value" id="minutesToWrite">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Approved</div>
+                <div class="stat-value" id="approvedCues">0</div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-gradient" onclick="showAddCueModal()">+ add cue</button>
+            <input type="file" id="spottingNotesFile" accept=".txt" style="display: none;" onchange="handleSpottingNotesImport(event)">
+            <button class="btn btn-secondary" onclick="document.getElementById('spottingNotesFile').click()">import spotting notes</button>
+            <button class="btn btn-secondary" onclick="exportCueSheet()">export cue sheet</button>
+        </div>
+
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <div class="cue-table-container">
+            <table class="cue-table">
+                <thead>
+                    <tr>
+                        <th>Cue #</th>
+                        <th>Title</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Duration</th>
+                        <th>Theme</th>
+                        <th>Status</th>
+                        <th>Current Version</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="cueTableBody">
+                    <tr>
+                        <td colspan="10">
+                            <div class="empty-state">
+                                <p>No cues yet. Add a cue to get started.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal" id="cueModal" onclick="if(event.target === this) hideCueModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Add Cue</h3>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="cueNumber">Cue Number</label>
+                    <input type="text" id="cueNumber" placeholder="1M1">
+                </div>
+                <div class="form-group">
+                    <label for="cueTitle">Cue Title</label>
+                    <input type="text" id="cueTitle" placeholder="Main Theme">
+                </div>
+                <div class="form-group">
+                    <label for="startTime">Start Time (HH:MM:SS)</label>
+                    <input type="text" id="startTime" placeholder="00:00:00">
+                </div>
+                <div class="form-group">
+                    <label for="endTime">End Time (HH:MM:SS)</label>
+                    <input type="text" id="endTime" placeholder="00:00:00">
+                </div>
+                <div class="form-group">
+                    <label for="cueTheme">Theme</label>
+                    <select id="cueTheme" onchange="handleModalThemeChange(this)">
+                        <option value="">select theme...</option>
+                        <option value="__ADD_NEW__">+ add new theme...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="cueStatus">Status</label>
+                    <select id="cueStatus">
+                        <option value="to-write">To Write</option>
+                        <option value="written">Written</option>
+                        <option value="revisions">Revisions</option>
+                        <option value="approved">Approved</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="cueVersion">Current Version</label>
+                    <input type="text" id="cueVersion" placeholder="v1">
+                </div>
+                <div class="form-group full-width">
+                    <label for="cueNotes">Notes</label>
+                    <textarea id="cueNotes" placeholder="Instrumentation, mood, client feedback..."></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="hideCueModal()">cancel</button>
+                <button class="btn btn-primary" onclick="saveCue()">save cue</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="themeModal" onclick="if(event.target === this) hideThemeModal()">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">add new theme</h3>
+            </div>
+            <div class="form-group">
+                <label for="newThemeName">theme name</label>
+                <input type="text" id="newThemeName" placeholder="Enter theme name">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="hideThemeModal()">cancel</button>
+                <button class="btn btn-primary" onclick="saveNewTheme()">add theme</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="api-helpers.js"></script>
+    <script>
+        let currentProject = null;
+        let currentCueId = null;
+        let pendingThemeCueId = null;
+        let cues = {}; // Stores cues by project_id
+        const debounceTimers = {}; // Track debounce timers per cue-field
+
+        // Debounce utility: delays execution until after wait time has elapsed
+        function debounce(key, func, wait) {
+            clearTimeout(debounceTimers[key]);
+            debounceTimers[key] = setTimeout(func, wait);
+        }
+
+        async function initializeSampleData() {
+            try {
+                // Optimized: Single query for projects with music
+                const projectsWithMusic = await getProjectsWithMusic();
+
+                // Don't load cues until project is selected (lazy loading)
+                cues = {};  // Empty initially
+
+                // Populate project select
+                const select = document.getElementById('projectSelect');
+                const selectedValue = select.value;
+
+                select.innerHTML = '<option value="">select project...</option>';
+
+                projectsWithMusic.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = `${project.name} (${project.musicMinutes} mins)`;
+                    if (project.id == selectedValue) {
+                        option.selected = true;
+                        currentProject = project.id;
+                    }
+                    select.appendChild(option);
+                });
+
+                // Load cues only if a project is already selected
+                if (currentProject) {
+                    await loadProjectCuesFromAPI(currentProject);
+                }
+
+                renderCues();
+            } catch (error) {
+                console.error('Error loading cue tracker data:', error);
+                alert('Failed to load cue tracker data. Please refresh.');
+            }
+        }
+
+        async function loadProjectCuesFromAPI(projectId) {
+            try {
+                const projectCues = await CuesAPI.getByProject(projectId);
+
+                cues[projectId] = projectCues.map(cue => ({
+                    id: cue.id,
+                    number: cue.cue_number,
+                    title: cue.title,
+                    startTime: cue.start_time || '00:00:00',
+                    endTime: cue.end_time || '00:00:00',
+                    theme: cue.theme || '',
+                    status: cue.status,
+                    version: cue.version || '',
+                    notes: cue.notes || '',
+                    duration: cue.duration
+                }));
+            } catch (error) {
+                console.error('Error loading project cues:', error);
+                cues[projectId] = [];
+            }
+        }
+
+        // No longer needed - using API directly
+        async function saveCues() {
+            // Deprecated - individual cue operations now use API directly
+        }
+
+        function updateStats() {
+            const projectCues = currentProject ? (cues[currentProject] || []) : [];
+
+            document.getElementById('totalCues').textContent = projectCues.length;
+
+            // Map old status values to new ones
+            const normalizeStatus = (status) => {
+                if (status === 'sketch') return 'to-write';
+                if (status === 'recording') return 'written';
+                if (status === 'mixing') return 'revisions';
+                if (status === 'complete') return 'approved';
+                return status;
+            };
+
+            const toWrite = projectCues.filter(c => normalizeStatus(c.status) === 'to-write').length;
+            const written = projectCues.filter(c => normalizeStatus(c.status) === 'written').length;
+            const revisions = projectCues.filter(c => normalizeStatus(c.status) === 'revisions').length;
+            const approved = projectCues.filter(c => normalizeStatus(c.status) === 'approved').length;
+
+            // Calculate minutes to write (duration of to-write cues)
+            const toWriteCues = projectCues.filter(c => normalizeStatus(c.status) === 'to-write');
+            const minutesToWriteSeconds = toWriteCues.reduce((sum, cue) => {
+                const duration = calculateDuration(cue.startTime, cue.endTime);
+                return sum + duration;
+            }, 0);
+            const minutesToWrite = Math.ceil(minutesToWriteSeconds / 60);
+
+            document.getElementById('cuesToWrite').textContent = toWrite;
+            document.getElementById('minutesToWrite').textContent = minutesToWrite;
+            document.getElementById('approvedCues').textContent = approved;
+
+            // Update progress bar
+            const total = projectCues.length;
+            const progressBar = document.getElementById('progressBar');
+            if (total === 0) {
+                progressBar.innerHTML = '';
+            } else {
+                const toWritePct = (toWrite / total) * 100;
+                const writtenPct = (written / total) * 100;
+                const revisionsPct = (revisions / total) * 100;
+                const approvedPct = (approved / total) * 100;
+
+                progressBar.innerHTML = `
+                    ${toWrite > 0 ? `<div class="progress-segment progress-to-write" style="width: ${toWritePct}%">${toWrite}</div>` : ''}
+                    ${written > 0 ? `<div class="progress-segment progress-written" style="width: ${writtenPct}%">${written}</div>` : ''}
+                    ${revisions > 0 ? `<div class="progress-segment progress-revisions" style="width: ${revisionsPct}%">${revisions}</div>` : ''}
+                    ${approved > 0 ? `<div class="progress-segment progress-approved" style="width: ${approvedPct}%">${approved}</div>` : ''}
+                `;
+            }
+        }
+
+        function timeToSeconds(timeStr) {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':').map(p => parseInt(p) || 0);
+            if (parts.length === 3) {
+                // HH:MM:SS format
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) {
+                // MM:SS format
+                return parts[0] * 60 + parts[1];
+            }
+            return 0;
+        }
+
+        function calculateDuration(start, end) {
+            return timeToSeconds(end) - timeToSeconds(start);
+        }
+
+        function formatDuration(seconds) {
+            // Always return MM:SS format
+            const totalMins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${totalMins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        async function loadProjectCues() {
+            const projectId = document.getElementById('projectSelect').value;
+            if (!projectId) {
+                currentProject = null;
+                renderCues();
+                return;
+            }
+
+            currentProject = projectId;
+
+            // Lazy load cues from API if not already cached
+            if (!cues[projectId]) {
+                await loadProjectCuesFromAPI(projectId);
+            }
+
+            renderCues();
+        }
+
+        function renderCues() {
+            const tbody = document.getElementById('cueTableBody');
+            
+            if (!currentProject) {
+                tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p>Select a project to view cues</p></div></td></tr>';
+                updateStats();
+                return;
+            }
+            
+            const projectCues = cues[currentProject] || [];
+            
+            if (projectCues.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p>No cues yet. Add a cue to get started.</p></div></td></tr>';
+                updateStats();
+                return;
+            }
+            
+            tbody.innerHTML = projectCues.map(cue => {
+                const duration = calculateDuration(cue.startTime, cue.endTime);
+                // Normalize status for display
+                let displayStatus = cue.status;
+                if (cue.status === 'sketch') displayStatus = 'to-write';
+                if (cue.status === 'recording') displayStatus = 'written';
+                if (cue.status === 'mixing') displayStatus = 'revisions';
+                if (cue.status === 'complete') displayStatus = 'approved';
+
+                return `
+                    <tr>
+                        <td><input type="text" class="inline-theme-input cue-number" value="${cue.number || ''}" data-cue-id="${cue.id}" data-field="number" placeholder="1m1"></td>
+                        <td><input type="text" class="inline-theme-input" value="${cue.title || ''}" data-cue-id="${cue.id}" data-field="title" placeholder="Cue title"></td>
+                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.startTime || ''}" data-cue-id="${cue.id}" data-field="startTime" placeholder="00:00:00"></td>
+                        <td><input type="text" class="inline-theme-input cue-timing" value="${cue.endTime || ''}" data-cue-id="${cue.id}" data-field="endTime" placeholder="00:00:00"></td>
+                        <td><span class="cue-timing" id="duration-${cue.id}" data-cue-id="${cue.id}">${formatDuration(duration)}</span></td>
+                        <td><select class="inline-theme-input" id="theme-${cue.id}" onchange="handleThemeChange(${cue.id}, this)">
+                            <option value="">select theme...</option>
+                            <option value="__ADD_NEW__">+ add new theme...</option>
+                        </select></td>
+                        <td><select class="inline-theme-input status-${displayStatus}" onchange="updateCueField('${cue.id}', 'status', this.value)">
+                            <option value="to-write" ${displayStatus === 'to-write' ? 'selected' : ''}>To Write</option>
+                            <option value="written" ${displayStatus === 'written' ? 'selected' : ''}>Written</option>
+                            <option value="revisions" ${displayStatus === 'revisions' ? 'selected' : ''}>Revisions</option>
+                            <option value="approved" ${displayStatus === 'approved' ? 'selected' : ''}>Approved</option>
+                        </select></td>
+                        <td><input type="text" class="inline-theme-input" value="${cue.version || ''}" onchange="updateCueField('${cue.id}', 'version', this.value)" placeholder="v1"></td>
+                        <td><input type="text" class="inline-theme-input" value="${cue.notes || ''}" onchange="updateCueField('${cue.id}', 'notes', this.value)" placeholder="Notes"></td>
+                        <td>
+                            <div class="action-cell">
+                                <button class="icon-btn" onclick="editCue(${cue.id})" title="Edit">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                                <button class="icon-btn delete" onclick="deleteCue(${cue.id})" title="Delete">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Populate theme dropdowns
+            const existingThemes = [...new Set(projectCues.map(c => c.theme || c.usage).filter(t => t))];
+            projectCues.forEach(cue => {
+                const themeSelect = document.getElementById(`theme-${cue.id}`);
+                if (themeSelect) {
+                    // Add existing themes as options
+                    existingThemes.forEach(theme => {
+                        const option = document.createElement('option');
+                        option.value = theme;
+                        option.textContent = theme;
+                        if (theme === (cue.theme || cue.usage)) {
+                            option.selected = true;
+                        }
+                        themeSelect.insertBefore(option, themeSelect.querySelector('option[value="__ADD_NEW__"]'));
+                    });
+                }
+            });
+
+            // Add event listeners to inputs with data attributes
+            document.querySelectorAll('.inline-theme-input[data-cue-id][data-field]').forEach(input => {
+                input.addEventListener('blur', function() {
+                    const cueId = this.getAttribute('data-cue-id');
+                    const field = this.getAttribute('data-field');
+                    updateCueField(cueId, field, this.value);
+                });
+            });
+
+            updateStats();
+        }
+
+        function handleThemeChange(cueId, selectElement) {
+            const value = selectElement.value;
+
+            if (value === '__ADD_NEW__') {
+                // Show modal to create new theme
+                pendingThemeCueId = cueId;
+                showThemeModal();
+                // Reset dropdown while modal is open
+                selectElement.selectedIndex = 0;
+            } else {
+                // Regular theme selection
+                updateCueField(cueId, 'theme', value);
+            }
+        }
+
+        function showThemeModal() {
+            document.getElementById('newThemeName').value = '';
+            document.getElementById('themeModal').classList.add('active');
+            // Focus the input
+            setTimeout(() => document.getElementById('newThemeName').focus(), 100);
+        }
+
+        function hideThemeModal() {
+            document.getElementById('themeModal').classList.remove('active');
+            pendingThemeCueId = null;
+        }
+
+        async function saveNewTheme() {
+            const themeName = document.getElementById('newThemeName').value.trim();
+            if (!themeName) {
+                return;
+            }
+
+            if (pendingThemeCueId) {
+                // Update the cue with the new theme
+                await updateCueField(pendingThemeCueId, 'theme', themeName);
+                // Re-render to add new theme to all dropdowns
+                renderCues();
+            } else {
+                // Coming from modal - just set the value
+                document.getElementById('cueTheme').value = themeName;
+                populateModalThemeDropdown(themeName);
+            }
+
+            hideThemeModal();
+        }
+
+        function handleModalThemeChange(selectElement) {
+            const value = selectElement.value;
+
+            if (value === '__ADD_NEW__') {
+                // Show modal to create new theme
+                pendingThemeCueId = null; // Signal this is from the modal
+                showThemeModal();
+                // Reset dropdown while modal is open
+                selectElement.selectedIndex = 0;
+            }
+        }
+
+        function populateModalThemeDropdown(selectedTheme = '') {
+            const projectCues = cues[currentProject] || [];
+            const existingThemes = [...new Set(projectCues.map(c => c.theme || c.usage).filter(t => t))];
+            const themeSelect = document.getElementById('cueTheme');
+
+            // Clear existing options except the first two
+            themeSelect.innerHTML = `
+                <option value="">select theme...</option>
+                <option value="__ADD_NEW__">+ add new theme...</option>
+            `;
+
+            // Add existing themes
+            existingThemes.forEach(theme => {
+                const option = document.createElement('option');
+                option.value = theme;
+                option.textContent = theme;
+                if (theme === selectedTheme) {
+                    option.selected = true;
+                }
+                themeSelect.insertBefore(option, themeSelect.querySelector('option[value="__ADD_NEW__"]'));
+            });
+
+            // If selectedTheme is provided but not in list, add it
+            if (selectedTheme && !existingThemes.includes(selectedTheme)) {
+                const option = document.createElement('option');
+                option.value = selectedTheme;
+                option.textContent = selectedTheme;
+                option.selected = true;
+                themeSelect.insertBefore(option, themeSelect.querySelector('option[value="__ADD_NEW__"]'));
+            }
+        }
+
+        async function updateCueField(cueId, fieldName, newValue) {
+            const cue = cues[currentProject].find(c => c.id == cueId);
+            if (!cue) return;
+
+            // Update local copy immediately for UI responsiveness
+            cue[fieldName] = newValue;
+
+            // If start or end time changed, recalculate and update duration
+            if (fieldName === 'startTime' || fieldName === 'endTime') {
+                const durationSeconds = calculateDuration(cue.startTime, cue.endTime);
+                cue.duration = formatDuration(durationSeconds);
+
+                // Update the duration display in the DOM without re-rendering entire table
+                const durationSpan = document.getElementById(`duration-${cueId}`);
+                if (durationSpan) {
+                    durationSpan.textContent = cue.duration;
+                }
+            }
+
+            // If status changed, re-render to update color class
+            if (fieldName === 'status') {
+                renderCues();  // Re-render to show updated status color
+            }
+
+            // Debounce API calls: wait 500ms after last edit before saving
+            // UI updates happen immediately, API calls are delayed
+            const debounceKey = `cue-${cueId}-${fieldName}`;
+            debounce(debounceKey, async () => {
+                // Map field names to API fields - always send complete cue data
+                const apiData = {
+                    cue_number: cue.number,
+                    title: cue.title,
+                    status: cue.status,
+                    duration: cue.duration,
+                    notes: cue.notes,
+                    start_time: cue.startTime,
+                    end_time: cue.endTime,
+                    theme: cue.theme,
+                    version: cue.version
+                };
+
+                try {
+                    await CuesAPI.update(cueId, apiData);
+
+                    // Update stats if status or timing changed
+                    if (fieldName === 'status' || fieldName === 'startTime' || fieldName === 'endTime') {
+                        updateStats();
+                    }
+                } catch (error) {
+                    console.error('Error updating cue:', error);
+                    alert('Failed to update cue. Please try again.');
+                }
+            }, 500);  // 500ms debounce delay
+        }
+
+        function showAddCueModal() {
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+
+            currentCueId = null;
+            document.getElementById('modalTitle').textContent = 'Add Cue';
+            document.getElementById('cueModal').querySelectorAll('input, textarea').forEach(el => el.value = '');
+            document.getElementById('cueStatus').value = 'to-write';
+
+            // Populate theme dropdown with existing themes
+            populateModalThemeDropdown();
+
+            // Auto-generate next cue number in format "1m1, 1m2, 1m3..."
+            let nextNumber = '1m1';
+            if (projectCues.length > 0) {
+                // Find the highest cue number
+                const numbers = projectCues.map(cue => {
+                    const match = cue.number.match(/^(\d+)m(\d+)$/i);
+                    if (match) {
+                        return { reel: parseInt(match[1]), cue: parseInt(match[2]) };
+                    }
+                    return { reel: 1, cue: 0 };
+                });
+                const highest = numbers.reduce((max, num) => {
+                    if (num.reel > max.reel) return num;
+                    if (num.reel === max.reel && num.cue > max.cue) return num;
+                    return max;
+                }, { reel: 1, cue: 0 });
+                nextNumber = `${highest.reel}m${highest.cue + 1}`;
+            }
+            document.getElementById('cueNumber').value = nextNumber;
+
+            document.getElementById('cueModal').classList.add('active');
+        }
+
+        function hideCueModal() {
+            document.getElementById('cueModal').classList.remove('active');
+            currentCueId = null;
+        }
+
+        async function saveCue() {
+            const number = document.getElementById('cueNumber').value;
+            const title = document.getElementById('cueTitle').value;
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            const theme = document.getElementById('cueTheme').value;
+            const status = document.getElementById('cueStatus').value;
+            const version = document.getElementById('cueVersion').value;
+            const notes = document.getElementById('cueNotes').value;
+
+            if (!number || !title) {
+                alert('Please fill in cue number and title');
+                return;
+            }
+
+            if (!cues[currentProject]) {
+                cues[currentProject] = [];
+            }
+
+            try {
+                // Calculate duration from start/end time
+                const duration = calculateDuration(startTime, endTime);
+
+                if (currentCueId) {
+                    // Update existing cue
+                    await CuesAPI.update(currentCueId, {
+                        cue_number: number,
+                        title: title,
+                        status: status,
+                        duration: formatDuration(duration),
+                        notes: notes,
+                        start_time: startTime,
+                        end_time: endTime,
+                        theme: theme,
+                        version: version
+                    });
+
+                    // Update local copy
+                    const cueIndex = cues[currentProject].findIndex(c => c.id === currentCueId);
+                    cues[currentProject][cueIndex] = {
+                        id: currentCueId,
+                        number, title, startTime, endTime, theme, status, version, notes,
+                        duration: formatDuration(duration)
+                    };
+                } else {
+                    // Create new cue
+                    const newCue = await CuesAPI.create({
+                        project_id: currentProject,
+                        cue_number: number,
+                        title: title,
+                        status: status,
+                        duration: formatDuration(duration),
+                        notes: notes,
+                        start_time: startTime,
+                        end_time: endTime,
+                        theme: theme,
+                        version: version
+                    });
+
+                    // Add to local copy
+                    cues[currentProject].push({
+                        id: newCue.id,
+                        number, title, startTime, endTime, theme, status, version, notes,
+                        duration: formatDuration(duration),
+                        createdAt: newCue.created_at
+                    });
+                }
+
+                hideCueModal();
+                renderCues();
+            } catch (error) {
+                console.error('Error saving cue:', error);
+                alert('Failed to save cue');
+            }
+        }
+
+        function editCue(cueId) {
+            if (!currentProject) {
+                alert('No project selected');
+                return;
+            }
+
+            currentCueId = cueId;
+            const cue = cues[currentProject].find(c => c.id == cueId);
+
+            if (!cue) {
+                alert('Cue not found');
+                return;
+            }
+
+            // Populate theme dropdown with existing themes
+            populateModalThemeDropdown(cue.theme || cue.usage);
+
+            // Update modal title and populate form fields
+            document.getElementById('modalTitle').textContent = 'Edit Cue';
+            document.getElementById('cueNumber').value = cue.number || '';
+            document.getElementById('cueTitle').value = cue.title || '';
+            document.getElementById('startTime').value = cue.startTime || '';
+            document.getElementById('endTime').value = cue.endTime || '';
+            document.getElementById('cueStatus').value = cue.status || 'to-write';
+            document.getElementById('cueVersion').value = cue.version || '';
+            document.getElementById('cueNotes').value = cue.notes || '';
+
+            // Show the modal
+            document.getElementById('cueModal').classList.add('active');
+        }
+
+        async function deleteCue(cueId) {
+            if (!confirm('Delete this cue?')) return;
+
+            try {
+                await CuesAPI.delete(cueId);
+                cues[currentProject] = cues[currentProject].filter(c => c.id !== cueId);
+                renderCues();
+                updateStats();
+            } catch (error) {
+                console.error('Error deleting cue:', error);
+                alert('Failed to delete cue');
+            }
+        }
+
+        function handleSpottingNotesImport(event) {
+            if (!currentProject) {
+                alert('Please select a project first');
+                event.target.value = '';
+                return;
+            }
+
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+
+                // Detect format: Pro Tools or Logic Pro
+                if (content.includes('SESSION NAME:') || content.includes('TRACK LISTING')) {
+                    parseProToolsCues(content);
+                } else {
+                    parseLogicProCues(content);
+                }
+
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function parseLogicProCues(content) {
+            const lines = content.split('\n');
+            const sessionData = {
+                bpm: 120,
+                timeSig: [4, 4],
+                fps: 23.98,
+                projectStart: '01:00:00:00'
+            };
+
+            // Parse session settings
+            lines.forEach(line => {
+                const trimmed = line.trim();
+
+                if (trimmed.includes('BPM:')) {
+                    const match = trimmed.match(/(\d+\.?\d*)/);
+                    if (match) sessionData.bpm = parseFloat(match[1]);
+                }
+
+                if (trimmed.includes('Time Signature:')) {
+                    const match = trimmed.match(/(\d+)\/(\d+)/);
+                    if (match) sessionData.timeSig = [parseInt(match[1]), parseInt(match[2])];
+                }
+
+                if (trimmed.includes('FPS:')) {
+                    const match = trimmed.match(/(\d+\.?\d*)/);
+                    if (match) sessionData.fps = parseFloat(match[1]);
+                }
+
+                if (trimmed.includes('Project Start:')) {
+                    const match = trimmed.match(/(\d{2}:\d{2}:\d{2}:\d{2})/);
+                    if (match) sessionData.projectStart = match[1];
+                }
+            });
+
+            // Parse cue list (between ``` markers or after "Start Position | Length")
+            const cueLines = [];
+            let inCueBlock = false;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+
+                if (trimmed === '```' || trimmed.includes('Start Position')) {
+                    inCueBlock = !inCueBlock;
+                    return;
+                }
+
+                if (inCueBlock && trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('-') && trimmed.includes('|')) {
+                    cueLines.push(trimmed);
+                }
+            });
+
+            // Convert cues and add to tracker
+            let importedCount = 0;
+            cueLines.forEach((line, index) => {
+                const parts = line.split('|').map(p => p.trim());
+                if (parts.length >= 2) {
+                    const startPos = parts[0];
+                    const lengthPos = parts[1];
+                    const title = parts[2] || '';
+
+                    const timecode = convertLogicCue(startPos, lengthPos, sessionData.bpm, sessionData.timeSig, sessionData.fps, sessionData.projectStart);
+
+                    if (timecode) {
+                        // Use 1m1, 1m2, 1m3... format for cue numbers
+                        const cueNumber = `1m${index + 1}`;
+                        const newCue = {
+                            id: Date.now().toString() + '_' + index,
+                            number: cueNumber,
+                            title: title,
+                            startTime: timecode.start,
+                            endTime: timecode.end,
+                            usage: '',
+                            status: 'to-write',
+                            version: '',
+                            notes: ''
+                        };
+
+                        if (!cues[currentProject]) {
+                            cues[currentProject] = [];
+                        }
+                        cues[currentProject].push(newCue);
+                        importedCount++;
+                    }
+                }
+            });
+
+            saveCues();
+            renderCues();
+            updateStats();
+
+            alert(`Successfully imported ${importedCount} cues!`);
+        }
+
+        function convertLogicCue(startPos, lengthPos, bpm, timeSig, fps = 23.98, projectStart = '01:00:00:00') {
+            try {
+                const startParts = startPos.split(/\s+/).map(Number);
+                const lengthParts = lengthPos.split(/\s+/).map(Number);
+
+                if (startParts.length !== 4 || lengthParts.length !== 4) return null;
+
+                const [sb, sbe, sd, st] = startParts;
+                const [lb, lbe, ld, lt] = lengthParts;
+
+                const halfNotesPerBar = timeSig[0] / (timeSig[1] / 2);
+                const secondsPerBar = (60 / bpm) * halfNotesPerBar;
+                const secondsPerBeat = secondsPerBar / 4;
+
+                const posToSeconds = (bar, beat, div, tick) => {
+                    return ((bar - 1) * secondsPerBar) +
+                           ((beat - 1) * secondsPerBeat) +
+                           ((div - 1) * secondsPerBeat / 4) +
+                           ((tick - 1) * secondsPerBeat / 960);
+                };
+
+                const start = posToSeconds(sb, sbe, sd, st);
+                const length = posToSeconds(lb + 1, lbe + 1, ld + 1, lt + 1) - posToSeconds(1, 1, 1, 1);
+                const end = start + length;
+
+                // Add 1 hour offset from project start
+                const offsetSeconds = 3600; // 1 hour = 3600 seconds
+                const finalStart = start + offsetSeconds;
+                const finalEnd = end + offsetSeconds;
+
+                const toTC = (sec) => {
+                    const hh = Math.floor(sec / 3600);
+                    const mm = Math.floor((sec % 3600) / 60);
+                    const ss = Math.floor(sec % 60);
+                    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+                };
+
+                return { start: toTC(finalStart), end: toTC(finalEnd) };
+            } catch (e) {
+                console.error('Error converting cue:', e);
+                return null;
+            }
+        }
+
+        function parseProToolsCues(content) {
+            const lines = content.split('\n');
+            const cueMap = new Map(); // Track unique cues by start time
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+
+                // Match data lines with timecode (tab-separated)
+                // Format: CHANNEL EVENT CLIP_NAME START_TIME END_TIME DURATION STATE
+                const parts = trimmed.split('\t');
+
+                if (parts.length >= 7) {
+                    const clipName = parts[2] ? parts[2].trim() : '';
+                    const startTime = parts[3] ? parts[3].trim() : '';
+                    const endTime = parts[4] ? parts[4].trim() : '';
+
+                    // Check if we have valid timecode (HH:MM:SS:FF format)
+                    if (startTime.match(/\d{2}:\d{2}:\d{2}:\d{2}/) && endTime.match(/\d{2}:\d{2}:\d{2}:\d{2}/)) {
+                        // Convert to HH:MM:SS (drop frames)
+                        const start = startTime.substring(0, 8); // Take HH:MM:SS, ignore frames
+                        const end = endTime.substring(0, 8);
+
+                        // Extract a clean title from clip name (remove file extensions, channel suffixes)
+                        let title = clipName
+                            .replace(/\.(wav|aif|aiff|mp3|L|R).*$/i, '') // Remove extensions and L/R channel markers
+                            .replace(/_\d{2}(-\d{2})?$/, '') // Remove trailing numbers like _02-01
+                            .replace(/[._-]+/g, ' ') // Replace underscores/dashes with spaces
+                            .trim();
+
+                        // Use start time as unique key (only add first occurrence)
+                        if (!cueMap.has(start) && title) {
+                            cueMap.set(start, { start, end, title });
+                        }
+                    }
+                }
+            });
+
+            // Convert map to array and add to tracker
+            let importedCount = 0;
+            const cues_array = Array.from(cueMap.values());
+
+            cues_array.forEach((cue, index) => {
+                const cueNumber = `1m${index + 1}`;
+                const newCue = {
+                    id: Date.now().toString() + '_' + index,
+                    number: cueNumber,
+                    title: cue.title,
+                    startTime: cue.start,
+                    endTime: cue.end,
+                    usage: '',
+                    status: 'to-write',
+                    version: '',
+                    notes: ''
+                };
+
+                if (!cues[currentProject]) {
+                    cues[currentProject] = [];
+                }
+                cues[currentProject].push(newCue);
+                importedCount++;
+            });
+
+            saveCues();
+            renderCues();
+            updateStats();
+
+            alert(`Successfully imported ${importedCount} cues from Pro Tools!`);
+        }
+
+        function exportCueSheet() {
+            if (!currentProject || !cues[currentProject] || cues[currentProject].length === 0) {
+                alert('No cues to export');
+                return;
+            }
+
+            const select = document.getElementById('projectSelect');
+            const projectTitle = select.options[select.selectedIndex].text;
+
+            let csv = 'Cue Number,Title,Start Time,End Time,Duration,Usage Type,Status,Current Version,Notes\n';
+            cues[currentProject].forEach(cue => {
+                const duration = calculateDuration(cue.startTime, cue.endTime);
+                csv += `"${cue.number}","${cue.title}","${cue.startTime}","${cue.endTime}","${formatDuration(duration)}","${cue.usage || cue.theme || ''}","${cue.status}","${cue.version || ''}","${cue.notes || ''}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectTitle}_cue_sheet.csv`;
+            a.click();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSampleData();
+        });
+
+        // Removed auto-refresh listeners to prevent clearing user edits
+    </script>
+</body>
+</html>

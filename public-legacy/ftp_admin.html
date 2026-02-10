@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTP Admin - Alternassist</title>
+    <script src="admin-auth-check.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Mono:wght@400;500" rel="stylesheet">
+    <link rel="stylesheet" href="media-styles.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .clickable-row {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .clickable-row:hover {
+            background: #f5f9fc !important;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .status-prospects { background: #ffebee; color: #c62828; }
+        .status-in-process { background: #fff3e0; color: #ef6c00; }
+        .status-in-review { background: #fff9c4; color: #f57f17; }
+        .status-approved-billed { background: #e8f5e9; color: #2e7d32; }
+        .status-archive { background: #e3f2fd; color: #1565c0; }
+
+        .password-cell {
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        .password-hidden {
+            letter-spacing: 0.2em;
+            color: #888;
+        }
+
+        .btn-reveal {
+            margin-left: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-reveal:hover {
+            background: #e8e8e8;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="browser-container">
+            <div class="browser-header">
+                <h1>FTP Admin</h1>
+            </div>
+
+            <div class="file-table-container">
+                <table class="file-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Status</th>
+                            <th>Client</th>
+                            <th>Password</th>
+                            <th>Files</th>
+                            <th>Total Size</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectsTableBody">
+                        <tr>
+                            <td colspan="7" class="empty-state">Loading projects...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const projectsTableBody = document.getElementById('projectsTableBody');
+
+        // Load projects on page load
+        loadProjects();
+
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                if (!response.ok) throw new Error('Failed to load projects');
+
+                const projects = await response.json();
+
+                // Filter to only show projects that are not prospects
+                const activeProjects = projects.filter(p => p.status !== 'prospects');
+
+                if (activeProjects.length === 0) {
+                    projectsTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                No active projects yet. Move projects from "prospects" to "in production" to see them here.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                projectsTableBody.innerHTML = activeProjects.map(project => `
+                    <tr class="clickable-row" onclick="openProjectFiles(${project.id}, '${escapeHtml(project.name)}')">
+                        <td>
+                            <div class="file-name">${escapeHtml(project.name)}</div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-${project.status || 'unknown'}">${formatStatus(project.status)}</span>
+                        </td>
+                        <td>${escapeHtml(project.client_name || 'N/A')}</td>
+                        <td class="password-cell">
+                            <span class="password-hidden" id="password-${project.id}">••••••••</span>
+                            <button class="btn-reveal" onclick="event.stopPropagation(); revealPassword(${project.id})">show</button>
+                        </td>
+                        <td>${project.file_count || 0} files</td>
+                        <td class="file-size">${formatFileSize(project.total_size || 0)}</td>
+                        <td onclick="event.stopPropagation();">
+                            <div class="file-actions">
+                                <button class="btn-action" onclick="copyShareLink(${project.id}, '${escapeHtml(project.name)}')" title="Copy share link">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                    </svg>
+                                </button>
+                                <button class="btn-action" onclick="regeneratePassword(${project.id}, '${escapeHtml(project.name)}')" title="Regenerate password">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <polyline points="1 20 1 14 7 14"></polyline>
+                                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                projectsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">Error loading projects</td>
+                    </tr>
+                `;
+            }
+        }
+
+        function formatStatus(status) {
+            if (!status) return 'Unknown';
+            return status.replace(/-/g, ' ');
+        }
+
+        function openProjectFiles(projectId, projectName) {
+            // Send message to parent to open media browser for this project
+            if (window.parent) {
+                window.parent.postMessage({
+                    type: 'open-project-media',
+                    projectId: projectId,
+                    projectName: projectName
+                }, '*');
+            }
+        }
+
+        async function revealPassword(projectId) {
+            try {
+                const response = await fetch(`/api/projects/${projectId}/password`);
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const message = `Password: ${data.password}`;
+                    alert(message);
+
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(data.password).then(() => {
+                        console.log('Password copied to clipboard');
+                    }).catch(err => {
+                        console.error('Failed to copy password:', err);
+                    });
+                } else {
+                    alert(data.error || 'Password not available. Use "Regenerate password" to create a new one.');
+                }
+            } catch (error) {
+                console.error('Error fetching password:', error);
+                alert('Failed to retrieve password. Use "Regenerate password" to create a new one.');
+            }
+        }
+
+        function copyShareLink(projectId, projectName) {
+            const link = `/client/login.html`;
+            navigator.clipboard.writeText(link).then(() => {
+                alert(`Client portal link copied!\n\n${link}\n\nShare this link with "${projectName}" along with their password.`);
+            }).catch(err => {
+                alert(`Failed to copy link: ${err}`);
+            });
+        }
+
+        async function regeneratePassword(projectId, projectName) {
+            if (!confirm(`Generate a new password for "${projectName}"?\n\nThe old password will no longer work.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/projects/${projectId}/regenerate-password`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Show password with option to copy
+                    const message = `New password for "${projectName}":\n\n${data.password}\n\nMake sure to save this password - it cannot be displayed again!`;
+                    alert(message);
+
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(data.password).then(() => {
+                        console.log('Password copied to clipboard');
+                    }).catch(err => {
+                        console.error('Failed to copy password:', err);
+                    });
+
+                    // OPTIMIZED: Reload projects to show updated password status
+                    await loadProjects();
+                } else {
+                    alert(`Error: ${data.error || 'Failed to regenerate password'}`);
+                }
+            } catch (error) {
+                console.error('Error regenerating password:', error);
+                alert('Failed to regenerate password. Please try again.');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

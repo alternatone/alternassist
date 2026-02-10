@@ -56,7 +56,7 @@ Cloudflare Pages (parallel deployment):
 | Desktop | Electron 38.2.1 |
 | Server | Express 5.1.0, Node.js |
 | Database | SQLite (better-sqlite3 local, Cloudflare D1 remote) |
-| Frontend | Vanilla HTML/CSS/JavaScript (no framework) |
+| Frontend | SvelteKit 2 + Svelte 5 (adapter-static SPA) |
 | Auth | bcryptjs, express-session |
 | File Upload | multer + tus protocol (resumable) |
 | Video | FFmpeg via fluent-ffmpeg |
@@ -115,7 +115,7 @@ Cloudflare Pages (parallel deployment):
 - **Session:** express-session with file-based secret, 24h max age, HTTP-only secure cookies
 - **Rate Limiting:** 500 requests/15min (API), 10 attempts/15min (login)
 - **CORS:** Whitelist for alternassist.alternatone.com and localhost
-- **Static Files:** `/media/` serves public/, `/client/` serves client-portal/
+- **Static Files:** Root `/` serves SvelteKit build from public/, SPA fallback to index.html
 - **Error Handling:** Centralized middleware for multer, SQLite, and auth errors
 
 ### Route Inventory
@@ -162,39 +162,60 @@ Four auth strategies in priority order:
 
 ---
 
-## Frontend Architecture
+## Frontend Architecture (SvelteKit)
 
-### Page Inventory
+The frontend is built with SvelteKit 2 and Svelte 5, compiled to static files via adapter-static (SPA mode). Source lives in `frontend/` and builds to `public/`.
 
-| Page | Purpose | Key Features |
-|------|---------|-------------|
-| index.html | Dashboard shell | Pinned project cards, module navigation, creative direction, hour tracking, cue progress |
-| admin-login.html | Admin authentication | Username/password login |
-| kanban.html | Project pipeline | 4-column drag-and-drop board, scope data, cue stats, archive |
-| cues.html | Music cue tracking | Status workflow, timecodes, themes, statistics |
-| notes.html | Pro Tools integration | Frame.io TXT import, PTSL marker creation |
-| media.html | File management | Upload, delete, comment, transcode status |
-| media_review.html | Media review | Video player, timecoded comments |
-| media_browser.html | FTP file browser | Directory navigation, file operations |
-| media_transfer.html | File transfer | Bulk file operations |
-| estimates.html | Cost estimation | Scope input, rate calculation, bundle discounts |
-| invoices.html | Invoice management | Generation, line items, deposit splits, status tracking |
-| payments.html | Payment tracking | Record payments, link to invoices, mark paid |
-| books.html | Accounting ledger | Transaction records, categories, reporting |
-| ftp_admin.html | FTP administration | Browse, upload, create folders, download tokens |
-| client_login.html | Client authentication | Project name + password |
-| client_portal.html | Client file access | Browse, upload, download project files |
-| public_viewer.html | Public media viewer | Video/audio player for share links, no auth required |
+### Route Inventory
 
-### Shared JavaScript
+| Route | Purpose | Key Features |
+|-------|---------|-------------|
+| / | Dashboard | Pinned project cards, module navigation, hour tracking, cue progress |
+| /login | Admin authentication | Username/password login |
+| /kanban | Project pipeline | 4-column drag-and-drop (svelte-dnd-action), scope data, archive |
+| /cues | Music cue tracking | Status workflow, timecodes, themes, statistics |
+| /notes | Pro Tools integration | Frame.io TXT import, PTSL marker creation (Electron-only) |
+| /media | File management | Upload (tus), delete, comment, transcode status |
+| /media/review | Media review | Video player, frame-accurate timecoded comments |
+| /media/browser | FTP file browser | Directory navigation, file operations |
+| /media/transfer | File transfer | Bulk file operations |
+| /estimates | Cost estimation | Scope input, rate calculation, bundle discounts |
+| /invoices | Invoice management | Generation, line items, deposit splits, status tracking |
+| /payments | Payment tracking | Record payments, link to invoices, mark paid |
+| /books | Accounting ledger | Transaction records, categories, reporting |
+| /client/login | Client authentication | Project name + password |
+| /client/portal | Client file access | Browse, upload (tus), download project files |
+| /viewer | Public media viewer | Video/audio player for share links, no auth required |
 
-**api-helpers.js** - Global API client objects (ProjectsAPI, CuesAPI, EstimatesAPI, InvoicesAPI, PaymentsAPI, AccountingAPI, ScopeAPI). Auto-detects base URL for Electron/web/Cloudflare environments.
+### API Client Modules (frontend/src/lib/api/)
 
-**admin-auth-check.js** - Authentication guard. Skips auth in Electron (trusted local app), redirects to login in browser if not authenticated.
+Modular ES6 exports replacing the old global `window.*API` pattern:
 
-**kanban-api-adapter.js** - Bridges localStorage kanban state with backend API. Loads from `/api/projects/with-scope`, tracks dirty projects, saves changes in parallel.
+| Module | Exports | Backend Routes |
+|--------|---------|----------------|
+| projects.ts | projectsAPI | /api/projects |
+| cues.ts | cuesAPI | /api/cues |
+| estimates.ts | estimatesAPI | /api/estimates |
+| invoices.ts | invoicesAPI | /api/invoices |
+| payments.ts | paymentsAPI | /api/payments |
+| accounting.ts | accountingAPI | /api/accounting |
+| hours.ts | hoursAPI | /api/hours-log |
+| files.ts | filesAPI | /api/files |
+| ftp.ts | ftpAPI | /api/ftp |
+| share.ts | shareAPI | /api/share |
+| admin.ts | adminAPI | /api/admin |
+| clientPortal.ts | clientPortalAPI | /api/projects (client auth) |
+| client.ts | get, post, patch, put, del | Base fetch wrapper |
 
-**media-app.js** - File upload management, video player integration, comment system.
+### Svelte Stores (frontend/src/lib/stores/)
+
+- **auth.ts** - Admin authentication state and session management
+- **electron.ts** - Electron detection and `window.electronAPI` access
+
+### Reusable Components (frontend/src/lib/components/)
+
+- **media/VideoPlayer.svelte** - Frame-accurate video player with timecode display
+- **Navigation.svelte** - Top horizontal nav with dropdown menus
 
 ---
 
@@ -204,7 +225,8 @@ Four auth strategies in priority order:
 
 - Window: 1400x900, macOS hidden title bar, cream background
 - Database: Copies alternaview.db to userData on first run
-- Server: Starts Express on port 3000, then loads index.html
+- Server: Starts Express on port 3000, loads SvelteKit build via http://localhost:3000
+- Dev mode: USE_SVELTE_DEV=true loads from SvelteKit dev server (localhost:5173)
 - Shutdown: Disconnects PTSL, stops server gracefully
 
 ### IPC Handlers
@@ -228,8 +250,9 @@ Exposes `window.electronAPI` with PTSL controls, file dialogs, and `isElectron()
 ## Cloudflare Deployment
 
 ### Static Hosting (Cloudflare Pages)
-- Build output: `public/` directory
-- `_redirects` file maps `/media/*` to `/*` for Express compatibility
+- Build output: `public/` directory (SvelteKit adapter-static output)
+- `_redirects` file routes all paths to `index.html` for SPA client-side routing
+- Build command: `cd frontend && npm run build`
 - Deployed via `wrangler pages deploy public`
 
 ### Serverless Functions (functions/)
