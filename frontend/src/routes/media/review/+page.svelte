@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { filesAPI, type Comment } from '$lib/api/files';
+	import { ftpAPI } from '$lib/api/ftp';
 	import VideoPlayer from '$lib/components/media/VideoPlayer.svelte';
 	import CommentThread from '$lib/components/media/CommentThread.svelte';
 	import CommentForm from '$lib/components/media/CommentForm.svelte';
@@ -9,6 +10,7 @@
 	// URL params
 	const fileId = $derived($page.url.searchParams.get('file'));
 	const projectId = $derived($page.url.searchParams.get('project'));
+	const ftpFilePath = $derived($page.url.searchParams.get('ftp') || $page.url.searchParams.get('ftpFile'));
 
 	// State
 	let file = $state<any>(null);
@@ -17,11 +19,20 @@
 	let replyingToId = $state<number | null>(null);
 	let commentTimecode = $state<string | null>(null);
 	let commentSeconds = $state(0);
+	let activeCommentId = $state<number | null>(null);
 
 	// Video player
 	let videoSrc = $state('');
 	let videoPlayer: VideoPlayer | undefined = $state();
 	let isSubmittingComment = $state(false);
+
+	// Auto-pause state
+	let wasPlayingBeforeComment = $state(false);
+
+	// FTP mode flag
+	let isFtpMode = $state(false);
+	let currentDownloadUrl = $state('');
+	let currentFileName = $state('');
 
 	// Load saved author from localStorage
 	onMount(() => {
@@ -30,11 +41,31 @@
 			authorName = saved;
 		}
 
-		if (fileId && projectId) {
+		if (ftpFilePath) {
+			loadFtpFile(ftpFilePath);
+		} else if (fileId && projectId) {
 			loadFile();
 			loadComments();
 		}
 	});
+
+	// Cleanup on destroy
+	onDestroy(() => {
+		videoPlayer?.cleanup();
+	});
+
+	function loadFtpFile(filePath: string) {
+		isFtpMode = true;
+		const fileName = filePath.split('/').pop() || filePath;
+
+		videoSrc = ftpAPI.getStreamUrl(filePath);
+		currentDownloadUrl = ftpAPI.getDownloadUrl(filePath);
+		currentFileName = fileName;
+		file = { original_name: fileName };
+
+		// FTP files don't have comment support
+		comments = [];
+	}
 
 	async function loadFile() {
 		if (!fileId || !projectId) return;
@@ -45,10 +76,11 @@
 
 			if (file) {
 				videoSrc = filesAPI.getStreamUrl(parseInt(fileId));
+				currentDownloadUrl = `/api/files/${fileId}/download`;
+				currentFileName = file.original_name || 'file';
 			}
 		} catch (error) {
 			console.error('Error loading file:', error);
-			alert('Failed to load file');
 		}
 	}
 
@@ -57,11 +89,75 @@
 
 		try {
 			const data = await filesAPI.getComments(parseInt(fileId));
-			comments = data;
+			// Sort by timecode
+			comments = sortCommentsByTime(data);
+			// Clear localStorage backup on success
+			clearCommentsLocalStorage();
 		} catch (error) {
 			console.error('Error loading comments:', error);
-			comments = [];
+			// Fallback to localStorage
+			comments = loadCommentsFromLocalStorage();
 		}
+	}
+
+	// localStorage fallback for comments
+	function getCommentsStorageKey(): string | null {
+		return fileId ? `video-review-comments-${fileId}` : null;
+	}
+
+	function saveCommentsToLocalStorage() {
+		const key = getCommentsStorageKey();
+		if (key && comments.length > 0) {
+			localStorage.setItem(key, JSON.stringify(comments));
+		}
+	}
+
+	function loadCommentsFromLocalStorage(): Comment[] {
+		const key = getCommentsStorageKey();
+		if (key) {
+			const saved = localStorage.getItem(key);
+			if (saved) {
+				try {
+					return JSON.parse(saved);
+				} catch (e) {
+					console.error('Error parsing saved comments:', e);
+				}
+			}
+		}
+		return [];
+	}
+
+	function clearCommentsLocalStorage() {
+		const key = getCommentsStorageKey();
+		if (key) {
+			localStorage.removeItem(key);
+		}
+	}
+
+	// Sort comments by timecode
+	function sortCommentsByTime(commentList: Comment[]): Comment[] {
+		return [...commentList].sort((a, b) => {
+			const aTime = a.timecode ? parseTime(a.timecode) : 0;
+			const bTime = b.timecode ? parseTime(b.timecode) : 0;
+			return aTime - bTime;
+		});
+	}
+
+	// Auto-pause on comment textarea focus
+	function handleCommentFocus() {
+		if (!videoPlayer) return;
+		wasPlayingBeforeComment = videoPlayer.getIsPlaying();
+		commentSeconds = videoPlayer.getCurrentTime();
+		commentTimecode = formatTime(commentSeconds);
+		videoPlayer.pause();
+	}
+
+	function formatTime(seconds: number): string {
+		if (isNaN(seconds) || seconds < 0) return '00:00:00';
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		const s = Math.floor(seconds % 60);
+		return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 	}
 
 	function handleTimecodeCapture(timecode: string, seconds: number) {
@@ -75,7 +171,7 @@
 	}
 
 	async function handleAddComment(author: string, text: string) {
-		if (!fileId || !projectId || isSubmittingComment) return;
+		if (!fileId || !projectId || isSubmittingComment || isFtpMode) return;
 
 		isSubmittingComment = true;
 		try {
@@ -90,8 +186,16 @@
 
 			await loadComments();
 			commentTimecode = null;
+
+			// Resume video if it was playing
+			if (wasPlayingBeforeComment && videoPlayer) {
+				videoPlayer.play();
+				wasPlayingBeforeComment = false;
+			}
 		} catch (error) {
 			console.error('Error adding comment:', error);
+			// Save to localStorage as backup
+			saveCommentsToLocalStorage();
 			alert('Failed to add comment');
 		} finally {
 			isSubmittingComment = false;
@@ -126,11 +230,19 @@
 	async function handleResolve(commentId: number, currentStatus: 'open' | 'resolved') {
 		const newStatus = currentStatus === 'open' ? 'resolved' : 'open';
 
+		// Optimistic update
+		comments = comments.map((c) =>
+			c.id === commentId ? { ...c, status: newStatus } : c
+		);
+
 		try {
 			await filesAPI.updateCommentStatus(commentId, newStatus);
-			await loadComments();
 		} catch (error) {
 			console.error('Error updating comment:', error);
+			// Rollback
+			comments = comments.map((c) =>
+				c.id === commentId ? { ...c, status: currentStatus } : c
+			);
 			alert('Failed to update comment');
 		}
 	}
@@ -139,17 +251,36 @@
 		if (!confirm('Delete this comment?')) return;
 		if (!projectId) return;
 
+		// Optimistic update
+		const deletedComment = comments.find((c) => c.id === commentId);
+		const deletedIndex = comments.findIndex((c) => c.id === commentId);
+		comments = comments.filter((c) => c.id !== commentId);
+
 		try {
 			await filesAPI.deleteComment(parseInt(projectId), commentId);
-			await loadComments();
 		} catch (error) {
 			console.error('Error deleting comment:', error);
+			// Rollback
+			if (deletedComment && deletedIndex >= 0) {
+				const restored = [...comments];
+				restored.splice(deletedIndex, 0, deletedComment);
+				comments = restored;
+			}
 			alert('Failed to delete comment');
 		}
 	}
 
 	function handleJumpToTime(seconds: number) {
 		videoPlayer?.seekTo(seconds);
+	}
+
+	function handleCardClick(commentId: number, timeSeconds: number) {
+		activeCommentId = commentId;
+		videoPlayer?.seekTo(timeSeconds);
+	}
+
+	function handleMarkerClick(markerId: number) {
+		activeCommentId = markerId;
 	}
 
 	function exportToNotes() {
@@ -184,18 +315,24 @@
 	}
 
 	function handleDownload() {
-		if (!fileId) return;
-		const url = `/api/files/${fileId}/download`;
+		if (!currentDownloadUrl || !currentFileName) return;
 		const a = document.createElement('a');
-		a.href = url;
-		a.download = file?.original_name || 'file';
+		a.href = currentDownloadUrl;
+		a.download = currentFileName;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
 	}
 
 	function navigateBack() {
-		window.history.back();
+		// Cleanup media elements before navigating
+		videoPlayer?.cleanup();
+
+		if (window.history.length > 1) {
+			window.history.back();
+		} else {
+			window.location.href = '/media';
+		}
 	}
 
 	// Comment markers for progress bar
@@ -235,6 +372,7 @@
 			src={videoSrc}
 			fileName={file?.original_name || ''}
 			onTimecodeCapture={handleTimecodeCapture}
+			onMarkerClick={handleMarkerClick}
 			{commentMarkers}
 		/>
 	</div>
@@ -244,7 +382,7 @@
 		<div class="comments-header-row">
 			<h2 style="margin: 0;">Comments</h2>
 			<div style="display: flex; gap: 0.5rem; align-items: center;">
-				{#if comments.length > 0}
+				{#if comments.length > 0 && !isFtpMode}
 					<button class="download-icon-btn" onclick={exportToNotes} title="Send to NoteMarker">
 						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 							<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -266,13 +404,19 @@
 
 		<CommentThread
 			{comments}
+			{activeCommentId}
 			onJumpToTime={handleJumpToTime}
+			onCardClick={handleCardClick}
 			onReply={handleReply}
 			onResolve={handleResolve}
 			onDelete={handleDelete}
 		/>
 
-		{#if replyingToId}
+		{#if isFtpMode}
+			<div class="ftp-notice">
+				FTP files do not support comments.
+			</div>
+		{:else if replyingToId}
 			{@const parentComment = comments.find((c) => c.id === replyingToId)}
 			<div class="reply-section">
 				<div class="reply-header">
@@ -289,7 +433,12 @@
 				/>
 			</div>
 		{:else}
-			<CommentForm bind:authorName onSubmit={handleAddComment} showAuthor={true} />
+			<CommentForm
+				bind:authorName
+				onSubmit={handleAddComment}
+				onFocus={handleCommentFocus}
+				showAuthor={true}
+			/>
 		{/if}
 	</div>
 </div>
@@ -389,6 +538,14 @@
 		font-size: 0.85rem;
 		color: var(--subtle-text);
 		margin-bottom: 0.5rem;
+	}
+
+	.ftp-notice {
+		padding: 1rem;
+		border-top: var(--border-medium);
+		text-align: center;
+		color: var(--muted-text);
+		font-size: 0.85rem;
 	}
 
 	@media (max-width: 1200px) {

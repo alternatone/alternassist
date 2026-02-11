@@ -64,11 +64,19 @@ router.post('/login',
         req.session.adminId = admin.id;
         req.session.username = admin.username;
 
-        console.log(`[ADMIN LOGIN] ${admin.username} logged in from ${req.ip}`);
+        // Explicitly save so Set-Cookie header is sent with the response
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('Session save error:', saveErr);
+            return res.status(500).json({ error: 'Session error' });
+          }
 
-        res.json({
-          success: true,
-          username: admin.username
+          console.log(`[ADMIN LOGIN] ${admin.username} logged in from ${req.ip}`);
+
+          res.json({
+            success: true,
+            username: admin.username
+          });
         });
       });
     } catch (error) {

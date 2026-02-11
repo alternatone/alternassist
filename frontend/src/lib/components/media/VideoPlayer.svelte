@@ -3,11 +3,13 @@
 		src = $bindable(''),
 		fileName = '',
 		onTimecodeCapture,
+		onMarkerClick,
 		commentMarkers = []
 	}: {
 		src?: string;
 		fileName?: string;
 		onTimecodeCapture?: (timecode: string, seconds: number) => void;
+		onMarkerClick?: (markerId: number) => void;
 		commentMarkers?: Array<{ id: number; timeSeconds: number }>;
 	} = $props();
 
@@ -88,6 +90,43 @@
 		activePlayer.currentTime = Math.max(0, Math.min(duration, seconds));
 	}
 
+	// Pause playback (exposed for external use)
+	export function pause() {
+		if (!activePlayer || activePlayer.paused) return;
+		activePlayer.pause();
+	}
+
+	// Resume playback (exposed for external use)
+	export function play() {
+		if (!activePlayer || !activePlayer.paused) return;
+		activePlayer.play();
+	}
+
+	// Check if currently playing (exposed for external use)
+	export function getIsPlaying(): boolean {
+		return !!(activePlayer && !activePlayer.paused);
+	}
+
+	// Get current time (exposed for external use)
+	export function getCurrentTime(): number {
+		return activePlayer?.currentTime || 0;
+	}
+
+	// Cleanup media elements
+	export function cleanup() {
+		if (videoElement) {
+			videoElement.pause();
+			videoElement.src = '';
+			videoElement.load();
+		}
+		if (audioElement) {
+			audioElement.pause();
+			audioElement.src = '';
+			audioElement.load();
+		}
+		activePlayer = null;
+	}
+
 	// Capture timecode for comment
 	function captureTimecode() {
 		if (onTimecodeCapture && activePlayer) {
@@ -104,7 +143,7 @@
 		}
 
 		// Detect if audio or video based on file extension or mime type
-		const ext = src.split('.').pop()?.toLowerCase() || '';
+		const ext = src.split(/[?.]/).filter(Boolean).pop()?.toLowerCase() || '';
 		const audioExts = ['mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg'];
 		isVideo = !audioExts.includes(ext);
 
@@ -174,6 +213,12 @@
 		document.addEventListener('keydown', handleKeydown);
 		return () => document.removeEventListener('keydown', handleKeydown);
 	});
+
+	function handleMarkerClick(e: MouseEvent, marker: { id: number; timeSeconds: number }) {
+		e.stopPropagation();
+		seekTo(marker.timeSeconds);
+		if (onMarkerClick) onMarkerClick(marker.id);
+	}
 </script>
 
 <div class="video-panel">
@@ -264,6 +309,7 @@
 				</svg>
 			</button>
 			<span class="timecode">{formatTime(currentTime)} / {formatTime(duration)}</span>
+			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 			<div class="progress-container" onclick={(e) => {
 				const rect = e.currentTarget.getBoundingClientRect();
 				const percent = ((e.clientX - rect.left) / rect.width) * 100;
@@ -275,7 +321,13 @@
 				<div class="comment-markers">
 					{#each commentMarkers as marker}
 						{@const percent = duration > 0 ? (marker.timeSeconds / duration) * 100 : 0}
-						<div class="comment-marker" style="left: {percent}%"></div>
+						<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+						<div
+							class="comment-marker"
+							style="left: {percent}%"
+							onclick={(e) => handleMarkerClick(e, marker)}
+							title="Jump to comment"
+						></div>
 					{/each}
 				</div>
 			</div>

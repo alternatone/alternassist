@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ftpAPI } from '$lib/api/ftp';
+	import { goto } from '$app/navigation';
+	import { ftpAPI, type FTPItem } from '$lib/api/ftp';
 
 	// State
 	let currentPath = $state('/');
-	let items = $state<any[]>([]);
+	let items = $state<FTPItem[]>([]);
 	let sortColumn = $state('name');
 	let sortDirection = $state<'asc' | 'desc'>('asc');
 	let searchTerm = $state('');
@@ -21,7 +22,7 @@
 	async function loadDirectory(path: string) {
 		try {
 			const data = await ftpAPI.browse(path);
-			items = data;
+			items = data.items || [];
 			currentPath = path;
 		} catch (error) {
 			console.error('Error loading directory:', error);
@@ -53,14 +54,14 @@
 		}
 	}
 
-	function formatFileSize(bytes: number): string {
+	function formatFileSize(bytes: number | undefined): string {
 		if (!bytes || bytes === 0) return '-';
 		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(1024));
 		return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
 	}
 
-	function formatDate(dateStr: string): string {
+	function formatDate(dateStr: string | undefined): string {
 		if (!dateStr) return '-';
 		const date = new Date(dateStr);
 		const now = new Date();
@@ -74,13 +75,43 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 	}
 
-	function getFileIcon(type: string) {
-		const icons = {
-			directory:
-				'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
-			file: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>'
+	// Determine file category from extension
+	function getFileCategory(name: string, isDir: boolean): string {
+		if (isDir) return 'folder';
+		const ext = name.split('.').pop()?.toLowerCase() || '';
+		const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
+		const audioExts = ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'aif', 'aiff'];
+		const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg'];
+		if (videoExts.includes(ext)) return 'video';
+		if (audioExts.includes(ext)) return 'audio';
+		if (imageExts.includes(ext)) return 'image';
+		return 'document';
+	}
+
+	function getCategoryLabel(cat: string): string {
+		const labels: Record<string, string> = {
+			folder: 'Folder',
+			video: 'Video',
+			audio: 'Audio',
+			image: 'Image',
+			document: 'Document'
 		};
-		return icons[type as keyof typeof icons] || icons.file;
+		return labels[cat] || cat;
+	}
+
+	// Check if file can be opened in review
+	function isReviewable(name: string): boolean {
+		const ext = name.split('.').pop()?.toLowerCase() || '';
+		const mediaExts = [
+			'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v',
+			'mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'
+		];
+		return mediaExts.includes(ext);
+	}
+
+	function openInReview(item: FTPItem) {
+		const filePath = currentPath === '/' ? item.name : `${currentPath}/${item.name}`.replace(/^\//, '');
+		goto(`/media/review?ftp=${encodeURIComponent(filePath)}`);
 	}
 
 	// Filtered and sorted items
@@ -95,10 +126,12 @@
 		}
 
 		// Sort
-		filtered.sort((a, b) => {
+		filtered = [...filtered].sort((a, b) => {
 			// Directories always first
-			if (a.type === 'directory' && b.type !== 'directory') return -1;
-			if (a.type !== 'directory' && b.type === 'directory') return 1;
+			const aIsDir = a.isDirectory ?? false;
+			const bIsDir = b.isDirectory ?? false;
+			if (aIsDir && !bIsDir) return -1;
+			if (!aIsDir && bIsDir) return 1;
 
 			let aVal: any, bVal: any;
 
@@ -116,8 +149,8 @@
 					bVal = b.size || 0;
 					break;
 				case 'type':
-					aVal = a.type;
-					bVal = b.type;
+					aVal = getFileCategory(a.name, aIsDir);
+					bVal = getFileCategory(b.name, bIsDir);
 					break;
 				default:
 					return 0;
@@ -132,6 +165,11 @@
 	});
 
 	const totalSize = $derived(displayItems.reduce((sum, item) => sum + (item.size || 0), 0));
+
+	function getSortIndicator(column: string): string {
+		if (sortColumn !== column) return '';
+		return sortDirection === 'asc' ? ' \u25B2' : ' \u25BC';
+	}
 </script>
 
 <svelte:head>
@@ -192,10 +230,10 @@
 		<table class="file-table">
 			<thead>
 				<tr>
-					<th class="sortable" onclick={() => sortBy('name')}>Name</th>
-					<th class="sortable" onclick={() => sortBy('modified')}>Date Modified</th>
-					<th class="sortable" onclick={() => sortBy('size')}>Size</th>
-					<th class="sortable" onclick={() => sortBy('type')}>Type</th>
+					<th class="sortable" onclick={() => sortBy('name')}>Name{getSortIndicator('name')}</th>
+					<th class="sortable" onclick={() => sortBy('modified')}>Date Modified{getSortIndicator('modified')}</th>
+					<th class="sortable" onclick={() => sortBy('size')}>Size{getSortIndicator('size')}</th>
+					<th class="sortable" onclick={() => sortBy('type')}>Type{getSortIndicator('type')}</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -207,19 +245,38 @@
 					</tr>
 				{:else}
 					{#each displayItems as item}
+						{@const isDir = item.isDirectory ?? false}
+						{@const category = getFileCategory(item.name, isDir)}
+						{@const reviewable = !isDir && isReviewable(item.name)}
+						<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 						<tr
-							class={item.type === 'directory' ? 'folder' : ''}
-							onclick={() => item.type === 'directory' && navigateToFolder(item.name)}
-							style={item.type === 'directory' ? 'cursor: pointer' : ''}
+							class={isDir ? 'folder-row' : reviewable ? 'reviewable-row' : ''}
+							onclick={() => isDir && navigateToFolder(item.name)}
+							ondblclick={() => reviewable && openInReview(item)}
+							style={isDir || reviewable ? 'cursor: pointer' : ''}
+							title={reviewable ? 'Double-click to open in review' : ''}
 						>
 							<td>
-								<div class="file-name">{item.name}</div>
+								<div class="file-name">
+									{#if isDir}
+										<svg class="file-icon folder-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+									{:else if category === 'video'}
+										<svg class="file-icon video-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+									{:else if category === 'audio'}
+										<svg class="file-icon audio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+									{:else if category === 'image'}
+										<svg class="file-icon image-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+									{:else}
+										<svg class="file-icon doc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+									{/if}
+									<span>{item.name}</span>
+								</div>
 							</td>
 							<td class="file-date">{formatDate(item.modified)}</td>
-							<td class="file-size">{item.type === 'directory' ? '-' : formatFileSize(item.size)}</td>
+							<td class="file-size">{isDir ? '-' : formatFileSize(item.size)}</td>
 							<td>
-								<span class="file-type-badge badge-{item.type}">
-									{item.type}
+								<span class="file-type-badge badge-{category}">
+									{getCategoryLabel(category)}
 								</span>
 							</td>
 						</tr>
@@ -410,17 +467,48 @@
 		background: var(--bg-primary);
 	}
 
-	.file-table tbody tr.folder {
+	.file-table tbody tr.folder-row {
 		font-weight: 500;
 	}
 
+	.file-table tbody tr.reviewable-row:hover {
+		background: rgba(70, 159, 224, 0.05);
+	}
+
 	.file-table td {
-		padding: 1rem 1.5rem;
+		padding: 0.75rem 1.5rem;
 		font-size: 0.9rem;
 	}
 
 	.file-name {
 		color: var(--primary-text);
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.file-icon {
+		flex-shrink: 0;
+	}
+
+	.folder-icon {
+		color: #764ba2;
+	}
+
+	.video-icon {
+		color: #f5576c;
+	}
+
+	.audio-icon {
+		color: #00f2fe;
+	}
+
+	.image-icon {
+		color: #38f9d7;
+	}
+
+	.doc-icon {
+		color: var(--subtle-text);
 	}
 
 	.file-type-badge {
@@ -433,12 +521,27 @@
 		letter-spacing: 0.3px;
 	}
 
-	.badge-directory {
+	.badge-folder {
 		background: rgba(118, 75, 162, 0.1);
 		color: #764ba2;
 	}
 
-	.badge-file {
+	.badge-video {
+		background: rgba(245, 87, 108, 0.1);
+		color: #f5576c;
+	}
+
+	.badge-audio {
+		background: rgba(0, 242, 254, 0.1);
+		color: #00b4d8;
+	}
+
+	.badge-image {
+		background: rgba(56, 249, 215, 0.1);
+		color: #2ec4a0;
+	}
+
+	.badge-document {
 		background: rgba(0, 0, 0, 0.05);
 		color: var(--subtle-text);
 	}

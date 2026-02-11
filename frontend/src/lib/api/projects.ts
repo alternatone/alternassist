@@ -27,6 +27,10 @@ export interface Project {
 	// Additional fields from aggregation endpoints
 	file_count?: number;
 	total_size?: number;
+	folder_path?: string;
+	media_folder_path?: string;
+	ftp_folder?: string;
+	client_password?: string;
 }
 
 export const projectsAPI = {
@@ -121,7 +125,24 @@ export const projectsAPI = {
 	/**
 	 * Sync folder structure from FTP
 	 */
-	async syncFolder(id: number): Promise<void> {
-		return post(`/projects/${id}/folder-sync`);
+	async syncFolder(id: number): Promise<{ added: number; updated: number; deleted: number }> {
+		return post(`/projects/${id}/sync-folder`);
+	},
+
+	/**
+	 * Assign a folder to a project
+	 */
+	async assignFolder(
+		id: number,
+		folderPath: string
+	): Promise<{ added: number; updated: number; deleted: number }> {
+		return post(`/projects/${id}/assign-folder`, { folderPath });
+	},
+
+	/**
+	 * Generate a share link for a project
+	 */
+	async generateShareLink(id: number): Promise<{ token: string }> {
+		return post(`/projects/${id}/generate-share-link`);
 	}
 };

@@ -3,13 +3,17 @@
 
 	let {
 		comments,
+		activeCommentId = null,
 		onJumpToTime,
+		onCardClick,
 		onReply,
 		onResolve,
 		onDelete
 	}: {
 		comments: Comment[];
+		activeCommentId?: number | null;
 		onJumpToTime?: (seconds: number) => void;
+		onCardClick?: (commentId: number, timeSeconds: number) => void;
 		onReply?: (commentId: number) => void;
 		onResolve?: (commentId: number, currentStatus: 'open' | 'resolved') => void;
 		onDelete?: (commentId: number) => void;
@@ -66,7 +70,16 @@
 		{#each topLevelComments as comment (comment.id)}
 			{@const replies = getReplies(comment.id)}
 			{@const timeSeconds = comment.timecode ? parseTime(comment.timecode) : 0}
-			<div class="comment-card">
+			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+			<div
+				class="comment-card"
+				class:active={activeCommentId === comment.id}
+				onclick={(e) => {
+					const target = e.target as HTMLElement;
+					if (target.closest('.icon-btn') || target.closest('.comment-timecode')) return;
+					if (onCardClick) onCardClick(comment.id, timeSeconds);
+				}}
+			>
 				<div class="comment-header">
 					{#if comment.timecode}
 						<button
@@ -234,6 +247,11 @@
 	.comment-card:hover {
 		box-shadow: var(--shadow-subtle);
 		transform: translateY(-2px);
+	}
+
+	.comment-card.active {
+		border-color: var(--accent-teal);
+		box-shadow: 0 0 0 2px rgba(70, 159, 224, 0.1);
 	}
 
 	.comment-header {

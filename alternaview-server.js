@@ -72,13 +72,14 @@ function startServer() {
     next();
   });
 
-  // Check if running in Electron (local app) vs production
+  // Check if running in Electron (local app) or localhost dev vs production
   let isLocalApp = false;
   try {
     const { app } = require('electron');
     isLocalApp = !!app;
   } catch (e) {
-    // Not in Electron
+    // Not in Electron — treat localhost/dev as local app for cookie settings
+    isLocalApp = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
   }
 
   // Session middleware with enhanced security

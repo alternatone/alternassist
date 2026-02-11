@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { projectsAPI } from '$lib/api/projects';
+	import { goto } from '$app/navigation';
+	import { projectsAPI, type Project } from '$lib/api/projects';
 	import { filesAPI } from '$lib/api/files';
-	import { ftpAPI } from '$lib/api/ftp';
+	import { isElectron as isElectronFn } from '$lib/api/client';
+	import ToastContainer from '$lib/components/media/ToastContainer.svelte';
+
+	// Mode detection (8.1)
+	let appMode = $state<'admin' | 'client'>('client');
+	let isElectron = $state(false);
 
 	// State
-	let projects = $state<any[]>([]);
+	let projects = $state<Project[]>([]);
 	let currentProject = $state<number | null>(null);
 	let currentFiles = $state<any[]>([]);
 	let searchTerm = $state('');
@@ -17,22 +23,35 @@
 	let uploadProgress = $state(0);
 	let isUploading = $state(false);
 	let uploadFileName = $state('');
+	let uploadCurrent = $state(0);
+	let uploadTotal = $state(0);
+	let isSyncing = $state(false);
 
 	// Modals
 	let showNewProjectModal = $state(false);
 	let showAssignFolderModal = $state(false);
-	let showPlayerModal = $state(false);
-	let playerSrc = $state('');
-	let playerTitle = $state('');
-	let playerType = $state<'video' | 'audio'>('video');
+	let assignFolderError = $state('');
 
 	// New project form
 	let newProjectName = $state('');
 	let newProjectPassword = $state('');
 	let newProjectError = $state('');
 
-	onMount(async () => {
-		await loadProjects();
+	// Toast
+	let toast: ToastContainer;
+
+	onMount(() => {
+		// Detect Electron for admin mode (8.1)
+		isElectron = isElectronFn();
+		if (isElectron) {
+			appMode = 'admin';
+			loadProjects();
+		} else {
+			appMode = 'client';
+			// Client mode: load files directly (no project selector)
+			showProjectList = false;
+			loadAllFiles();
+		}
 	});
 
 	async function loadProjects() {
@@ -40,6 +59,23 @@
 			projects = await projectsAPI.getAll();
 		} catch (error) {
 			console.error('Error loading projects:', error);
+		}
+	}
+
+	async function loadAllFiles() {
+		try {
+			const files = await filesAPI.getAll();
+			currentFiles = files.map((file: any) => ({
+				id: file.id,
+				name: file.original_name || file.filename,
+				modified: file.uploaded_at,
+				size: file.file_size,
+				type: getFileType(file.mime_type),
+				mimeType: file.mime_type
+			}));
+		} catch (error) {
+			console.error('Error loading files:', error);
+			currentFiles = [];
 		}
 	}
 
@@ -70,32 +106,52 @@
 		currentProject = null;
 		showProjectList = true;
 		currentFiles = [];
+		loadProjects();
 	}
 
+	// Upload with file count progress (8.22) and project-scoped endpoint (8.21)
 	async function handleFileUpload(e: Event) {
-		if (!currentProject) return;
-
 		const input = e.target as HTMLInputElement;
 		const files = Array.from(input.files || []);
 		if (files.length === 0) return;
 
+		if (!currentProject && appMode === 'admin') {
+			alert('Please select a project first');
+			return;
+		}
+
 		isUploading = true;
+		uploadTotal = files.length;
+		uploadCurrent = 0;
 
 		for (let i = 0; i < files.length; i++) {
 			const file = files[i];
 			uploadFileName = file.name;
+			uploadCurrent = i + 1;
 
 			try {
 				const formData = new FormData();
 				formData.append('file', file);
-				formData.append('project_id', currentProject.toString());
 
-				await filesAPI.upload(formData);
+				if (currentProject) {
+					// Use project-scoped upload endpoint (8.21)
+					const response = await fetch(`/api/projects/${currentProject}/files/upload`, {
+						method: 'POST',
+						credentials: 'include',
+						body: formData
+					});
+					if (!response.ok) {
+						const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+						throw new Error(error.error || 'Upload failed');
+					}
+				} else {
+					await filesAPI.upload(formData);
+				}
 
 				uploadProgress = ((i + 1) / files.length) * 100;
-			} catch (error) {
+			} catch (error: any) {
 				console.error('Upload error:', error);
-				alert(`Failed to upload ${file.name}`);
+				alert(`Failed to upload ${file.name}: ${error.message || 'Unknown error'}`);
 			}
 		}
 
@@ -104,39 +160,74 @@
 			isUploading = false;
 			uploadProgress = 0;
 			uploadFileName = '';
+			uploadCurrent = 0;
+			uploadTotal = 0;
 			input.value = '';
 			if (currentProject) loadProjectFiles(currentProject);
+			else loadAllFiles();
 		}, 500);
 	}
 
 	async function deleteFile(fileId: number, fileName: string) {
-		if (!confirm(`Delete "${fileName}"?`)) return;
+		if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
 
 		try {
 			await filesAPI.delete(fileId);
 			if (currentProject) await loadProjectFiles(currentProject);
+			else await loadAllFiles();
 		} catch (error) {
 			console.error('Delete error:', error);
 			alert('Failed to delete file');
 		}
 	}
 
+	// Project delete (8.6)
+	async function deleteProject(projectId: number, projectName: string) {
+		if (
+			!confirm(
+				`Are you sure you want to delete "${projectName}"?\n\nThis will delete all files in the project!`
+			)
+		)
+			return;
+
+		try {
+			await projectsAPI.delete(projectId);
+			await loadProjects();
+		} catch (error: any) {
+			alert(`Failed to delete project: ${error.message || 'Unknown error'}`);
+		}
+	}
+
+	// Share link for project (8.7)
+	async function generateShareLinkForProject(projectId: number) {
+		try {
+			const data = await projectsAPI.generateShareLink(projectId);
+			const shareUrl = `${window.location.origin}/share/project/${projectId}?token=${data.token}`;
+
+			try {
+				await navigator.clipboard.writeText(shareUrl);
+				alert(`Share link copied to clipboard!\n\n${shareUrl}`);
+			} catch {
+				alert(`Share link:\n\n${shareUrl}`);
+			}
+		} catch (error: any) {
+			alert(`Failed to generate share link: ${error.message || 'Unknown error'}`);
+		}
+	}
+
+	// Share link in file browser (8.12)
+	async function generateShareLink() {
+		if (!currentProject) return;
+		await generateShareLinkForProject(currentProject);
+	}
+
 	function downloadFile(fileId: number) {
 		window.location.href = `/api/files/${fileId}/download`;
 	}
 
-	function playMedia(fileId: number, fileName: string, mimeType: string) {
-		const isVideo = mimeType.startsWith('video/');
-		playerType = isVideo ? 'video' : 'audio';
-		playerSrc = `/api/files/${fileId}/stream`;
-		playerTitle = fileName;
-		showPlayerModal = true;
-	}
-
-	function closePlayer() {
-		showPlayerModal = false;
-		playerSrc = '';
-		playerTitle = '';
+	// Play navigates to review page (8.20)
+	function playMedia(fileId: number) {
+		goto(`/media/review?file=${fileId}`);
 	}
 
 	function sortBy(column: string) {
@@ -146,6 +237,11 @@
 			sortColumn = column;
 			sortDirection = 'asc';
 		}
+	}
+
+	function getSortIndicator(column: string): string {
+		if (sortColumn !== column) return '';
+		return sortDirection === 'asc' ? ' ▲' : ' ▼';
 	}
 
 	function getFileType(mimeType: string): string {
@@ -177,6 +273,7 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 	}
 
+	// Project creation with success feedback (8.10-8.11)
 	async function handleCreateProject(e: Event) {
 		e.preventDefault();
 		newProjectError = '';
@@ -199,8 +296,9 @@
 			newProjectPassword = '';
 			showNewProjectModal = false;
 
-			// Reload projects
+			// Reload projects and show success (8.11)
 			await loadProjects();
+			alert(`Project "${name}" created successfully!`);
 		} catch (error: any) {
 			console.error('Error creating project:', error);
 			newProjectError = error.message || 'Failed to create project';
@@ -216,42 +314,98 @@
 
 	function closeAssignFolderModal() {
 		showAssignFolderModal = false;
+		assignFolderError = '';
 	}
 
+	// Electron folder browsing (8.16)
 	async function browseFolderForAssignment() {
-		// Electron-only functionality
-		alert('This feature requires the desktop app');
+		if (!isElectron) {
+			alert('Folder browsing is only available in the desktop app');
+			return;
+		}
+
+		try {
+			const result = await (window as any).electronAPI.selectFolderDialog();
+
+			if (result.success && result.folderPath) {
+				await assignFolder(result.folderPath);
+			} else if (result.error) {
+				assignFolderError = result.error;
+			}
+		} catch (error) {
+			console.error('Folder browse error:', error);
+			assignFolderError = 'Failed to browse for folder';
+		}
 	}
 
+	// Electron create folder (8.17)
 	async function createNewFolderForProject() {
-		// Electron-only functionality
-		alert('This feature requires the desktop app');
+		if (!isElectron) {
+			alert('Folder creation is only available in the desktop app');
+			return;
+		}
+
+		const projectName = currentProjectData?.name || '';
+
+		try {
+			const result = await (window as any).electronAPI.createFolder(projectName);
+
+			if (result.success && result.folderPath) {
+				await assignFolder(result.folderPath);
+			} else if (result.error) {
+				assignFolderError = result.error;
+			}
+		} catch (error) {
+			console.error('Folder creation error:', error);
+			assignFolderError = 'Failed to create folder';
+		}
 	}
 
+	// Folder assignment with results (8.18)
+	async function assignFolder(folderPath: string) {
+		if (!currentProject) return;
+
+		try {
+			const data = await projectsAPI.assignFolder(currentProject, folderPath);
+			closeAssignFolderModal();
+			alert(
+				`Folder assigned successfully!\n\nAdded: ${data.added}\nUpdated: ${data.updated}\nDeleted: ${data.deleted}`
+			);
+			await loadProjectFiles(currentProject);
+			// Refresh project data so sync button appears
+			await loadProjects();
+		} catch (error: any) {
+			assignFolderError = error.message || 'Failed to assign folder';
+		}
+	}
+
+	// Sync with loading state and results (8.13-8.14)
 	async function syncProjectFolder() {
 		if (!currentProject) return;
 
 		try {
-			await ftpAPI.syncProject(currentProject);
-			alert('Project folder synced successfully');
+			isSyncing = true;
+			const data = await projectsAPI.syncFolder(currentProject);
+			alert(
+				`Sync complete!\n\nAdded: ${data.added}\nUpdated: ${data.updated}\nDeleted: ${data.deleted}`
+			);
 			await loadProjectFiles(currentProject);
-		} catch (error) {
-			console.error('Error syncing folder:', error);
-			alert('Failed to sync folder');
+		} catch (error: any) {
+			alert(`Sync failed: ${error.message || 'Unknown error'}`);
+		} finally {
+			isSyncing = false;
 		}
 	}
 
-	// Filtered and sorted files
+	// Filtered and sorted files (fix: don't mutate)
 	const displayFiles = $derived.by(() => {
 		let filtered = currentFiles;
 
-		// Search filter
 		if (searchTerm) {
 			filtered = filtered.filter((f) => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
 		}
 
-		// Sort
-		filtered.sort((a, b) => {
+		return [...filtered].sort((a, b) => {
 			let aVal: any, bVal: any;
 
 			switch (sortColumn) {
@@ -279,21 +433,34 @@
 			if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
 			return 0;
 		});
-
-		return filtered;
 	});
 
 	const totalSize = $derived(displayFiles.reduce((sum, f) => sum + (f.size || 0), 0));
 	const currentProjectData = $derived(projects.find((p) => p.id === currentProject));
+
+	// Folder path display (8.9) — strip /Volumes/FTP1/ prefix
+	function formatFolderPath(project: Project): string {
+		const path = project.media_folder_path || project.ftp_folder;
+		if (!path) return '-';
+		return path.replace('/Volumes/FTP1/', '');
+	}
+
+	// Check if project has folder assigned (8.19)
+	function projectHasFolder(project: Project | undefined): boolean {
+		if (!project) return false;
+		return !!(project.media_folder_path || project.ftp_folder);
+	}
 </script>
 
 <svelte:head>
 	<title>Media Transfer - Alternassist</title>
 </svelte:head>
 
+<ToastContainer bind:this={toast} />
+
 <div class="browser-container">
-	{#if showProjectList}
-		<!-- Project List -->
+	{#if showProjectList && appMode === 'admin'}
+		<!-- Project List (admin only, 8.1) -->
 		<div class="browser-header">
 			<h1>Media Projects</h1>
 		</div>
@@ -334,25 +501,65 @@
 					{:else}
 						{#each projects as project}
 							<tr>
-								<td>{project.name}</td>
+								<td>
+									<!-- Project name is clickable link (8.8) -->
+									<div class="file-name">
+										<button
+											class="project-name-link"
+											onclick={() => openProject(project.id)}
+										>
+											{project.name}
+										</button>
+									</div>
+								</td>
 								<td>{project.file_count || 0} files</td>
 								<td class="file-size">{formatFileSize(project.total_size || 0)}</td>
-								<td>{project.ftp_folder || 'Not assigned'}</td>
+								<td>{formatFolderPath(project)}</td>
 								<td>
-									<button class="btn-action" onclick={() => openProject(project.id)} title="Open">
-										<svg
-											width="14"
-											height="14"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="2"
+									<div class="file-actions">
+										<!-- Share link button (8.7) -->
+										<button
+											class="btn-action"
+											onclick={() => generateShareLinkForProject(project.id)}
+											title="Share link"
 										>
-											<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-											<polyline points="15 3 21 3 21 9"></polyline>
-											<line x1="10" y1="14" x2="21" y2="3"></line>
-										</svg>
-									</button>
+											<svg
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+											>
+												<path
+													d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+												></path>
+												<path
+													d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+												></path>
+											</svg>
+										</button>
+										<!-- Delete button (8.6) -->
+										<button
+											class="btn-action btn-delete"
+											onclick={() => deleteProject(project.id, project.name)}
+											title="Delete"
+										>
+											<svg
+												width="14"
+												height="14"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2"
+											>
+												<polyline points="3 6 5 6 21 6"></polyline>
+												<path
+													d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+												></path>
+											</svg>
+										</button>
+									</div>
 								</td>
 							</tr>
 						{/each}
@@ -364,42 +571,30 @@
 		<!-- File Browser -->
 		<div class="browser-header">
 			<div class="header-top">
-				<button class="btn-primary" onclick={backToProjects}>
-					<svg
-						width="16"
-						height="16"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<line x1="19" y1="12" x2="5" y2="12"></line>
-						<polyline points="12 19 5 12 12 5"></polyline>
-					</svg>
-					back to projects
-				</button>
+				{#if appMode === 'admin'}
+					<button class="btn-primary" onclick={backToProjects}>
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<line x1="19" y1="12" x2="5" y2="12"></line>
+							<polyline points="12 19 5 12 12 5"></polyline>
+						</svg>
+						back to projects
+					</button>
+				{/if}
 				<h1>{currentProjectData?.name || 'Media Files'}</h1>
 			</div>
 		</div>
 
-		<div class="admin-controls">
-			<button class="btn-action" onclick={() => (showAssignFolderModal = true)}>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-				>
-					<path
-						d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-					></path>
-				</svg>
-				assign folder
-			</button>
-			{#if currentProjectData?.ftp_folder}
-				<button class="btn-action" onclick={syncProjectFolder}>
+		<!-- Admin Controls (only in admin mode, 8.4) -->
+		{#if appMode === 'admin'}
+			<div class="admin-controls">
+				<button class="btn-action" onclick={() => (showAssignFolderModal = true)}>
 					<svg
 						width="16"
 						height="16"
@@ -408,13 +603,50 @@
 						stroke="currentColor"
 						stroke-width="2"
 					>
-						<polyline points="23 4 23 10 17 10"></polyline>
-						<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+						<path
+							d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+						></path>
 					</svg>
-					sync folder
+					assign folder
 				</button>
-			{/if}
-		</div>
+				<!-- Sync button only when folder is assigned (8.19) -->
+				{#if projectHasFolder(currentProjectData)}
+					<button class="btn-action" onclick={syncProjectFolder} disabled={isSyncing}>
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<polyline points="23 4 23 10 17 10"></polyline>
+							<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+						</svg>
+						{isSyncing ? 'syncing...' : 'sync folder'}
+					</button>
+				{/if}
+				<!-- Share link button in file browser (8.12) -->
+				<button class="btn-action" onclick={generateShareLink}>
+					<svg
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path
+							d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+						></path>
+						<path
+							d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+						></path>
+					</svg>
+					share link
+				</button>
+			</div>
+		{/if}
 
 		<div class="browser-controls">
 			<div class="search-box">
@@ -440,7 +672,10 @@
 					multiple
 					onchange={handleFileUpload}
 				/>
-				<button class="btn-primary" onclick={() => document.getElementById('fileInput')?.click()}>
+				<button
+					class="btn-primary"
+					onclick={() => document.getElementById('fileInput')?.click()}
+				>
 					<svg
 						width="16"
 						height="16"
@@ -458,13 +693,15 @@
 			</div>
 		</div>
 
-		<!-- Upload Progress -->
+		<!-- Upload Progress with file count (8.22) -->
 		{#if isUploading}
 			<div class="upload-progress">
 				<div class="progress-bar">
 					<div class="progress-fill" style="width: {uploadProgress}%"></div>
 				</div>
-				<div class="progress-text">Uploading {uploadFileName}... ({uploadProgress.toFixed(0)}%)</div>
+				<div class="progress-text">
+					Uploading {uploadFileName}... ({uploadCurrent}/{uploadTotal})
+				</div>
 			</div>
 		{/if}
 
@@ -472,10 +709,10 @@
 			<table class="file-table">
 				<thead>
 					<tr>
-						<th class="sortable" onclick={() => sortBy('name')}>Name</th>
-						<th class="sortable" onclick={() => sortBy('modified')}>Date Modified</th>
-						<th class="sortable" onclick={() => sortBy('size')}>Size</th>
-						<th class="sortable" onclick={() => sortBy('type')}>Type</th>
+						<th class="sortable" onclick={() => sortBy('name')}>Name{getSortIndicator('name')}</th>
+						<th class="sortable" onclick={() => sortBy('modified')}>Date Modified{getSortIndicator('modified')}</th>
+						<th class="sortable" onclick={() => sortBy('size')}>Size{getSortIndicator('size')}</th>
+						<th class="sortable" onclick={() => sortBy('type')}>Type{getSortIndicator('type')}</th>
 						<th>Actions</th>
 					</tr>
 				</thead>
@@ -483,7 +720,9 @@
 					{#if displayFiles.length === 0}
 						<tr>
 							<td colspan="5" class="empty-state">
-								{searchTerm ? 'No files match your search.' : 'No files yet. Upload some files to get started.'}
+								{searchTerm
+									? 'No files match your search.'
+									: 'No files yet. Upload some files to get started.'}
 							</td>
 						</tr>
 					{:else}
@@ -502,32 +741,23 @@
 										{#if file.type === 'video' || file.type === 'audio'}
 											<button
 												class="btn-action"
-												onclick={() => playMedia(file.id, file.name, file.mimeType)}
+												onclick={() => playMedia(file.id)}
 												title="Play"
 											>
-												<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+												<svg
+													width="14"
+													height="14"
+													viewBox="0 0 24 24"
+													fill="currentColor"
+												>
 													<path d="M8 5v14l11-7z" />
 												</svg>
 											</button>
 										{/if}
-										<button class="btn-action" onclick={() => downloadFile(file.id)} title="Download">
-											<svg
-												width="14"
-												height="14"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-											>
-												<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-												<polyline points="8 9 12 13 16 9"></polyline>
-												<line x1="12" y1="3" x2="12" y2="13"></line>
-											</svg>
-										</button>
 										<button
 											class="btn-action"
-											onclick={() => deleteFile(file.id, file.name)}
-											title="Delete"
+											onclick={() => downloadFile(file.id)}
+											title="Download"
 										>
 											<svg
 												width="14"
@@ -537,12 +767,35 @@
 												stroke="currentColor"
 												stroke-width="2"
 											>
-												<polyline points="3 6 5 6 21 6"></polyline>
 												<path
-													d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+													d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
 												></path>
+												<polyline points="8 9 12 13 16 9"></polyline>
+												<line x1="12" y1="3" x2="12" y2="13"></line>
 											</svg>
 										</button>
+										<!-- Delete only in admin mode (8.5) -->
+										{#if appMode === 'admin'}
+											<button
+												class="btn-action btn-delete"
+												onclick={() => deleteFile(file.id, file.name)}
+												title="Delete"
+											>
+												<svg
+													width="14"
+													height="14"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+												>
+													<polyline points="3 6 5 6 21 6"></polyline>
+													<path
+														d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+													></path>
+												</svg>
+											</button>
+										{/if}
 									</div>
 								</td>
 							</tr>
@@ -566,7 +819,8 @@
 
 <!-- New Project Modal -->
 {#if showNewProjectModal}
-	<div class="modal" onclick={(e) => e.target.classList.contains('modal') && closeNewProjectModal()}>
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div class="modal" onclick={(e) => { const t = e.target as HTMLElement; if (t.classList.contains('modal')) closeNewProjectModal(); }}>
 		<div class="modal-content">
 			<div class="modal-header">
 				<h2>Create New Project</h2>
@@ -580,7 +834,11 @@
 					</div>
 					<div class="form-group">
 						<label for="newProjectPassword">Password (optional)</label>
-						<input type="password" id="newProjectPassword" bind:value={newProjectPassword} />
+						<input
+							type="password"
+							id="newProjectPassword"
+							bind:value={newProjectPassword}
+						/>
 						<small>Leave blank if no password needed for client access</small>
 					</div>
 					{#if newProjectError}
@@ -595,14 +853,17 @@
 
 <!-- Assign Folder Modal -->
 {#if showAssignFolderModal}
-	<div class="modal" onclick={(e) => e.target.classList.contains('modal') && closeAssignFolderModal()}>
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div class="modal" onclick={(e) => { const t = e.target as HTMLElement; if (t.classList.contains('modal')) closeAssignFolderModal(); }}>
 		<div class="modal-content">
 			<div class="modal-header">
 				<h2>Assign Folder to Project</h2>
 				<button class="modal-close" onclick={closeAssignFolderModal}>&times;</button>
 			</div>
 			<div class="modal-body">
-				<p style="margin-bottom: 1.5rem;">Choose a folder from /Volumes/FTP1 or create a new one:</p>
+				<p style="margin-bottom: 1.5rem;">
+					Choose a folder from /Volumes/FTP1 or create a new one:
+				</p>
 				<div style="display: flex; gap: 1rem; flex-direction: column;">
 					<button class="btn-primary" onclick={browseFolderForAssignment}>
 						<svg
@@ -634,24 +895,8 @@
 						create new folder
 					</button>
 				</div>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Player Modal -->
-{#if showPlayerModal}
-	<div class="modal" onclick={(e) => e.target.classList.contains('modal') && closePlayer()}>
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2>{playerTitle}</h2>
-				<button class="modal-close" onclick={closePlayer}>&times;</button>
-			</div>
-			<div class="modal-body">
-				{#if playerType === 'video'}
-					<video src={playerSrc} controls style="width: 100%; max-height: 70vh;"></video>
-				{:else}
-					<audio src={playerSrc} controls style="width: 100%;"></audio>
+				{#if assignFolderError}
+					<div class="error-message" style="margin-top: 1rem;">{assignFolderError}</div>
 				{/if}
 			</div>
 		</div>
@@ -739,6 +984,7 @@
 		gap: 0.5rem;
 	}
 
+	/* Buttons use --font-primary per design system (8.28) */
 	.btn-primary {
 		padding: 0.75rem 1.5rem;
 		background: var(--accent-teal);
@@ -749,7 +995,7 @@
 		font-weight: 500;
 		cursor: pointer;
 		transition: background-color 0.2s;
-		font-family: var(--font-body);
+		font-family: var(--font-primary);
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -757,6 +1003,11 @@
 
 	.btn-primary:hover {
 		background: #3a8bc7;
+	}
+
+	.btn-primary:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.btn-action {
@@ -769,7 +1020,7 @@
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s;
-		font-family: var(--font-body);
+		font-family: var(--font-primary);
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -777,6 +1028,31 @@
 
 	.btn-action:hover {
 		background: var(--bg-primary);
+		color: var(--accent-teal);
+	}
+
+	.btn-action:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.btn-delete:hover {
+		color: var(--accent-red) !important;
+	}
+
+	.project-name-link {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		color: inherit;
+		font-size: inherit;
+		font-family: inherit;
+		text-decoration: none;
+		transition: color 0.2s;
+	}
+
+	.project-name-link:hover {
 		color: var(--accent-teal);
 	}
 
@@ -927,6 +1203,10 @@
 		color: var(--accent-teal);
 	}
 
+	.file-actions .btn-delete:hover {
+		color: var(--accent-red) !important;
+	}
+
 	.stats-bar {
 		display: flex;
 		gap: 2rem;
@@ -973,7 +1253,7 @@
 		background: white;
 		border-radius: 12px;
 		width: 100%;
-		max-width: 600px;
+		max-width: 500px;
 		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
 	}
 

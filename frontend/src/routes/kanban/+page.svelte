@@ -2,8 +2,6 @@
 	import { projectsAPI, hoursAPI, cuesAPI } from '$lib/api';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { dndzone } from 'svelte-dnd-action';
-
 	// State
 	let projects = $state<any[]>([]);
 	let columns = $state({
@@ -100,32 +98,77 @@
 		};
 	}
 
-	function handleDndConsider(columnKey: string, e: CustomEvent) {
-		columns[columnKey as keyof typeof columns] = e.detail.items;
+	// Native drag-and-drop state
+	let draggedProjectId = $state<number | null>(null);
+	let dragOverColumn = $state<string | null>(null);
+
+	function handleDragStart(e: DragEvent, projectId: number) {
+		draggedProjectId = projectId;
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', String(projectId));
+		}
+		// Add dragging class after a tick so the drag image isn't affected
+		requestAnimationFrame(() => {
+			const el = e.target as HTMLElement;
+			el.classList.add('dragging');
+		});
 	}
 
-	async function handleDndFinalize(columnKey: string, e: CustomEvent) {
-		columns[columnKey as keyof typeof columns] = e.detail.items;
+	function handleDragEnd(e: DragEvent) {
+		(e.target as HTMLElement).classList.remove('dragging');
+		draggedProjectId = null;
+		dragOverColumn = null;
+	}
 
-		// Find which project was moved
-		const movedProject = e.detail.items.find(
-			(item: any) =>
-				!projects.find(
-					(p) => p.id === item.id && statusToColumn(p.status) === columnKey
-				)
-		);
+	function handleDragOver(e: DragEvent, columnKey: string) {
+		e.preventDefault();
+		if (e.dataTransfer) {
+			e.dataTransfer.dropEffect = 'move';
+		}
+		dragOverColumn = columnKey;
+		// Auto-expand archive when dragging over it
+		if (columnKey === 'archive' && !archiveExpanded) {
+			archiveExpanded = true;
+		}
+	}
 
-		if (movedProject) {
-			// Update project status (map column key back to DB status)
-			try {
-				await projectsAPI.update(movedProject.id, { status: columnToStatus(columnKey) });
-				// Reload to get fresh data
-				await loadProjects();
-			} catch (error) {
-				console.error('Error updating project status:', error);
-				// Revert on error
-				organizeIntoColumns();
+	function handleDragLeave(e: DragEvent, columnKey: string) {
+		const column = (e.currentTarget as HTMLElement);
+		if (!column.contains(e.relatedTarget as Node)) {
+			dragOverColumn = null;
+		}
+	}
+
+	async function handleDrop(e: DragEvent, columnKey: string) {
+		e.preventDefault();
+		dragOverColumn = null;
+
+		if (draggedProjectId === null) return;
+
+		const project = projects.find((p) => p.id === draggedProjectId);
+		if (!project) return;
+
+		const isCurrentlyArchived = project.archived === 1;
+		const currentColumn = isCurrentlyArchived ? 'archive' : statusToColumn(project.status);
+		if (currentColumn === columnKey) return;
+
+		try {
+			if (columnKey === 'archive') {
+				// Archive the project
+				await projectsAPI.archive(draggedProjectId);
+			} else if (isCurrentlyArchived) {
+				// Unarchive and move to new column
+				await projectsAPI.unarchive(draggedProjectId);
+				await projectsAPI.update(draggedProjectId, { status: columnToStatus(columnKey) });
+			} else {
+				// Normal column move
+				await projectsAPI.update(draggedProjectId, { status: columnToStatus(columnKey) });
 			}
+			await loadProjects();
+		} catch (error) {
+			console.error('Error updating project status:', error);
+			await loadProjects();
 		}
 	}
 
@@ -472,19 +515,27 @@
 
 	<div class="board">
 		<!-- Prospects Column -->
-		<div class="column" data-column="prospects">
+		<div
+			class="column"
+			class:drag-over={dragOverColumn === 'prospects'}
+			data-column="prospects"
+			ondragover={(e) => handleDragOver(e, 'prospects')}
+			ondragleave={(e) => handleDragLeave(e, 'prospects')}
+			ondrop={(e) => handleDrop(e, 'prospects')}
+		>
 			<div class="column-header">
 				<div class="column-title">Prospects</div>
 				<div class="column-count">{columns.prospects.length} project{columns.prospects.length !== 1 ? 's' : ''}</div>
 			</div>
-			<div
-				class="cards"
-				use:dndzone={{ items: columns.prospects, flipDurationMs: 200 }}
-				onconsider={(e) => handleDndConsider('prospects', e)}
-				onfinalize={(e) => handleDndFinalize('prospects', e)}
-			>
+			<div class="cards">
 				{#each columns.prospects as project (project.id)}
-					<div class="card" onclick={() => openEditProjectModal(project.id)}>
+					<div
+						class="card"
+						draggable="true"
+						ondragstart={(e) => handleDragStart(e, project.id)}
+						ondragend={handleDragEnd}
+						onclick={() => openEditProjectModal(project.id)}
+					>
 						<div class="card-title">
 							<span>{project.name}</span>
 							{#if getCategoryLabel(project)}
@@ -527,19 +578,27 @@
 		</div>
 
 		<!-- In Production Column -->
-		<div class="column" data-column="in-process">
+		<div
+			class="column"
+			class:drag-over={dragOverColumn === 'in-process'}
+			data-column="in-process"
+			ondragover={(e) => handleDragOver(e, 'in-process')}
+			ondragleave={(e) => handleDragLeave(e, 'in-process')}
+			ondrop={(e) => handleDrop(e, 'in-process')}
+		>
 			<div class="column-header">
 				<div class="column-title">In Production</div>
 				<div class="column-count">{columns['in-process'].length} project{columns['in-process'].length !== 1 ? 's' : ''}</div>
 			</div>
-			<div
-				class="cards"
-				use:dndzone={{ items: columns['in-process'], flipDurationMs: 200 }}
-				onconsider={(e) => handleDndConsider('in-process', e)}
-				onfinalize={(e) => handleDndFinalize('in-process', e)}
-			>
+			<div class="cards">
 				{#each columns['in-process'] as project (project.id)}
-					<div class="card" onclick={() => openEditProjectModal(project.id)}>
+					<div
+						class="card"
+						draggable="true"
+						ondragstart={(e) => handleDragStart(e, project.id)}
+						ondragend={handleDragEnd}
+						onclick={() => openEditProjectModal(project.id)}
+					>
 						<div class="card-title">
 							<span>{project.name}</span>
 							{#if getCategoryLabel(project)}
@@ -582,19 +641,27 @@
 		</div>
 
 		<!-- In Review Column -->
-		<div class="column" data-column="in-review">
+		<div
+			class="column"
+			class:drag-over={dragOverColumn === 'in-review'}
+			data-column="in-review"
+			ondragover={(e) => handleDragOver(e, 'in-review')}
+			ondragleave={(e) => handleDragLeave(e, 'in-review')}
+			ondrop={(e) => handleDrop(e, 'in-review')}
+		>
 			<div class="column-header">
 				<div class="column-title">In Review</div>
 				<div class="column-count">{columns['in-review'].length} project{columns['in-review'].length !== 1 ? 's' : ''}</div>
 			</div>
-			<div
-				class="cards"
-				use:dndzone={{ items: columns['in-review'], flipDurationMs: 200 }}
-				onconsider={(e) => handleDndConsider('in-review', e)}
-				onfinalize={(e) => handleDndFinalize('in-review', e)}
-			>
+			<div class="cards">
 				{#each columns['in-review'] as project (project.id)}
-					<div class="card" onclick={() => openEditProjectModal(project.id)}>
+					<div
+						class="card"
+						draggable="true"
+						ondragstart={(e) => handleDragStart(e, project.id)}
+						ondragend={handleDragEnd}
+						onclick={() => openEditProjectModal(project.id)}
+					>
 						<div class="card-title">
 							<span>{project.name}</span>
 							{#if getCategoryLabel(project)}
@@ -637,19 +704,27 @@
 		</div>
 
 		<!-- Approved & Billed Column -->
-		<div class="column" data-column="approved-billed">
+		<div
+			class="column"
+			class:drag-over={dragOverColumn === 'approved-billed'}
+			data-column="approved-billed"
+			ondragover={(e) => handleDragOver(e, 'approved-billed')}
+			ondragleave={(e) => handleDragLeave(e, 'approved-billed')}
+			ondrop={(e) => handleDrop(e, 'approved-billed')}
+		>
 			<div class="column-header">
 				<div class="column-title">Approved & Billed</div>
 				<div class="column-count">{columns['approved-billed'].length} project{columns['approved-billed'].length !== 1 ? 's' : ''}</div>
 			</div>
-			<div
-				class="cards"
-				use:dndzone={{ items: columns['approved-billed'], flipDurationMs: 200 }}
-				onconsider={(e) => handleDndConsider('approved-billed', e)}
-				onfinalize={(e) => handleDndFinalize('approved-billed', e)}
-			>
+			<div class="cards">
 				{#each columns['approved-billed'] as project (project.id)}
-					<div class="card" onclick={() => openEditProjectModal(project.id)}>
+					<div
+						class="card"
+						draggable="true"
+						ondragstart={(e) => handleDragStart(e, project.id)}
+						ondragend={handleDragEnd}
+						onclick={() => openEditProjectModal(project.id)}
+					>
 						<div class="card-title">
 							<span>{project.name}</span>
 							{#if getCategoryLabel(project)}
@@ -695,9 +770,13 @@
 		<div
 			class="column archive"
 			class:expanded={archiveExpanded}
+			class:drag-over={dragOverColumn === 'archive'}
 			data-column="archive"
+			ondragover={(e) => handleDragOver(e, 'archive')}
+			ondragleave={(e) => handleDragLeave(e, 'archive')}
+			ondrop={(e) => handleDrop(e, 'archive')}
 			onclick={(e) => {
-				if (e.target === e.currentTarget || e.target.closest('.column-header')) {
+				if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.column-header')) {
 					archiveExpanded = !archiveExpanded;
 				}
 			}}
@@ -706,17 +785,18 @@
 				<div class="column-title">Archive</div>
 				<div class="column-count">{columns.archive.length} project{columns.archive.length !== 1 ? 's' : ''}</div>
 			</div>
-			<div
-				class="cards"
-				use:dndzone={{ items: columns.archive, flipDurationMs: 200 }}
-				onconsider={(e) => handleDndConsider('archive', e)}
-				onfinalize={(e) => handleDndFinalize('archive', e)}
-			>
+			<div class="cards">
 				{#each columns.archive as project (project.id)}
-					<div class="card" onclick={(e) => {
-						e.stopPropagation();
-						openEditProjectModal(project.id);
-					}}>
+					<div
+						class="card"
+						draggable="true"
+						ondragstart={(e) => handleDragStart(e, project.id)}
+						ondragend={handleDragEnd}
+						onclick={(e) => {
+							e.stopPropagation();
+							openEditProjectModal(project.id);
+						}}
+					>
 						<div class="card-title">
 							<span>{project.name}</span>
 							{#if getCategoryLabel(project)}
@@ -1047,6 +1127,15 @@
 	.card:hover {
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 		transform: translateY(-2px);
+	}
+
+	:global(.card.dragging) {
+		opacity: 0.5;
+	}
+
+	.column.drag-over {
+		background: rgba(70, 159, 224, 0.05);
+		border-color: var(--accent-teal);
 	}
 
 	.card-title {

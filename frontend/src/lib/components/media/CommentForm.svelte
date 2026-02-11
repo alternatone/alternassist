@@ -3,6 +3,7 @@
 		authorName = $bindable(''),
 		onSubmit,
 		onCancel,
+		onFocus,
 		placeholder = 'add a comment...',
 		submitLabel = 'add comment',
 		showAuthor = true,
@@ -11,6 +12,7 @@
 		authorName?: string;
 		onSubmit: (author: string, text: string) => void;
 		onCancel?: () => void;
+		onFocus?: () => void;
 		placeholder?: string;
 		submitLabel?: string;
 		showAuthor?: boolean;
@@ -64,6 +66,7 @@
 		bind:value={commentText}
 		{placeholder}
 		onkeydown={handleKeydown}
+		onfocus={onFocus}
 	></textarea>
 	<div class={replyMode ? 'reply-actions' : 'form-actions'}>
 		{#if onCancel}
