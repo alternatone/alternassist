@@ -417,6 +417,44 @@ router.patch('/:id', requireAdmin, (req, res) => {
   }
 });
 
+// Archive project (admin only)
+router.post('/:id/archive', requireAdmin, (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const project = projectQueries.findById.get(projectId);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    db.prepare('UPDATE projects SET archived = 1, archived_at = CURRENT_TIMESTAMP WHERE id = ?').run(projectId);
+
+    cache.invalidate('projects:all');
+    cache.invalidate('projects:with-scope');
+    cache.invalidate(`projects:kanban-data:${projectId}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unarchive project (admin only)
+router.post('/:id/unarchive', requireAdmin, (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const project = projectQueries.findById.get(projectId);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    db.prepare('UPDATE projects SET archived = 0, archived_at = NULL WHERE id = ?').run(projectId);
+
+    cache.invalidate('projects:all');
+    cache.invalidate('projects:with-scope');
+    cache.invalidate(`projects:kanban-data:${projectId}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete project (admin only)
 router.delete('/:id', requireAdmin, (req, res) => {
   try {

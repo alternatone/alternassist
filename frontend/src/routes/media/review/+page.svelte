@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { onMount, onDestroy } from 'svelte';
-	import { filesAPI, type Comment } from '$lib/api/files';
+	import { type Comment } from '$lib/api/files';
 	import { ftpAPI } from '$lib/api/ftp';
 	import VideoPlayer from '$lib/components/media/VideoPlayer.svelte';
 	import CommentThread from '$lib/components/media/CommentThread.svelte';
@@ -63,19 +63,21 @@
 		currentFileName = fileName;
 		file = { original_name: fileName };
 
-		// FTP files don't have comment support
-		comments = [];
+		// Load locally-stored comments for FTP files
+		comments = loadCommentsFromLocalStorage();
 	}
 
 	async function loadFile() {
 		if (!fileId || !projectId) return;
 
 		try {
-			const files = await filesAPI.getByProject(parseInt(projectId));
+			const response = await fetch(`/api/projects/${projectId}/files`, { credentials: 'include' });
+			if (!response.ok) throw new Error('Failed to load files');
+			const files = await response.json();
 			file = files.find((f: any) => f.id == parseInt(fileId!));
 
 			if (file) {
-				videoSrc = filesAPI.getStreamUrl(parseInt(fileId));
+				videoSrc = `/api/files/${projectId}/${fileId}/stream`;
 				currentDownloadUrl = `/api/files/${fileId}/download`;
 				currentFileName = file.original_name || 'file';
 			}
@@ -88,9 +90,22 @@
 		if (!fileId || !projectId) return;
 
 		try {
-			const data = await filesAPI.getComments(parseInt(fileId));
+			const response = await fetch(`/api/files/${projectId}/${fileId}/comments`, { credentials: 'include' });
+			if (!response.ok) throw new Error('Failed to load comments');
+			const data = await response.json();
+			// Map API response fields to Comment type (backend returns camelCase/short names)
+			const mapped = data.map((c: any) => ({
+				id: c.id,
+				file_id: parseInt(fileId!),
+				author_name: c.author || c.author_name,
+				timecode: c.timecode,
+				comment_text: c.text || c.comment_text,
+				status: c.status || 'open',
+				created_at: c.createdAt || c.created_at,
+				reply_to_id: c.reply_to_id || null
+			}));
 			// Sort by timecode
-			comments = sortCommentsByTime(data);
+			comments = sortCommentsByTime(mapped);
 			// Clear localStorage backup on success
 			clearCommentsLocalStorage();
 		} catch (error) {
@@ -100,9 +115,11 @@
 		}
 	}
 
-	// localStorage fallback for comments
+	// localStorage key for comments (works for both project files and FTP files)
 	function getCommentsStorageKey(): string | null {
-		return fileId ? `video-review-comments-${fileId}` : null;
+		if (fileId) return `video-review-comments-${fileId}`;
+		if (ftpFilePath) return `video-review-comments-ftp-${ftpFilePath}`;
+		return null;
 	}
 
 	function saveCommentsToLocalStorage() {
@@ -171,20 +188,40 @@
 	}
 
 	async function handleAddComment(author: string, text: string) {
-		if (!fileId || !projectId || isSubmittingComment || isFtpMode) return;
+		if (isSubmittingComment) return;
 
 		isSubmittingComment = true;
 		try {
 			// Save author to localStorage
 			localStorage.setItem('video-review-author', author);
 
-			await filesAPI.addComment(parseInt(projectId), parseInt(fileId), {
-				author_name: author,
-				timecode: commentTimecode,
-				comment_text: text
-			});
+			if (isFtpMode) {
+				// FTP files: store comments locally
+				const localComment: Comment = {
+					id: Date.now(),
+					author_name: author,
+					timecode: commentTimecode,
+					comment_text: text,
+					status: 'open' as const,
+					created_at: new Date().toISOString(),
+					reply_to_id: null
+				};
+				comments = sortCommentsByTime([...comments, localComment]);
+				saveCommentsToLocalStorage();
+			} else if (fileId && projectId) {
+				await fetch(`/api/files/${projectId}/${fileId}/comments`, {
+					method: 'POST',
+					credentials: 'include',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						author_name: author,
+						timecode: commentTimecode,
+						comment_text: text
+					})
+				});
+				await loadComments();
+			}
 
-			await loadComments();
 			commentTimecode = null;
 
 			// Resume video if it was playing
@@ -194,7 +231,6 @@
 			}
 		} catch (error) {
 			console.error('Error adding comment:', error);
-			// Save to localStorage as backup
 			saveCommentsToLocalStorage();
 			alert('Failed to add comment');
 		} finally {
@@ -207,19 +243,38 @@
 	}
 
 	async function handleSubmitReply(author: string, text: string) {
-		if (!fileId || !projectId || !replyingToId) return;
+		if (!replyingToId) return;
 
 		try {
 			const parent = comments.find((c) => c.id === replyingToId);
 
-			await filesAPI.addComment(parseInt(projectId), parseInt(fileId), {
-				author_name: author,
-				timecode: parent?.timecode || null,
-				comment_text: text,
-				reply_to_id: replyingToId
-			});
+			if (isFtpMode) {
+				const localReply: Comment = {
+					id: Date.now(),
+					author_name: author,
+					timecode: parent?.timecode || null,
+					comment_text: text,
+					status: 'open' as const,
+					created_at: new Date().toISOString(),
+					reply_to_id: replyingToId
+				};
+				comments = [...comments, localReply];
+				saveCommentsToLocalStorage();
+			} else if (fileId && projectId) {
+				await fetch(`/api/files/${projectId}/${fileId}/comments`, {
+					method: 'POST',
+					credentials: 'include',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						author_name: author,
+						timecode: parent?.timecode || null,
+						comment_text: text,
+						reply_to_id: replyingToId
+					})
+				});
+				await loadComments();
+			}
 
-			await loadComments();
 			replyingToId = null;
 		} catch (error) {
 			console.error('Error adding reply:', error);
@@ -230,43 +285,58 @@
 	async function handleResolve(commentId: number, currentStatus: 'open' | 'resolved') {
 		const newStatus = currentStatus === 'open' ? 'resolved' : 'open';
 
-		// Optimistic update
 		comments = comments.map((c) =>
 			c.id === commentId ? { ...c, status: newStatus } : c
 		);
 
-		try {
-			await filesAPI.updateCommentStatus(commentId, newStatus);
-		} catch (error) {
-			console.error('Error updating comment:', error);
-			// Rollback
-			comments = comments.map((c) =>
-				c.id === commentId ? { ...c, status: currentStatus } : c
-			);
-			alert('Failed to update comment');
+		if (isFtpMode) {
+			saveCommentsToLocalStorage();
+		} else {
+			if (!projectId) return;
+			try {
+				const response = await fetch(`/api/files/${projectId}/comments/${commentId}`, {
+					method: 'PATCH',
+					credentials: 'include',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ status: newStatus })
+				});
+				if (!response.ok) throw new Error('Failed to update comment status');
+			} catch (error) {
+				console.error('Error updating comment:', error);
+				comments = comments.map((c) =>
+					c.id === commentId ? { ...c, status: currentStatus } : c
+				);
+				alert('Failed to update comment');
+			}
 		}
 	}
 
 	async function handleDelete(commentId: number) {
 		if (!confirm('Delete this comment?')) return;
-		if (!projectId) return;
 
-		// Optimistic update
 		const deletedComment = comments.find((c) => c.id === commentId);
 		const deletedIndex = comments.findIndex((c) => c.id === commentId);
 		comments = comments.filter((c) => c.id !== commentId);
 
-		try {
-			await filesAPI.deleteComment(parseInt(projectId), commentId);
-		} catch (error) {
-			console.error('Error deleting comment:', error);
-			// Rollback
-			if (deletedComment && deletedIndex >= 0) {
-				const restored = [...comments];
-				restored.splice(deletedIndex, 0, deletedComment);
-				comments = restored;
+		if (isFtpMode) {
+			saveCommentsToLocalStorage();
+		} else {
+			if (!projectId) return;
+			try {
+				const response = await fetch(`/api/files/${projectId}/comments/${commentId}`, {
+					method: 'DELETE',
+					credentials: 'include'
+				});
+				if (!response.ok) throw new Error('Failed to delete comment');
+			} catch (error) {
+				console.error('Error deleting comment:', error);
+				if (deletedComment && deletedIndex >= 0) {
+					const restored = [...comments];
+					restored.splice(deletedIndex, 0, deletedComment);
+					comments = restored;
+				}
+				alert('Failed to delete comment');
 			}
-			alert('Failed to delete comment');
 		}
 	}
 
@@ -356,52 +426,51 @@
 	<title>Video Review - Alternassist</title>
 </svelte:head>
 
-<div class="app-container">
-	<!-- Video Panel -->
-	<div class="video-wrapper">
-		<div class="back-btn-container">
-			<button class="back-btn" onclick={navigateBack}>
+<div class="page-header">
+	<button class="back-link" onclick={navigateBack}>
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<polyline points="15 18 9 12 15 6"></polyline>
+		</svg>
+		Back to Media
+	</button>
+	<h1>{file?.original_name || 'Video Review'}</h1>
+	<div class="header-actions">
+		{#if comments.length > 0 && !isFtpMode}
+			<button class="action-btn" onclick={exportToNotes} title="Send to NoteMarker">
 				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M19 12H5M12 19l-7-7 7-7" />
+					<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+					<polyline points="14 2 14 8 20 8"></polyline>
+					<line x1="16" y1="13" x2="8" y2="13"></line>
+					<line x1="16" y1="17" x2="8" y2="17"></line>
 				</svg>
-				back to files
+				NoteMarker
 			</button>
-		</div>
+		{/if}
+		<button class="action-btn" onclick={handleDownload} title="Download file">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+				<polyline points="7 10 12 15 17 10"></polyline>
+				<line x1="12" y1="15" x2="12" y2="3"></line>
+			</svg>
+			Download
+		</button>
+	</div>
+</div>
+
+<div class="review-panel">
+	<!-- Video Section -->
+	<div class="video-section">
 		<VideoPlayer
 			bind:this={videoPlayer}
 			src={videoSrc}
-			fileName={file?.original_name || ''}
 			onTimecodeCapture={handleTimecodeCapture}
 			onMarkerClick={handleMarkerClick}
 			{commentMarkers}
 		/>
 	</div>
 
-	<!-- Comments Panel -->
-	<div class="comments-panel">
-		<div class="comments-header-row">
-			<h2 style="margin: 0;">Comments</h2>
-			<div style="display: flex; gap: 0.5rem; align-items: center;">
-				{#if comments.length > 0 && !isFtpMode}
-					<button class="download-icon-btn" onclick={exportToNotes} title="Send to NoteMarker">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-							<polyline points="14 2 14 8 20 8"></polyline>
-							<line x1="16" y1="13" x2="8" y2="13"></line>
-							<line x1="16" y1="17" x2="8" y2="17"></line>
-						</svg>
-					</button>
-				{/if}
-				<button class="download-icon-btn" onclick={handleDownload} title="Download file">
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-						<polyline points="7 10 12 15 17 10"></polyline>
-						<line x1="12" y1="15" x2="12" y2="3"></line>
-					</svg>
-				</button>
-			</div>
-		</div>
-
+	<!-- Comments Section -->
+	<div class="comments-section">
 		<CommentThread
 			{comments}
 			{activeCommentId}
@@ -412,11 +481,7 @@
 			onDelete={handleDelete}
 		/>
 
-		{#if isFtpMode}
-			<div class="ftp-notice">
-				FTP files do not support comments.
-			</div>
-		{:else if replyingToId}
+		{#if replyingToId}
 			{@const parentComment = comments.find((c) => c.id === replyingToId)}
 			<div class="reply-section">
 				<div class="reply-header">
@@ -444,88 +509,94 @@
 </div>
 
 <style>
-	:global(body) {
-		overflow: hidden !important;
-		margin: 0;
-		padding: 0;
-	}
-
-	.app-container {
-		display: grid;
-		grid-template-columns: 1fr 400px;
-		min-height: 100vh;
-		height: 100vh;
-		gap: 0;
-		background: #000;
-	}
-
-	.video-wrapper {
-		position: relative;
-	}
-
-	.back-btn-container {
-		position: absolute;
-		top: 1rem;
-		left: 1.5rem;
-		z-index: 30;
-	}
-
-	.back-btn {
-		background: rgba(255, 255, 255, 0.1);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		color: white;
-		padding: 0.5rem 1rem;
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: var(--font-body);
-		font-size: 0.85rem;
+	.page-header {
 		display: flex;
 		align-items: center;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.page-header h1 {
+		font-family: var(--font-display);
+		font-size: 1.8rem;
+		font-weight: 600;
+		color: var(--primary-text);
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.back-link {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		color: var(--subtle-text);
+		font-family: var(--font-body);
+		font-size: 0.85rem;
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.5rem 0.75rem;
+		border-radius: 6px;
+		transition: all 0.2s;
+		flex-shrink: 0;
+	}
+
+	.back-link:hover {
+		color: var(--accent-teal);
+		background: rgba(70, 159, 224, 0.08);
+	}
+
+	.header-actions {
+		display: flex;
 		gap: 0.5rem;
-		transition: background 0.2s;
+		flex-shrink: 0;
 	}
 
-	.back-btn:hover {
-		background: rgba(255, 255, 255, 0.2);
-	}
-
-	.comments-panel {
+	.action-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.5rem 0.75rem;
 		background: var(--bg-secondary);
+		border: var(--border-light);
+		border-radius: 6px;
+		color: var(--subtle-text);
+		font-family: var(--font-primary);
+		font-size: 0.8rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.action-btn:hover {
+		color: var(--accent-teal);
+		border-color: var(--accent-teal);
+	}
+
+	.review-panel {
+		display: grid;
+		grid-template-columns: 1fr 380px;
+		background: var(--bg-secondary);
+		border: var(--border-light);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-subtle);
+		overflow: hidden;
+		/* Fill remaining viewport minus nav (6rem) + page padding (2rem top + 2rem bottom) + header (~3.5rem) + gap (1.5rem) */
+		height: calc(100vh - 15rem);
+	}
+
+	.video-section {
+		background: #000;
+		overflow: hidden;
+		border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+	}
+
+	.comments-section {
 		display: flex;
 		flex-direction: column;
 		border-left: var(--border-medium);
-		height: 100vh;
-		overflow: hidden;
-	}
-
-	.comments-header-row {
-		padding: 1.5rem;
-		border-bottom: var(--border-medium);
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
-	.comments-header-row h2 {
-		font-family: var(--font-display);
-		font-size: 1.3rem;
-		font-weight: 600;
-		color: var(--primary-text);
-	}
-
-	.download-icon-btn {
-		background: none;
-		border: none;
-		color: var(--subtle-text);
-		cursor: pointer;
-		padding: 0.25rem;
-		display: flex;
-		align-items: center;
-		transition: color 0.2s;
-	}
-
-	.download-icon-btn:hover {
-		color: var(--accent-teal);
+		min-height: 0;
 	}
 
 	.reply-section {
@@ -540,21 +611,19 @@
 		margin-bottom: 0.5rem;
 	}
 
-	.ftp-notice {
-		padding: 1rem;
-		border-top: var(--border-medium);
-		text-align: center;
-		color: var(--muted-text);
-		font-size: 0.85rem;
-	}
-
-	@media (max-width: 1200px) {
-		.app-container {
+	@media (max-width: 1100px) {
+		.review-panel {
 			grid-template-columns: 1fr;
-			grid-template-rows: 1fr 400px;
+			grid-template-rows: minmax(300px, 1fr) minmax(250px, 1fr);
+			height: auto;
+			min-height: calc(100vh - 15rem);
 		}
 
-		.comments-panel {
+		.video-section {
+			border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		}
+
+		.comments-section {
 			border-left: none;
 			border-top: var(--border-medium);
 		}

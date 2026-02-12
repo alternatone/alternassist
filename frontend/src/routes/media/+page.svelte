@@ -302,7 +302,7 @@
 			const controller = new AbortController();
 			projectAbortControllers[projectId] = controller;
 
-			const response = await fetch(`/api/files/project/${projectId}`, {
+			const response = await fetch(`/api/projects/${projectId}/files`, {
 				credentials: 'include',
 				signal: controller.signal
 			});
@@ -1815,10 +1815,6 @@
 <ToastContainer bind:this={toastRef} />
 
 <style>
-	:global(body) {
-		overflow: auto !important;
-	}
-
 	.browser-container {
 		max-width: 1400px;
 		margin: 0 auto;

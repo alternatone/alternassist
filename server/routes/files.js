@@ -626,6 +626,38 @@ router.patch('/comments/:id', authenticateProjectAccess, (req, res) => {
   }
 });
 
+// Update comment status - Electron/unauthenticated version (with project ID)
+router.patch('/:projectId/comments/:id', (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id);
+    const projectId = parseInt(req.params.projectId);
+    const { status } = req.body;
+
+    if (!['open', 'resolved'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be "open" or "resolved"' });
+    }
+
+    const comment = commentQueries.findById.get(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    const file = fileQueries.findById.get(comment.file_id);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    if (file.project_id !== projectId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    commentQueries.updateStatus.run(status, commentId);
+    res.json({ success: true, id: commentId, status });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete comment - Electron/unauthenticated version (with project ID)
 router.delete('/:projectId/comments/:id', (req, res) => {
   try {

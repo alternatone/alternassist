@@ -624,6 +624,7 @@ const projectQueries = {
       p.pinned,
       p.music_coverage,
       p.updated_at,
+      p.archived,
       ps.contact_email,
       ps.music_minutes,
       ps.dialogue_hours,
@@ -632,7 +633,6 @@ const projectQueries = {
       ps.revision_hours
     FROM projects p
     LEFT JOIN project_scope ps ON ps.project_id = p.id
-    WHERE (p.archived IS NULL OR p.archived = 0)
     ORDER BY p.updated_at DESC
   `),
   getKanbanData: db.prepare(`

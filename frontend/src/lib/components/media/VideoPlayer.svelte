@@ -4,12 +4,14 @@
 		fileName = '',
 		onTimecodeCapture,
 		onMarkerClick,
+		onBack,
 		commentMarkers = []
 	}: {
 		src?: string;
 		fileName?: string;
 		onTimecodeCapture?: (timecode: string, seconds: number) => void;
 		onMarkerClick?: (markerId: number) => void;
+		onBack?: () => void;
 		commentMarkers?: Array<{ id: number; timeSeconds: number }>;
 	} = $props();
 
@@ -222,10 +224,20 @@
 </script>
 
 <div class="video-panel">
-	<!-- Header -->
-	<div class="video-header">
-		<span class="video-filename">{fileName}</span>
-	</div>
+	{#if onBack || fileName}
+		<!-- Header -->
+		<div class="video-header">
+			{#if onBack}
+				<button class="back-btn" onclick={onBack}>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M19 12H5M12 19l-7-7 7-7" />
+					</svg>
+					back to files
+				</button>
+			{/if}
+			<span class="video-filename">{fileName}</span>
+		</div>
+	{/if}
 
 	<!-- Video/Audio Container -->
 	<div class="video-container">
@@ -361,44 +373,56 @@
 		flex-direction: column;
 		background: #000;
 		position: relative;
-		height: 100vh;
+		height: 100%;
 	}
 
 	.video-header {
-		padding: 1rem 1.5rem;
-		background: rgba(0, 0, 0, 0.7);
+		padding: 0.75rem 1.5rem;
+		background: rgba(0, 0, 0, 0.85);
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		z-index: 20;
-		opacity: 0;
-		transition: opacity 0.3s ease;
-		pointer-events: none;
+		flex-shrink: 0;
 	}
 
-	.video-panel:hover .video-header {
-		opacity: 1;
-		pointer-events: auto;
+	.back-btn {
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: white;
+		padding: 0.5rem 1rem;
+		border-radius: 6px;
+		cursor: pointer;
+		font-family: var(--font-body);
+		font-size: 0.85rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		transition: background 0.2s;
+		flex-shrink: 0;
+	}
+
+	.back-btn:hover {
+		background: rgba(255, 255, 255, 0.2);
 	}
 
 	.video-filename {
 		color: white;
 		font-size: 0.85rem;
 		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.video-container {
-		height: 100vh;
+		flex: 1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		background: #000;
 		position: relative;
 		overflow: hidden;
+		min-height: 0;
 	}
 
 	.video-placeholder {
@@ -470,24 +494,12 @@
 	}
 
 	.video-controls {
-		background: rgba(0, 0, 0, 0.7);
-		padding: 1rem 1.5rem;
+		background: rgba(0, 0, 0, 0.85);
+		padding: 0.75rem 1.5rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		z-index: 20;
-		opacity: 0;
-		transition: opacity 0.3s ease;
-		pointer-events: none;
-	}
-
-	.video-panel:hover .video-controls {
-		opacity: 1;
-		pointer-events: auto;
+		gap: 0.5rem;
+		flex-shrink: 0;
 	}
 
 	.controls-row {

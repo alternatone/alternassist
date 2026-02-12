@@ -11,7 +11,6 @@
 		'approved-billed': [] as any[],
 		archive: [] as any[]
 	});
-	let archiveExpanded = $state(false);
 	let showProjectModal = $state(false);
 	let currentProjectId = $state<number | null>(null);
 
@@ -71,8 +70,65 @@
 		return mapping[column] || 'prospects';
 	}
 
-	onMount(async () => {
-		await loadProjects();
+	onMount(() => {
+		loadProjects();
+		// Event delegation for drag-and-drop — single set of listeners handles all cards
+		boardElement.addEventListener('dragstart', (e: Event) => {
+			const de = e as DragEvent;
+			const card = (de.target as HTMLElement).closest('.card') as HTMLElement;
+			if (!card) return;
+			draggedElement = card;
+			card.classList.add('dragging');
+			de.dataTransfer!.effectAllowed = 'move';
+			de.dataTransfer!.setData('text/html', card.innerHTML);
+		});
+		boardElement.addEventListener('dragend', (e: Event) => {
+			const card = ((e as DragEvent).target as HTMLElement).closest('.card') as HTMLElement;
+			if (card) card.classList.remove('dragging');
+		});
+		boardElement.addEventListener('dragover', (e: Event) => {
+			e.preventDefault();
+			const de = e as DragEvent;
+			de.dataTransfer!.dropEffect = 'move';
+			const col = (de.target as HTMLElement).closest('.column') as HTMLElement;
+			if (col) col.classList.add('drag-over');
+		});
+		boardElement.addEventListener('dragleave', (e: Event) => {
+			const de = e as DragEvent;
+			const col = (de.target as HTMLElement).closest('.column') as HTMLElement;
+			if (col && !col.contains(de.relatedTarget as Node)) {
+				col.classList.remove('drag-over');
+			}
+		});
+		boardElement.addEventListener('drop', async (e: Event) => {
+			e.stopPropagation();
+			e.preventDefault();
+			const de = e as DragEvent;
+			const col = (de.target as HTMLElement).closest('.column') as HTMLElement;
+			if (!col || !draggedElement) return;
+			col.classList.remove('drag-over');
+			const newColumnKey = col.dataset.column!;
+			const projectId = parseInt(draggedElement.dataset.id!);
+			const project = projects.find((p) => p.id === projectId);
+			if (!project) return;
+			const isCurrentlyArchived = project.archived === 1;
+			const currentColumn = isCurrentlyArchived ? 'archive' : statusToColumn(project.status);
+			if (currentColumn === newColumnKey) return;
+			try {
+				if (newColumnKey === 'archive') {
+					await projectsAPI.archive(projectId);
+				} else if (isCurrentlyArchived) {
+					await projectsAPI.unarchive(projectId);
+					await projectsAPI.update(projectId, { status: columnToStatus(newColumnKey) });
+				} else {
+					await projectsAPI.update(projectId, { status: columnToStatus(newColumnKey) });
+				}
+				await loadProjects();
+			} catch (error) {
+				console.error('Error updating project status:', error);
+				await loadProjects();
+			}
+		});
 	});
 
 	async function loadProjects() {
@@ -98,79 +154,9 @@
 		};
 	}
 
-	// Native drag-and-drop state
-	let draggedProjectId = $state<number | null>(null);
-	let dragOverColumn = $state<string | null>(null);
-
-	function handleDragStart(e: DragEvent, projectId: number) {
-		draggedProjectId = projectId;
-		if (e.dataTransfer) {
-			e.dataTransfer.effectAllowed = 'move';
-			e.dataTransfer.setData('text/plain', String(projectId));
-		}
-		// Add dragging class after a tick so the drag image isn't affected
-		requestAnimationFrame(() => {
-			const el = e.target as HTMLElement;
-			el.classList.add('dragging');
-		});
-	}
-
-	function handleDragEnd(e: DragEvent) {
-		(e.target as HTMLElement).classList.remove('dragging');
-		draggedProjectId = null;
-		dragOverColumn = null;
-	}
-
-	function handleDragOver(e: DragEvent, columnKey: string) {
-		e.preventDefault();
-		if (e.dataTransfer) {
-			e.dataTransfer.dropEffect = 'move';
-		}
-		dragOverColumn = columnKey;
-		// Auto-expand archive when dragging over it
-		if (columnKey === 'archive' && !archiveExpanded) {
-			archiveExpanded = true;
-		}
-	}
-
-	function handleDragLeave(e: DragEvent, columnKey: string) {
-		const column = (e.currentTarget as HTMLElement);
-		if (!column.contains(e.relatedTarget as Node)) {
-			dragOverColumn = null;
-		}
-	}
-
-	async function handleDrop(e: DragEvent, columnKey: string) {
-		e.preventDefault();
-		dragOverColumn = null;
-
-		if (draggedProjectId === null) return;
-
-		const project = projects.find((p) => p.id === draggedProjectId);
-		if (!project) return;
-
-		const isCurrentlyArchived = project.archived === 1;
-		const currentColumn = isCurrentlyArchived ? 'archive' : statusToColumn(project.status);
-		if (currentColumn === columnKey) return;
-
-		try {
-			if (columnKey === 'archive') {
-				// Archive the project
-				await projectsAPI.archive(draggedProjectId);
-			} else if (isCurrentlyArchived) {
-				// Unarchive and move to new column
-				await projectsAPI.unarchive(draggedProjectId);
-				await projectsAPI.update(draggedProjectId, { status: columnToStatus(columnKey) });
-			} else {
-				// Normal column move
-				await projectsAPI.update(draggedProjectId, { status: columnToStatus(columnKey) });
-			}
-			await loadProjects();
-		} catch (error) {
-			console.error('Error updating project status:', error);
-			await loadProjects();
-		}
-	}
+	// Native drag-and-drop via event delegation — exactly like legacy kanban
+	let draggedElement: HTMLElement | null = null;
+	let boardElement: HTMLElement;
 
 	function getCategoryBadge(project: any): string {
 		// with-scope endpoint returns scope fields flat on the project object
@@ -513,16 +499,9 @@
 		<button class="add-project-btn" onclick={openAddProjectModal}>+ add project</button>
 	</div>
 
-	<div class="board">
+	<div class="board" bind:this={boardElement}>
 		<!-- Prospects Column -->
-		<div
-			class="column"
-			class:drag-over={dragOverColumn === 'prospects'}
-			data-column="prospects"
-			ondragover={(e) => handleDragOver(e, 'prospects')}
-			ondragleave={(e) => handleDragLeave(e, 'prospects')}
-			ondrop={(e) => handleDrop(e, 'prospects')}
-		>
+		<div class="column" data-column="prospects">
 			<div class="column-header">
 				<div class="column-title">Prospects</div>
 				<div class="column-count">{columns.prospects.length} project{columns.prospects.length !== 1 ? 's' : ''}</div>
@@ -532,8 +511,7 @@
 					<div
 						class="card"
 						draggable="true"
-						ondragstart={(e) => handleDragStart(e, project.id)}
-						ondragend={handleDragEnd}
+						data-id={project.id}
 						onclick={() => openEditProjectModal(project.id)}
 					>
 						<div class="card-title">
@@ -578,14 +556,7 @@
 		</div>
 
 		<!-- In Production Column -->
-		<div
-			class="column"
-			class:drag-over={dragOverColumn === 'in-process'}
-			data-column="in-process"
-			ondragover={(e) => handleDragOver(e, 'in-process')}
-			ondragleave={(e) => handleDragLeave(e, 'in-process')}
-			ondrop={(e) => handleDrop(e, 'in-process')}
-		>
+		<div class="column" data-column="in-process">
 			<div class="column-header">
 				<div class="column-title">In Production</div>
 				<div class="column-count">{columns['in-process'].length} project{columns['in-process'].length !== 1 ? 's' : ''}</div>
@@ -595,8 +566,7 @@
 					<div
 						class="card"
 						draggable="true"
-						ondragstart={(e) => handleDragStart(e, project.id)}
-						ondragend={handleDragEnd}
+						data-id={project.id}
 						onclick={() => openEditProjectModal(project.id)}
 					>
 						<div class="card-title">
@@ -641,14 +611,7 @@
 		</div>
 
 		<!-- In Review Column -->
-		<div
-			class="column"
-			class:drag-over={dragOverColumn === 'in-review'}
-			data-column="in-review"
-			ondragover={(e) => handleDragOver(e, 'in-review')}
-			ondragleave={(e) => handleDragLeave(e, 'in-review')}
-			ondrop={(e) => handleDrop(e, 'in-review')}
-		>
+		<div class="column" data-column="in-review">
 			<div class="column-header">
 				<div class="column-title">In Review</div>
 				<div class="column-count">{columns['in-review'].length} project{columns['in-review'].length !== 1 ? 's' : ''}</div>
@@ -658,8 +621,7 @@
 					<div
 						class="card"
 						draggable="true"
-						ondragstart={(e) => handleDragStart(e, project.id)}
-						ondragend={handleDragEnd}
+						data-id={project.id}
 						onclick={() => openEditProjectModal(project.id)}
 					>
 						<div class="card-title">
@@ -704,14 +666,7 @@
 		</div>
 
 		<!-- Approved & Billed Column -->
-		<div
-			class="column"
-			class:drag-over={dragOverColumn === 'approved-billed'}
-			data-column="approved-billed"
-			ondragover={(e) => handleDragOver(e, 'approved-billed')}
-			ondragleave={(e) => handleDragLeave(e, 'approved-billed')}
-			ondrop={(e) => handleDrop(e, 'approved-billed')}
-		>
+		<div class="column" data-column="approved-billed">
 			<div class="column-header">
 				<div class="column-title">Approved & Billed</div>
 				<div class="column-count">{columns['approved-billed'].length} project{columns['approved-billed'].length !== 1 ? 's' : ''}</div>
@@ -721,8 +676,7 @@
 					<div
 						class="card"
 						draggable="true"
-						ondragstart={(e) => handleDragStart(e, project.id)}
-						ondragend={handleDragEnd}
+						data-id={project.id}
 						onclick={() => openEditProjectModal(project.id)}
 					>
 						<div class="card-title">
@@ -767,20 +721,7 @@
 		</div>
 
 		<!-- Archive Column -->
-		<div
-			class="column archive"
-			class:expanded={archiveExpanded}
-			class:drag-over={dragOverColumn === 'archive'}
-			data-column="archive"
-			ondragover={(e) => handleDragOver(e, 'archive')}
-			ondragleave={(e) => handleDragLeave(e, 'archive')}
-			ondrop={(e) => handleDrop(e, 'archive')}
-			onclick={(e) => {
-				if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.column-header')) {
-					archiveExpanded = !archiveExpanded;
-				}
-			}}
-		>
+		<div class="column archive" data-column="archive">
 			<div class="column-header">
 				<div class="column-title">Archive</div>
 				<div class="column-count">{columns.archive.length} project{columns.archive.length !== 1 ? 's' : ''}</div>
@@ -790,12 +731,8 @@
 					<div
 						class="card"
 						draggable="true"
-						ondragstart={(e) => handleDragStart(e, project.id)}
-						ondragend={handleDragEnd}
-						onclick={(e) => {
-							e.stopPropagation();
-							openEditProjectModal(project.id);
-						}}
+						data-id={project.id}
+						onclick={() => openEditProjectModal(project.id)}
 					>
 						<div class="card-title">
 							<span>{project.name}</span>
@@ -1036,16 +973,8 @@
 	}
 
 	.column.archive {
-		grid-column: 1 / 2;
-		min-height: auto;
-		max-height: 150px;
-		cursor: pointer;
-		transition: max-height 0.3s ease;
-		overflow: hidden;
-	}
-	.column.archive.expanded {
-		max-height: 500px;
 		grid-column: 1 / -1;
+		min-height: auto;
 	}
 	.column.archive .column-header {
 		margin-bottom: 2.25rem;
@@ -1133,7 +1062,7 @@
 		opacity: 0.5;
 	}
 
-	.column.drag-over {
+	:global(.column.drag-over) {
 		background: rgba(70, 159, 224, 0.05);
 		border-color: var(--accent-teal);
 	}

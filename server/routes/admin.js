@@ -52,31 +52,22 @@ router.post('/login',
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      // Regenerate session to prevent session fixation
-      req.session.regenerate((err) => {
-        if (err) {
-          console.error('Session regeneration error:', err);
+      // Set admin session flags directly (no regenerate — causes issues with SQLite store)
+      req.session.isAdmin = true;
+      req.session.adminId = admin.id;
+      req.session.username = admin.username;
+
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error('Session save error:', saveErr);
           return res.status(500).json({ error: 'Session error' });
         }
 
-        // Set admin session flags
-        req.session.isAdmin = true;
-        req.session.adminId = admin.id;
-        req.session.username = admin.username;
+        console.log(`[ADMIN LOGIN] ${admin.username} logged in from ${req.ip}`);
 
-        // Explicitly save so Set-Cookie header is sent with the response
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            console.error('Session save error:', saveErr);
-            return res.status(500).json({ error: 'Session error' });
-          }
-
-          console.log(`[ADMIN LOGIN] ${admin.username} logged in from ${req.ip}`);
-
-          res.json({
-            success: true,
-            username: admin.username
-          });
+        res.json({
+          success: true,
+          username: admin.username
         });
       });
     } catch (error) {

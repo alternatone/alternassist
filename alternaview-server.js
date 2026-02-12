@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const SqliteStore = require('better-sqlite3-session-store')(session);
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
@@ -72,21 +73,19 @@ function startServer() {
     next();
   });
 
-  // Check if running in Electron (local app) or localhost dev vs production
-  let isLocalApp = false;
-  try {
-    const { app } = require('electron');
-    isLocalApp = !!app;
-  } catch (e) {
-    // Not in Electron — treat localhost/dev as local app for cookie settings
-    isLocalApp = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
-  }
+  // Local app = Electron runtime OR localhost dev (not production deployment)
+  const isLocalApp = !!process.versions.electron || !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
 
-  // Session middleware with enhanced security
+  // Session middleware with SQLite-backed store (persists across restarts)
+  const { db: sessionDb } = require('./server/models/database');
   app.use(session({
+    store: new SqliteStore({
+      client: sessionDb,
+      expired: { clear: true, intervalMs: 900000 } // Clear expired sessions every 15 min
+    }),
     secret: config.sessionSecret,
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
       maxAge: config.sessionMaxAge,
       httpOnly: true,
