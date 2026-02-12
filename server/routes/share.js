@@ -584,6 +584,14 @@ function renderPasswordPrompt(token) {
  * Upload file via share link (Public)
  * POST /share/:token/upload
  */
+/**
+ * Chunked upload - receive individual chunks
+ * POST /share/:token/upload
+ *
+ * Supports two modes:
+ * 1. Small files (< 50MB): single request, no chunk headers needed
+ * 2. Large files: chunked, with headers x-chunk-index, x-total-chunks, x-upload-id, x-filename, x-filesize
+ */
 router.post('/:token/upload', (req, res) => {
   try {
     const { token } = req.params;
@@ -624,76 +632,221 @@ router.post('/:token/upload', (req, res) => {
       return res.status(400).json({ error: 'Upload destination folder not found' });
     }
 
-    // Configure multer for this upload
-    const storage = multer.diskStorage({
-      destination: (req, file, cb) => {
-        cb(null, destPath);
-      },
-      filename: (req, file, cb) => {
-        // Preserve original name, add timestamp suffix if file exists
-        const ext = path.extname(file.originalname);
-        const base = path.basename(file.originalname, ext);
-        const targetPath = path.join(destPath, file.originalname);
+    // Determine if this is a chunked upload based on headers
+    const chunkIndex = parseInt(req.headers['x-chunk-index']);
+    const totalChunks = parseInt(req.headers['x-total-chunks']);
+    const uploadId = req.headers['x-upload-id'];
+    const origFilename = req.headers['x-filename'] ? decodeURIComponent(req.headers['x-filename']) : null;
+    const fileSize = parseInt(req.headers['x-filesize']);
+    const isChunked = !isNaN(chunkIndex) && !isNaN(totalChunks) && uploadId && origFilename;
 
-        if (fs.existsSync(targetPath)) {
-          const timestamp = Date.now();
-          cb(null, `${base}-${timestamp}${ext}`);
+    if (isChunked) {
+      // === CHUNKED UPLOAD MODE ===
+      // Validate filename is a ZIP
+      if (path.extname(origFilename).toLowerCase() !== '.zip') {
+        return res.status(400).json({ error: 'Only ZIP files are allowed' });
+      }
+
+      // Sanitize uploadId to prevent path traversal
+      const safeUploadId = uploadId.replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!safeUploadId) {
+        return res.status(400).json({ error: 'Invalid upload ID' });
+      }
+
+      // Create temp directory for chunks
+      const tempDir = path.join(destPath, '.upload-chunks', safeUploadId);
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Store the chunk using multer
+      const chunkStorage = multer.diskStorage({
+        destination: (req, file, cb) => cb(null, tempDir),
+        filename: (req, file, cb) => cb(null, `chunk-${chunkIndex}`)
+      });
+
+      const chunkUpload = multer({ storage: chunkStorage }).single('chunk');
+
+      chunkUpload(req, res, (err) => {
+        if (err) {
+          console.error('[SHARE] Chunk upload error:', err.message);
+          return res.status(400).json({ error: err.message });
+        }
+
+        if (!req.file) {
+          return res.status(400).json({ error: 'No chunk data received' });
+        }
+
+        console.log(`[SHARE] Chunk ${chunkIndex + 1}/${totalChunks} received for ${origFilename} (${formatBytes(req.file.size)})`);
+
+        // Check if all chunks have arrived
+        const receivedChunks = fs.readdirSync(tempDir).filter(f => f.startsWith('chunk-')).length;
+
+        if (receivedChunks === totalChunks) {
+          // All chunks received — reassemble the file
+          console.log(`[SHARE] All ${totalChunks} chunks received for ${origFilename}, reassembling...`);
+
+          try {
+            // Determine final filename (avoid conflicts)
+            const ext = path.extname(origFilename);
+            const base = path.basename(origFilename, ext);
+            let finalName = origFilename;
+            if (fs.existsSync(path.join(destPath, finalName))) {
+              finalName = `${base}-${Date.now()}${ext}`;
+            }
+            const finalPath = path.join(destPath, finalName);
+
+            // Reassemble chunks in order using streaming (handles multi-GB files)
+            async function reassembleChunks() {
+              const writeStream = fs.createWriteStream(finalPath);
+              for (let i = 0; i < totalChunks; i++) {
+                const chunkPath = path.join(tempDir, `chunk-${i}`);
+                await new Promise((resolve, reject) => {
+                  const readStream = fs.createReadStream(chunkPath);
+                  readStream.pipe(writeStream, { end: false });
+                  readStream.on('end', resolve);
+                  readStream.on('error', reject);
+                });
+              }
+              writeStream.end();
+              return new Promise((resolve, reject) => {
+                writeStream.on('finish', resolve);
+                writeStream.on('error', reject);
+              });
+            }
+
+            reassembleChunks().then(() => {
+              const finalSize = fs.statSync(finalPath).size;
+              console.log(`[SHARE] Reassembled ${finalName} (${formatBytes(finalSize)}) to ${link.ftp_path}`);
+
+              // Clean up temp chunks
+              try {
+                fs.rmSync(tempDir, { recursive: true, force: true });
+                // Remove .upload-chunks dir if empty
+                const chunksParent = path.join(destPath, '.upload-chunks');
+                if (fs.existsSync(chunksParent) && fs.readdirSync(chunksParent).length === 0) {
+                  fs.rmdirSync(chunksParent);
+                }
+              } catch (cleanErr) {
+                console.error('[SHARE] Chunk cleanup error:', cleanErr);
+              }
+
+              // Update access count
+              shareQueries.updateAccessCount.run(token);
+
+              // Log to access_logs
+              try {
+                if (link.project_id) {
+                  db.prepare('INSERT INTO access_logs (project_id, action, ip_address) VALUES (?, ?, ?)')
+                    .run(
+                      link.project_id,
+                      `upload_via_link: ${origFilename} (${formatBytes(finalSize)})`,
+                      req.ip || req.connection?.remoteAddress || 'unknown'
+                    );
+                }
+              } catch (logError) {
+                console.error('[SHARE] Access log error:', logError);
+              }
+
+              res.json({
+                success: true,
+                complete: true,
+                file: {
+                  name: finalName,
+                  originalName: origFilename,
+                  size: finalSize
+                }
+              });
+            }).catch((writeErr) => {
+              console.error('[SHARE] File reassembly error:', writeErr);
+              res.status(500).json({ error: 'Failed to reassemble file' });
+            });
+          } catch (assembleErr) {
+            console.error('[SHARE] Assembly error:', assembleErr);
+            res.status(500).json({ error: 'Failed to reassemble file' });
+          }
         } else {
-          cb(null, file.originalname);
-        }
-      }
-    });
-
-    const upload = multer({
-      storage,
-      fileFilter: (req, file, cb) => {
-        const ext = path.extname(file.originalname).toLowerCase();
-        if (ext !== '.zip') {
-          cb(new Error('Only ZIP files are allowed'));
-          return;
-        }
-        cb(null, true);
-      }
-    }).single('file');
-
-    upload(req, res, (err) => {
-      if (err) {
-        console.error('[SHARE] Upload error:', err.message);
-        return res.status(400).json({ error: err.message });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-
-      // Update access count
-      shareQueries.updateAccessCount.run(token);
-
-      // Log to access_logs
-      try {
-        if (link.project_id) {
-          db.prepare('INSERT INTO access_logs (project_id, action, ip_address) VALUES (?, ?, ?)')
-            .run(
-              link.project_id,
-              `upload_via_link: ${req.file.originalname} (${formatBytes(req.file.size)})`,
-              req.ip || req.connection?.remoteAddress || 'unknown'
-            );
-        }
-      } catch (logError) {
-        console.error('[SHARE] Access log error:', logError);
-      }
-
-      console.log(`[SHARE] File uploaded via link: ${req.file.originalname} (${req.file.size} bytes) to ${link.ftp_path}`);
-
-      res.json({
-        success: true,
-        file: {
-          name: req.file.filename,
-          originalName: req.file.originalname,
-          size: req.file.size
+          // Not all chunks yet — acknowledge this chunk
+          res.json({
+            success: true,
+            complete: false,
+            chunksReceived: receivedChunks,
+            totalChunks: totalChunks
+          });
         }
       });
-    });
+    } else {
+      // === SINGLE FILE MODE (small files) ===
+      const storage = multer.diskStorage({
+        destination: (req, file, cb) => {
+          cb(null, destPath);
+        },
+        filename: (req, file, cb) => {
+          const ext = path.extname(file.originalname);
+          const base = path.basename(file.originalname, ext);
+          const targetPath = path.join(destPath, file.originalname);
+
+          if (fs.existsSync(targetPath)) {
+            const timestamp = Date.now();
+            cb(null, `${base}-${timestamp}${ext}`);
+          } else {
+            cb(null, file.originalname);
+          }
+        }
+      });
+
+      const upload = multer({
+        storage,
+        fileFilter: (req, file, cb) => {
+          const ext = path.extname(file.originalname).toLowerCase();
+          if (ext !== '.zip') {
+            cb(new Error('Only ZIP files are allowed'));
+            return;
+          }
+          cb(null, true);
+        }
+      }).single('file');
+
+      upload(req, res, (err) => {
+        if (err) {
+          console.error('[SHARE] Upload error:', err.message);
+          return res.status(400).json({ error: err.message });
+        }
+
+        if (!req.file) {
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // Update access count
+        shareQueries.updateAccessCount.run(token);
+
+        // Log to access_logs
+        try {
+          if (link.project_id) {
+            db.prepare('INSERT INTO access_logs (project_id, action, ip_address) VALUES (?, ?, ?)')
+              .run(
+                link.project_id,
+                `upload_via_link: ${req.file.originalname} (${formatBytes(req.file.size)})`,
+                req.ip || req.connection?.remoteAddress || 'unknown'
+              );
+          }
+        } catch (logError) {
+          console.error('[SHARE] Access log error:', logError);
+        }
+
+        console.log(`[SHARE] File uploaded via link: ${req.file.originalname} (${req.file.size} bytes) to ${link.ftp_path}`);
+
+        res.json({
+          success: true,
+          complete: true,
+          file: {
+            name: req.file.filename,
+            originalName: req.file.originalname,
+            size: req.file.size
+          }
+        });
+      });
+    }
   } catch (error) {
     console.error('[SHARE] Upload endpoint error:', error);
     res.status(500).json({ error: 'Upload failed' });
@@ -934,27 +1087,49 @@ function renderUploadPage(token, link) {
         .status-complete { color: var(--accent-green); }
         .status-error { color: var(--accent-red); }
 
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
         .btn {
-            width: 100%;
-            padding: 1rem;
-            background: var(--accent-blue);
+            flex: 1;
+            padding: 0.85rem 1rem;
             color: white;
             border: none;
             border-radius: 8px;
             font-family: var(--font-primary);
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
-            margin-top: 1.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
         }
 
-        .btn:hover { background: #006bb3; }
+        .btn-start {
+            background: var(--accent-blue);
+        }
+        .btn-start:hover { background: #006bb3; }
+
+        .btn-pause {
+            background: #f59f00;
+            flex: 0.5;
+        }
+        .btn-pause:hover { background: #e08e00; }
+
+        .btn-cancel {
+            background: var(--accent-red);
+            flex: 0.5;
+        }
+        .btn-cancel:hover { background: #e55555; }
+
         .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        .btn-group .btn.hidden { display: none; }
 
         .overall-progress {
             margin-top: 1.5rem;
@@ -1009,7 +1184,19 @@ function renderUploadPage(token, link) {
             margin-top: 1rem;
             font-size: 0.9rem;
             display: none;
+            position: relative;
         }
+
+        .error-dismiss {
+            float: right;
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+            margin-left: 0.5rem;
+            opacity: 0.6;
+        }
+
+        .error-dismiss:hover { opacity: 1; }
 
         .error-banner.show { display: block; }
     </style>
@@ -1055,14 +1242,30 @@ function renderUploadPage(token, link) {
             <div>All files uploaded successfully!</div>
         </div>
 
-        <button id="uploadBtn" class="btn" disabled>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Upload Files
-        </button>
+        <div class="btn-group">
+            <button id="startBtn" class="btn btn-start" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                Upload
+            </button>
+            <button id="pauseBtn" class="btn btn-pause hidden" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+                Pause
+            </button>
+            <button id="cancelBtn" class="btn btn-cancel hidden" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                Cancel
+            </button>
+        </div>
     </div>
 
     <script>
@@ -1071,7 +1274,9 @@ function renderUploadPage(token, link) {
         const fileInput = document.getElementById('fileInput');
         const browseLink = document.getElementById('browseLink');
         const fileListEl = document.getElementById('fileList');
-        const uploadBtn = document.getElementById('uploadBtn');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
         const errorBanner = document.getElementById('errorBanner');
         const overallProgress = document.getElementById('overallProgress');
         const overallLabel = document.getElementById('overallLabel');
@@ -1079,8 +1284,14 @@ function renderUploadPage(token, link) {
         const overallFill = document.getElementById('overallFill');
         const successMessage = document.getElementById('successMessage');
 
+        const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk (safe for slow connections through Cloudflare's 100s timeout)
+        const MAX_RETRIES = 3;
+
         let filesToUpload = [];
         let isUploading = false;
+        let isPaused = false;
+        let isCancelled = false;
+        let activeXHR = null; // current in-flight XHR for cancel/abort
 
         function formatSize(bytes) {
             if (bytes === 0) return '0 B';
@@ -1091,12 +1302,58 @@ function renderUploadPage(token, link) {
         }
 
         function showError(msg) {
-            errorBanner.textContent = msg;
+            errorBanner.innerHTML = msg + ' <span class="error-dismiss">&times;</span>';
             errorBanner.classList.add('show');
-            setTimeout(() => errorBanner.classList.remove('show'), 5000);
+            errorBanner.querySelector('.error-dismiss').addEventListener('click', () => {
+                errorBanner.classList.remove('show');
+            });
         }
 
-        // Drag and drop
+        // ---- UI State ----
+        function showIdleUI() {
+            startBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+            cancelBtn.classList.add('hidden');
+            startBtn.disabled = filesToUpload.filter(f => f.status === 'pending' || f.status === 'error').length === 0;
+            startBtn.innerHTML = \`
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                Upload\`;
+        }
+
+        function showUploadingUI() {
+            startBtn.classList.add('hidden');
+            pauseBtn.classList.remove('hidden');
+            cancelBtn.classList.remove('hidden');
+            pauseBtn.disabled = false;
+            cancelBtn.disabled = false;
+            isPaused = false;
+            pauseBtn.innerHTML = \`
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+                Pause\`;
+        }
+
+        function showCompleteUI() {
+            startBtn.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+            cancelBtn.classList.add('hidden');
+            startBtn.disabled = false;
+            startBtn.innerHTML = \`
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                Upload More Files\`;
+        }
+
+        // ---- Drag and drop ----
         dropZone.addEventListener('dragenter', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
@@ -1119,26 +1376,25 @@ function renderUploadPage(token, link) {
                     showError('Only ZIP files are allowed: ' + file.name);
                     continue;
                 }
-                // Avoid duplicates
                 if (filesToUpload.some(f => f.file.name === file.name && f.file.size === file.size)) {
                     continue;
                 }
                 filesToUpload.push({
                     file,
-                    status: 'pending', // pending | uploading | complete | error
+                    status: 'pending',
                     progress: 0,
                     error: null
                 });
             }
             renderFileList();
-            uploadBtn.disabled = filesToUpload.length === 0;
+            showIdleUI();
         }
 
         function removeFile(index) {
             if (isUploading) return;
             filesToUpload.splice(index, 1);
             renderFileList();
-            uploadBtn.disabled = filesToUpload.length === 0;
+            showIdleUI();
         }
 
         function renderFileList() {
@@ -1156,12 +1412,20 @@ function renderUploadPage(token, link) {
                         <div class="progress-container">
                             <div class="progress-bar"><div class="progress-fill" style="width: \${item.progress}%"></div></div>
                         </div>\`;
+                } else if (item.status === 'paused') {
+                    statusHTML = '<span class="file-item-status" style="color: #f59f00;">Paused</span>';
+                    progressHTML = \`
+                        <div class="progress-container">
+                            <div class="progress-bar"><div class="progress-fill" style="width: \${item.progress}%; background: #f59f00;"></div></div>
+                        </div>\`;
                 } else if (item.status === 'complete') {
                     statusHTML = '<span class="file-item-status status-complete">Done</span>';
                     progressHTML = '<div class="progress-container"><div class="progress-bar"><div class="progress-fill complete" style="width: 100%"></div></div></div>';
                 } else if (item.status === 'error') {
                     statusHTML = '<span class="file-item-status status-error">Failed</span>';
                     progressHTML = '<div class="progress-container"><div class="progress-bar"><div class="progress-fill error" style="width: 100%"></div></div><div class="progress-text">' + (item.error || 'Upload failed') + '</div></div>';
+                } else if (item.status === 'cancelled') {
+                    statusHTML = '<span class="file-item-status status-error">Cancelled</span>';
                 }
 
                 return \`
@@ -1183,23 +1447,124 @@ function renderUploadPage(token, link) {
             }).join('');
         }
 
-        uploadBtn.addEventListener('click', startUpload);
+        // ---- Button handlers ----
+        startBtn.addEventListener('click', startUpload);
+        pauseBtn.addEventListener('click', togglePause);
+        cancelBtn.addEventListener('click', cancelUpload);
 
+        function togglePause() {
+            if (!isUploading) return;
+
+            isPaused = !isPaused;
+
+            if (isPaused) {
+                pauseBtn.innerHTML = \`
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Resume\`;
+                overallLabel.textContent = 'Paused';
+                // Mark currently uploading file as paused
+                filesToUpload.filter(f => f.status === 'uploading').forEach(f => { f.status = 'paused'; });
+                renderFileList();
+            } else {
+                pauseBtn.innerHTML = \`
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="4" width="4" height="16"></rect>
+                        <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                    Pause\`;
+                overallLabel.textContent = 'Uploading...';
+                // Resume paused files back to uploading
+                filesToUpload.filter(f => f.status === 'paused').forEach(f => { f.status = 'uploading'; });
+                renderFileList();
+            }
+        }
+
+        function cancelUpload() {
+            if (!isUploading) return;
+
+            isCancelled = true;
+            isPaused = false;
+
+            // Abort active XHR
+            if (activeXHR) {
+                activeXHR.abort();
+                activeXHR = null;
+            }
+
+            // Mark in-progress/paused files as cancelled
+            filesToUpload.forEach(f => {
+                if (f.status === 'uploading' || f.status === 'paused' || f.status === 'pending') {
+                    f.status = 'cancelled';
+                    f.progress = 0;
+                }
+            });
+
+            isUploading = false;
+            renderFileList();
+            overallLabel.textContent = 'Upload cancelled';
+            showIdleUI();
+            // Reset cancelled files to pending so they can be retried
+            setTimeout(() => {
+                filesToUpload.forEach(f => {
+                    if (f.status === 'cancelled') { f.status = 'pending'; f.progress = 0; }
+                });
+                renderFileList();
+                showIdleUI();
+            }, 2000);
+        }
+
+        // ---- Wait for unpause helper ----
+        function waitForUnpause() {
+            return new Promise((resolve) => {
+                if (!isPaused) return resolve();
+                const check = setInterval(() => {
+                    if (!isPaused || isCancelled) {
+                        clearInterval(check);
+                        resolve();
+                    }
+                }, 200);
+            });
+        }
+
+        // ---- Upload orchestration ----
         async function startUpload() {
-            if (isUploading || filesToUpload.length === 0) return;
+            const pending = filesToUpload.filter(f => f.status === 'pending' || f.status === 'error');
+            if (pending.length === 0) {
+                // "Upload More Files" mode — reset for new files
+                filesToUpload = [];
+                successMessage.classList.remove('show');
+                overallProgress.classList.remove('show');
+                overallFill.classList.remove('complete');
+                overallFill.style.width = '0%';
+                overallPercent.textContent = '0%';
+                renderFileList();
+                showIdleUI();
+                return;
+            }
 
             isUploading = true;
-            uploadBtn.disabled = true;
-            uploadBtn.textContent = 'Uploading...';
+            isPaused = false;
+            isCancelled = false;
             errorBanner.classList.remove('show');
             successMessage.classList.remove('show');
             overallProgress.classList.add('show');
+            overallFill.classList.remove('complete');
+            overallFill.style.width = '0%';
+            overallLabel.textContent = 'Uploading...';
+            showUploadingUI();
 
-            const pending = filesToUpload.filter(f => f.status === 'pending' || f.status === 'error');
             let completed = 0;
             let failed = 0;
 
             for (const item of pending) {
+                if (isCancelled) break;
+
+                // Wait if paused
+                await waitForUnpause();
+                if (isCancelled) break;
+
                 item.status = 'uploading';
                 item.progress = 0;
                 item.error = null;
@@ -1211,6 +1576,7 @@ function renderUploadPage(token, link) {
                     item.progress = 100;
                     completed++;
                 } catch (err) {
+                    if (isCancelled) break;
                     item.status = 'error';
                     item.error = err.message || 'Upload failed';
                     failed++;
@@ -1219,83 +1585,164 @@ function renderUploadPage(token, link) {
                 updateOverallProgress(completed + failed, pending.length);
             }
 
+            if (isCancelled) return; // cancelUpload() already handled UI
+
             isUploading = false;
 
             if (failed === 0) {
                 overallFill.classList.add('complete');
                 overallLabel.textContent = 'All uploads complete';
                 successMessage.classList.add('show');
-                uploadBtn.innerHTML = \`
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    Upload More Files\`;
-                uploadBtn.disabled = false;
-                // Allow adding more files
-                filesToUpload = [];
-                uploadBtn.addEventListener('click', () => {
-                    successMessage.classList.remove('show');
-                    overallProgress.classList.remove('show');
-                    overallFill.classList.remove('complete');
-                    renderFileList();
-                }, { once: true });
+                showCompleteUI();
             } else {
                 overallLabel.textContent = failed + ' file(s) failed';
-                uploadBtn.textContent = 'Retry Failed';
-                uploadBtn.disabled = false;
+                showIdleUI();
+                startBtn.innerHTML = 'Retry Failed';
+                startBtn.disabled = false;
             }
         }
 
-        function uploadFile(item) {
+        // ---- XHR send with retry ----
+        function sendWithRetry(formData, headers, onProgress, attempt) {
+            attempt = attempt || 0;
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                const formData = new FormData();
-                formData.append('file', item.file);
+                activeXHR = xhr;
 
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable) {
-                        item.progress = Math.round((e.loaded / e.total) * 100);
-                        renderFileList();
-                        // Update overall progress based on current file
-                        const pending = filesToUpload.filter(f => f.status !== 'pending');
-                        const totalProgress = pending.reduce((sum, f) => sum + (f.progress || 0), 0);
-                        const overallPct = Math.round(totalProgress / Math.max(pending.length, 1));
-                        overallPercent.textContent = overallPct + '%';
-                        overallFill.style.width = overallPct + '%';
-                    }
-                });
+                if (onProgress) {
+                    xhr.upload.addEventListener('progress', onProgress);
+                }
 
                 xhr.addEventListener('load', () => {
+                    activeXHR = null;
                     if (xhr.status >= 200 && xhr.status < 300) {
                         try {
                             const data = JSON.parse(xhr.responseText);
-                            if (data.success) {
-                                resolve(data);
-                            } else {
-                                reject(new Error(data.error || 'Upload failed'));
-                            }
-                        } catch {
-                            reject(new Error('Invalid response'));
-                        }
+                            if (data.success) { resolve(data); }
+                            else { reject(new Error(data.error || 'Upload failed')); }
+                        } catch { reject(new Error('Invalid server response')); }
+                    } else if (xhr.status === 401) {
+                        reject(new Error('Session expired — please reload the page and re-enter the password'));
                     } else {
-                        try {
-                            const data = JSON.parse(xhr.responseText);
-                            reject(new Error(data.error || 'Upload failed'));
-                        } catch {
-                            reject(new Error('Upload failed (HTTP ' + xhr.status + ')'));
+                        // Retry on server errors (5xx) and timeouts (524)
+                        const retryable = xhr.status >= 500 || xhr.status === 0;
+                        if (retryable && attempt < MAX_RETRIES) {
+                            const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+                            console.log('Retry attempt ' + (attempt + 1) + ' in ' + delay + 'ms (HTTP ' + xhr.status + ')');
+                            setTimeout(() => {
+                                sendWithRetry(formData, headers, onProgress, attempt + 1).then(resolve).catch(reject);
+                            }, delay);
+                        } else {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                reject(new Error(data.error || 'Upload failed (HTTP ' + xhr.status + ')'));
+                            } catch { reject(new Error('Upload failed (HTTP ' + xhr.status + ')')); }
                         }
                     }
                 });
 
-                xhr.addEventListener('error', () => reject(new Error('Network error')));
-                xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+                xhr.addEventListener('error', () => {
+                    activeXHR = null;
+                    if (isCancelled) { reject(new Error('Upload cancelled')); return; }
+                    if (attempt < MAX_RETRIES) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        console.log('Network error, retry ' + (attempt + 1) + ' in ' + delay + 'ms');
+                        setTimeout(() => {
+                            sendWithRetry(formData, headers, onProgress, attempt + 1).then(resolve).catch(reject);
+                        }, delay);
+                    } else {
+                        reject(new Error('Network error after ' + MAX_RETRIES + ' retries'));
+                    }
+                });
+
+                xhr.addEventListener('abort', () => { activeXHR = null; reject(new Error('Upload cancelled')); });
 
                 xhr.open('POST', '/share/' + TOKEN + '/upload');
+                if (headers) {
+                    Object.keys(headers).forEach(k => xhr.setRequestHeader(k, headers[k]));
+                }
                 xhr.withCredentials = true;
                 xhr.send(formData);
             });
+        }
+
+        // ---- File upload (single or chunked) ----
+        function uploadFile(item) {
+            const file = item.file;
+            const totalSize = file.size;
+
+            // Small files: single request (with retry)
+            if (totalSize <= CHUNK_SIZE) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                return sendWithRetry(formData, null, (e) => {
+                    if (e.lengthComputable) {
+                        item.progress = Math.round((e.loaded / e.total) * 100);
+                        renderFileList();
+                        updateFileProgress();
+                    }
+                });
+            }
+
+            // Large files: chunked upload (with per-chunk retry)
+            return new Promise(async (resolve, reject) => {
+                const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+                const uploadId = Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
+                let uploadedBytes = 0;
+
+                try {
+                    for (let i = 0; i < totalChunks; i++) {
+                        if (isCancelled) { reject(new Error('Upload cancelled')); return; }
+
+                        await waitForUnpause();
+                        if (isCancelled) { reject(new Error('Upload cancelled')); return; }
+
+                        item.status = 'uploading';
+                        renderFileList();
+
+                        const start = i * CHUNK_SIZE;
+                        const end = Math.min(start + CHUNK_SIZE, totalSize);
+                        const chunk = file.slice(start, end);
+
+                        const formData = new FormData();
+                        formData.append('chunk', chunk);
+
+                        await sendWithRetry(formData, {
+                            'X-Chunk-Index': i,
+                            'X-Total-Chunks': totalChunks,
+                            'X-Upload-Id': uploadId,
+                            'X-Filename': encodeURIComponent(file.name),
+                            'X-Filesize': totalSize
+                        }, (e) => {
+                            if (e.lengthComputable) {
+                                const chunkUploaded = uploadedBytes + e.loaded;
+                                item.progress = Math.round((chunkUploaded / totalSize) * 100);
+                                renderFileList();
+                                updateFileProgress();
+                            }
+                        });
+
+                        uploadedBytes = end;
+                        item.progress = Math.round((uploadedBytes / totalSize) * 100);
+                        renderFileList();
+                        updateFileProgress();
+                    }
+
+                    resolve({ success: true, file: { originalName: file.name, size: totalSize } });
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        }
+
+        function updateFileProgress() {
+            const active = filesToUpload.filter(f => f.status !== 'pending' && f.status !== 'cancelled');
+            if (active.length === 0) return;
+            const totalProgress = active.reduce((sum, f) => sum + (f.progress || 0), 0);
+            const overallPct = Math.round(totalProgress / active.length);
+            overallPercent.textContent = overallPct + '%';
+            overallFill.style.width = overallPct + '%';
         }
 
         function updateOverallProgress(done, total) {

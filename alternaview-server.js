@@ -93,7 +93,7 @@ function startServer() {
       maxAge: config.sessionMaxAge,
       httpOnly: true,
       secure: isProduction,  // HTTPS only in production (Cloudflare terminates TLS)
-      sameSite: isProduction ? 'strict' : 'lax',  // Lax for local to allow iframe cookies
+      sameSite: 'lax',  // Lax allows cookies on same-origin XHR + navigations from external links
       path: '/'
     }
   }));
