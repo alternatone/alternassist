@@ -72,7 +72,7 @@ function startServer() {
     next();
   });
 
-  // Check if running in Electron (local app) vs production
+  // Check if running in Electron (local app) or standalone Node (dev/testing)
   let isLocalApp = false;
   try {
     const { app } = require('electron');
@@ -80,8 +80,11 @@ function startServer() {
   } catch (e) {
     // Not in Electron
   }
+  const isProduction = process.env.NODE_ENV === 'production';
 
   // Session middleware with enhanced security
+  // In production (behind Cloudflare), cookies are secure + strict sameSite
+  // In local dev (Electron or standalone Node), allow HTTP cookies
   app.use(session({
     secret: config.sessionSecret,
     resave: false,
@@ -89,8 +92,8 @@ function startServer() {
     cookie: {
       maxAge: config.sessionMaxAge,
       httpOnly: true,
-      secure: !isLocalApp,  // HTTPS only in production, HTTP OK for local Electron app
-      sameSite: isLocalApp ? 'lax' : 'strict',  // Lax for local to allow iframe cookies
+      secure: isProduction,  // HTTPS only in production (Cloudflare terminates TLS)
+      sameSite: isProduction ? 'strict' : 'lax',  // Lax for local to allow iframe cookies
       path: '/'
     }
   }));

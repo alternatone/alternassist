@@ -441,8 +441,8 @@ function createProjectRow(project) {
         html += createFolderRow(project.id, 'FROM AA', fromAAFiles);
         html += fromAAFiles.map(file => createFileRow(project.id, file, 'FROM AA')).join('');
 
-        // TO AA Folder
-        html += createFolderRow(project.id, 'TO AA', toAAFiles);
+        // TO AA Folder (pass project folder_path for upload link)
+        html += createFolderRow(project.id, 'TO AA', toAAFiles, project.folder_path);
         html += toAAFiles.map(file => createFileRow(project.id, file, 'TO AA')).join('');
     }
 
@@ -495,11 +495,27 @@ async function toggleProject(projectId) {
     await loadProjects();
 }
 
-function createFolderRow(projectId, folderName, files) {
+function createFolderRow(projectId, folderName, files, projectFolderPath) {
     const folderKey = `${projectId}-${folderName}`;
     const isExpanded = expandedFolders.has(folderKey);
     const fileCount = files.length;
     const totalSize = files.reduce((sum, f) => sum + (f.file_size || 0), 0);
+
+    // Show upload link button for TO AA folders that have a folder_path
+    let actionsHtml = '';
+    if (folderName === 'TO AA' && projectFolderPath) {
+        const ftpPath = projectFolderPath + '/TO AA';
+        actionsHtml = `
+            <div class="file-actions">
+                <button class="btn-action" onclick="event.stopPropagation(); openUploadLinkModal('${escapeHtml(ftpPath)}', '${escapeHtml(projectFolderPath)}')" title="Generate Upload Link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </button>
+            </div>`;
+    }
 
     return `
         <tr class="folder-row" data-project="${projectId}" data-folder="${folderName}" onclick="toggleFolder(${projectId}, '${folderName}')" ondragover="handleFolderDragOver(event)" ondrop="handleFolderDrop(event, ${projectId}, '${escapeHtml(folderName)}')" ondragleave="handleFolderDragLeave(event)">
@@ -516,7 +532,7 @@ function createFolderRow(projectId, folderName, files) {
             <td>${fileCount}</td>
             <td class="file-size">${formatFileSize(totalSize)}</td>
             <td></td>
-            <td></td>
+            <td onclick="event.stopPropagation()">${actionsHtml}</td>
         </tr>
     `;
 }
@@ -1293,6 +1309,14 @@ function renderFtpContents(parentPath, contents, indentLevel) {
                 <td class="file-date">${formatDate(folder.modified)}</td>
                 <td onclick="event.stopPropagation()">
                     <div class="file-actions">
+                        ${folder.name === 'TO AA' ? `
+                        <button class="btn-action" onclick="openUploadLinkModal('${escapeHtml(folderPath)}', '${escapeHtml(parentPath)}')" title="Generate Upload Link">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                        </button>` : ''}
                         <button class="btn-action" onclick="copyFtpFileLink('${escapeHtml(folderPath)}', '${escapeHtml(folder.name)}')" title="Copy Link">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
@@ -1564,6 +1588,15 @@ async function copyFtpFileLink(filePath, fileName) {
         ftpPath: filePath,
         fileName: fileName,
         shareType: 'ftp'
+    }, '*');
+}
+
+function openUploadLinkModal(ftpPath, projectFolderName) {
+    // Send message to parent to show upload link modal for this TO AA folder
+    window.parent.postMessage({
+        type: 'show-upload-link-modal',
+        ftpPath: ftpPath,
+        folderName: projectFolderName + ' / TO AA'
     }, '*');
 }
 

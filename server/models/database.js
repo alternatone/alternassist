@@ -74,7 +74,8 @@ function initDatabase() {
     { name: 'created_by', type: 'INTEGER', default: '' },
     { name: 'access_count', type: 'INTEGER', default: ' DEFAULT 0' },
     { name: 'last_accessed_at', type: 'INTEGER', default: ' DEFAULT NULL' },
-    { name: 'ftp_path', type: 'TEXT', default: ' DEFAULT NULL' }
+    { name: 'ftp_path', type: 'TEXT', default: ' DEFAULT NULL' },
+    { name: 'type', type: 'TEXT', default: " DEFAULT 'download'" }
   ];
 
   shareLinkFields.forEach(field => {

@@ -642,6 +642,9 @@
                 } else if (event.data.shareType === 'ftp') {
                     openShareLinkModalForFtpFile(event.data.ftpPath, event.data.fileName);
                 }
+            } else if (event.data.type === 'show-upload-link-modal') {
+                // Handle upload link modal from iframe
+                openUploadLinkModal(event.data.ftpPath, event.data.folderName);
             }
         });
 
@@ -1211,13 +1214,17 @@
 
         // Share Link Modal State
         let currentShareLinkItem = null; // Can be {type: 'project', id, name} or {type: 'file', id, name}
+        let currentShareLinkMode = 'download'; // 'download' or 'upload'
 
         // Open share link modal for project
         function copyClientPortalLinkForProject(projectId, projectName) {
             currentShareLinkItem = { type: 'project', id: projectId, name: projectName };
+            currentShareLinkMode = 'download';
 
             const modal = document.getElementById('shareLinkModal');
             const projectNameEl = document.getElementById('shareLinkProjectName');
+            const modalTitle = modal.querySelector('.modal-header h2');
+            modalTitle.textContent = 'Generate Share Link';
             const passwordField = document.getElementById('passwordField');
             const requirePasswordCheckbox = document.getElementById('requirePassword');
 
@@ -1235,9 +1242,12 @@
         // Open share link modal for file
         function openShareLinkModalForFile(fileId, fileName) {
             currentShareLinkItem = { type: 'file', id: fileId, name: fileName };
+            currentShareLinkMode = 'download';
 
             const modal = document.getElementById('shareLinkModal');
             const projectNameEl = document.getElementById('shareLinkProjectName');
+            const modalTitle = modal.querySelector('.modal-header h2');
+            modalTitle.textContent = 'Generate Share Link';
             const passwordField = document.getElementById('passwordField');
             const requirePasswordCheckbox = document.getElementById('requirePassword');
 
@@ -1255,13 +1265,39 @@
         // Open share link modal for FTP file
         function openShareLinkModalForFtpFile(ftpPath, fileName) {
             currentShareLinkItem = { type: 'ftp', path: ftpPath, name: fileName };
+            currentShareLinkMode = 'download';
 
             const modal = document.getElementById('shareLinkModal');
             const projectNameEl = document.getElementById('shareLinkProjectName');
             const passwordField = document.getElementById('passwordField');
             const requirePasswordCheckbox = document.getElementById('requirePassword');
+            const modalTitle = modal.querySelector('.modal-header h2');
 
+            modalTitle.textContent = 'Generate Share Link';
             projectNameEl.textContent = `Generate a secure share link for file "${fileName}"`;
+
+            // Reset form
+            document.querySelector('input[name="expiry"][value="7d"]').checked = true;
+            requirePasswordCheckbox.checked = false;
+            passwordField.style.display = 'none';
+            document.getElementById('shareLinkPassword').value = '';
+
+            modal.classList.add('show');
+        }
+
+        // Open upload link modal for TO AA folder
+        function openUploadLinkModal(ftpPath, folderName) {
+            currentShareLinkItem = { type: 'ftp', path: ftpPath, name: folderName };
+            currentShareLinkMode = 'upload';
+
+            const modal = document.getElementById('shareLinkModal');
+            const projectNameEl = document.getElementById('shareLinkProjectName');
+            const passwordField = document.getElementById('passwordField');
+            const requirePasswordCheckbox = document.getElementById('requirePassword');
+            const modalTitle = modal.querySelector('.modal-header h2');
+
+            modalTitle.textContent = 'Generate Upload Link';
+            projectNameEl.textContent = `Generate a secure upload link for "${folderName}"`;
 
             // Reset form
             document.querySelector('input[name="expiry"][value="7d"]').checked = true;
@@ -1292,6 +1328,7 @@
             const modal = document.getElementById('shareLinkModal');
             modal.classList.remove('show');
             currentShareLinkItem = null;
+            currentShareLinkMode = 'download';
         }
 
         // Close success modal
@@ -1329,6 +1366,11 @@
                     password: password
                 };
 
+                // Set link type (upload vs download)
+                if (currentShareLinkMode === 'upload') {
+                    requestBody.type = 'upload';
+                }
+
                 if (currentShareLinkItem.type === 'project') {
                     requestBody.project_id = currentShareLinkItem.id;
                 } else if (currentShareLinkItem.type === 'file') {
@@ -1358,17 +1400,25 @@
                 // Copy to clipboard
                 await navigator.clipboard.writeText(data.url);
 
+                // Save mode before closing (close resets it)
+                const wasUploadLink = currentShareLinkMode === 'upload';
+
                 // Close generation modal
                 closeShareLinkModal();
 
                 // Show success modal
                 const successModal = document.getElementById('shareLinkSuccessModal');
+                const successTitle = successModal.querySelector('.modal-header h2');
                 const urlEl = document.getElementById('shareLinkUrl');
                 const detailsEl = document.getElementById('shareLinkDetails');
 
+                successTitle.textContent = wasUploadLink ? 'Upload Link Generated' : 'Share Link Generated';
                 urlEl.textContent = data.url;
 
                 let detailsHTML = '<div style="font-size: 0.9rem;">';
+                if (wasUploadLink) {
+                    detailsHTML += `<div style="margin-bottom: 0.5rem;"><strong>Type:</strong> Upload link (ZIP files only)</div>`;
+                }
                 if (password) {
                     detailsHTML += `<div style="margin-bottom: 0.5rem;"><strong>Password:</strong> <code style="background: white; padding: 0.25rem 0.5rem; border-radius: 4px;">${password}</code></div>`;
                 }
